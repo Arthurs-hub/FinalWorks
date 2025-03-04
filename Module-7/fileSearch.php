@@ -33,3 +33,13 @@ if (empty($searchResult)) {
         echo $file . "\n";
     }
 }
+$nonZeroSizeFiles = array_filter($searchResult, function ($file) {
+    return filesize($file) > 0;
+});
+
+    if (!empty($nonZeroSizeFiles)) {
+        echo "Файлы с ненулевым размером:\n";
+        foreach ($nonZeroSizeFiles as $file) {
+            echo $file . "\n";
+        }
+    }
