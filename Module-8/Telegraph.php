@@ -15,7 +15,6 @@ class TelegraphText {
         $this->published = date('Y-m-d H:i:s');
         $this->slug = str_replace(' ', '-', $title);
     }
-    
     public function storeText(): string {
         $data = [
             'title' => $this->title,
@@ -27,4 +26,18 @@ class TelegraphText {
         file_put_contents('test_text_file' . self::FILE_EXTENSION, $serializedData);
         return $this->slug;
     }
-}
+    public static function loadText(string $slug): ?TelegraphText {
+        $filename = 'test_text_file' . self::FILE_EXTENSION;
+        if (!file_exists($filename)) {
+            return null;
+        }
+        $serializedData = file_get_contents($filename);
+        if ($serializedData === false) {
+            return null;
+        }
+        $data = unserialize($serializedData);
+        $instance = new self($data['title'], $data['author'], $data['text']);
+        $instance->published = $data['published'];
+        return $instance;
+    }
+}    
