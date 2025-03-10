@@ -70,7 +70,3 @@ $loadedText = TelegraphText::loadText($slug);
 if ($loadedText !== null) {
     echo $loadedText->title . PHP_EOL;
 }
-
-
-
-
