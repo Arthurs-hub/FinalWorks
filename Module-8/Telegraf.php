@@ -62,8 +62,15 @@ $slug = $telegraphText->storeText();
 $loadedText = TelegraphText::loadText($slug);
 if ($loadedText !== null) {
     echo $loadedText->title . PHP_EOL;
-
+    $loadedText->editText('Окончательный подзаголовок', 'Окончательный текст.');
+    $slug = $loadedText->storeText();
 }
-    
-    
-    
+
+$loadedText = TelegraphText::loadText($slug);
+if ($loadedText !== null) {
+    echo $loadedText->title . PHP_EOL;
+}
+
+
+
+
