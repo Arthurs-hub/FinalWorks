@@ -46,6 +46,24 @@ class TelegraphText
         $instance->published = $data['published'];
         return $instance;
     }
-}    
+
+    public function editText(string $title, string $text): void
+    {
+        $this->title = str_replace(' ', '-', $title);
+        $this->text = $text;
+    }
+}
+
+$telegraphText = new TelegraphText('Пример подзаголовка', 'Артур Зеленко', 'Пример текста.');
+
+$telegraphText->editText('Обновленный подзаголовок', 'Обновленный текст.');
+$slug = $telegraphText->storeText();
+
+$loadedText = TelegraphText::loadText($slug);
+if ($loadedText !== null) {
+    echo $loadedText->title . PHP_EOL;
+
+}
+    
     
     
