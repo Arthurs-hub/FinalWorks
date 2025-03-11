@@ -8,3 +8,18 @@ abstract class Storage
     abstract public function delete($slug);
     abstract public function list();
 }
+abstract class User
+{
+    protected int $id;
+    protected string $name;
+    protected string $role;
+
+    public function __construct(int $id, string $name, string $role)
+    {
+        $this->id = $id;
+        $this->name = $name;
+        $this->role = $role;
+    }
+
+    abstract public function getTextsToEdit();
+}
