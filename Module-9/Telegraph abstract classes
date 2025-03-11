@@ -23,3 +23,16 @@ abstract class User
 
     abstract public function getTextsToEdit();
 }
+
+class TelegraphText
+{
+    public string $slug;
+    public string $content;
+
+    public function __construct(string $slug, string $content)
+    {
+        $this->slug = $slug;
+        $this->content = $content;
+    }
+}
+
