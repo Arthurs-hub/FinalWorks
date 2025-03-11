@@ -36,3 +36,78 @@ class TelegraphText
     }
 }
 
+class FileStorage extends Storage
+{
+    private $directory;
+
+    public function __construct($directory)
+    {
+        $this->directory = $directory;
+        if (!file_exists($directory)) {
+            mkdir($directory, 0777, true);
+        }
+    }
+
+    public function create($object)
+    {
+        $date = date('Y-m-d');
+        $slug = $object->slug . "_" . $date;
+        $counter = 0;
+
+        while (file_exists($this->directory . "/" . $slug . ($counter > 0 ? "_$counter" : "") . ".txt")) {
+            $counter++;
+        }
+
+        $slug = $slug . ($counter > 0 ? "_$counter" : "");
+        $object->slug = $slug;
+
+        $filepath = $this->directory . "/" . $slug . ".txt";
+        file_put_contents($filepath, serialize($object));
+
+        return $slug;
+    }
+
+    public function read($slug)
+    {
+        $filepath = $this->directory . "/" . $slug . ".txt";
+        if (file_exists($filepath)) {
+            return unserialize(file_get_contents($filepath));
+        }
+
+        throw new Exception("File not found");
+    }
+
+    public function update($slug, $updatedObject)
+    {
+        $filepath = $this->directory . "/" . $slug . ".txt";
+        if (file_exists($filepath)) {
+            file_put_contents($filepath, serialize($updatedObject));
+        } else {
+            throw new Exception("File not found");
+        }
+    }
+
+    public function delete($slug)
+    {
+        $filepath = $this->directory . "/" . $slug . ".txt";
+        if (file_exists($filepath)) {
+            unlink($filepath);
+        } else {
+            throw new Exception("File not found");
+        }
+    }
+
+    public function list()
+    {
+        $files = scandir($this->directory);
+        $objects = [];
+
+        foreach ($files as $file) {
+            if ($file !== '.' && $file !== '..') {
+                $objects[] = unserialize(file_get_contents($this->directory . "/" . $file));
+            }
+        }
+
+        return $objects;
+    }
+}
