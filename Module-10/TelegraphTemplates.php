@@ -16,3 +16,7 @@ class TelegraphText {
         $this->text = $text;
     }
 }
+
+interface IRender {
+    public function render(TelegraphText $telegraphText): string;
+}
