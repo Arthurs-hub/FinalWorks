@@ -40,3 +40,33 @@ abstract class View implements IRender
         $this->variables = $variables;
     }
 }
+
+class Swig extends View
+{
+    public function render(TelegraphText $telegraphText): string
+    {
+        $templatePath = sprintf('templates/%s.swig.txt', $this->templateName);
+        $templateContent = file_get_contents($templatePath);
+
+        foreach ($this->variables as $key) {
+            $templateContent = str_replace('{{' . $key . '}}', $telegraphText->$key, $templateContent);
+        }
+
+        return $templateContent;
+    }
+}
+
+class Spl extends View
+{
+    public function render(TelegraphText $telegraphText): string
+    {
+        $templatePath = sprintf('templates/%s.spl.txt', $this->templateName);
+        $templateContent = file_get_contents($templatePath);
+
+        foreach ($this->variables as $key) {
+            $templateContent = str_replace('$$' . $key . '$$', $telegraphText->$key, $templateContent);
+        }
+
+        return $templateContent;
+    }
+}
