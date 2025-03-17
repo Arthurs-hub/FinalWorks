@@ -2,9 +2,9 @@
 
 class TelegraphText
 {
-    public string $title;
-    public string $text;
-    public string $slug;
+    private string $title;
+    private string $text;
+    private string $slug;
 
     public function __construct(string $title, string $text)
     {
@@ -17,6 +17,36 @@ class TelegraphText
     {
         $this->title = $title;
         $this->text = $text;
+    }
+
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
+    public function getText(): string
+    {
+        return $this->text;
+    }
+
+    public function getSlug(): string
+    {
+        return $this->slug;
+    }
+
+    public function setTitle(string $title): void
+    {
+        $this->title = $title;
+    }
+
+    public function setText(string $text): void
+    {
+        $this->text = $text;
+    }
+
+    public function setSlug(string $slug): void
+    {
+        $this->slug = $slug;
     }
 }
 
@@ -39,6 +69,15 @@ abstract class View implements IRender
     {
         $this->variables = $variables;
     }
+
+    protected function getVariableValue(TelegraphText $telegraphText, string $variable): string
+    {
+        $getter = 'get' . ucfirst($variable);
+        if (method_exists($telegraphText, $getter)) {
+            return $telegraphText->$getter();
+        }
+        return '';
+    }
 }
 
 class Swig extends View
@@ -49,7 +88,7 @@ class Swig extends View
         $templateContent = file_get_contents($templatePath);
 
         foreach ($this->variables as $key) {
-            $templateContent = str_replace('{{' . $key . '}}', $telegraphText->$key, $templateContent);
+            $templateContent = str_replace('{{' . $key . '}}', $this->getVariableValue($telegraphText, $key), $templateContent);
         }
 
         return $templateContent;
@@ -64,14 +103,14 @@ class Spl extends View
         $templateContent = file_get_contents($templatePath);
 
         foreach ($this->variables as $key) {
-            $templateContent = str_replace('$$' . $key . '$$', $telegraphText->$key, $templateContent);
+            $templateContent = str_replace('$$' . $key . '$$', $this->getVariableValue($telegraphText, $key), $templateContent);
         }
 
         return $templateContent;
     }
 }
 
-$telegraphText = new TelegraphText('Vasya', 'Some-slug');
+$telegraphText = new TelegraphText('Vasya', 'Some slug');
 $telegraphText->editText('Some title', 'Some text');
 
 $swig = new Swig('telegraph_text');
