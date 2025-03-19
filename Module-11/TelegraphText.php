@@ -63,3 +63,10 @@ class TelegraphText
         return $this->text;
     }
 }
+
+abstract class User
+{
+    protected $name;
+    protected $email;
+    protected $password;
+}
