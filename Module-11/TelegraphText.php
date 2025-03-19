@@ -36,4 +36,20 @@ class TelegraphText
                 throw new Exception("Invalid property: " . $name);
         }
     }
+
+    public function __get($name)
+    {
+        switch ($name) {
+            case 'author':
+                return $this->author;
+            case 'slug':
+                return $this->slug;
+            case 'published':
+                return $this->published;
+            case 'text':
+                return $this->loadText();
+            default:
+                throw new Exception("Invalid property: " . $name);
+        }
+    }
 }
