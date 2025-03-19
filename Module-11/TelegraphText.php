@@ -52,4 +52,14 @@ class TelegraphText
                 throw new Exception("Invalid property: " . $name);
         }
     }
+
+    private function storeText($value)
+    {
+        $this->text = $value;
+    }
+
+    private function loadText()
+    {
+        return $this->text;
+    }
 }
