@@ -1,6 +1,11 @@
 <?php
 namespace Telegraph\Entities;
-
+use Telegraph\Entities\TelegraphText;
+use Telegraph\Interfaces\IRender;
+use Telegraph\Entities\Storage;
+use Telegraph\Entities\FileStorage;
+use Telegraph\Core\Templates\Spl;
+use Telegraph\Core\Templates\Swig;
 
 abstract class View
 {
