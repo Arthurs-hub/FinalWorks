@@ -3,7 +3,6 @@ namespace Telegraph\Core\Templates;
 
 use Telegraph\Entities\TelegraphText;
 use Telegraph\Entities\View;
-use Telegraph\Interfaces\IRender;
 
 class Swig extends View 
 {
