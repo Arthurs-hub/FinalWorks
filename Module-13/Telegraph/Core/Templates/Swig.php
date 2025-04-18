@@ -1,4 +1,5 @@
 <?php
+
 namespace Telegraph\Core\Templates;
 
 use Telegraph\Entities\TelegraphText;
