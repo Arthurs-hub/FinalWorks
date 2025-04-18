@@ -1,11 +1,11 @@
 <?php
 namespace Telegraph\Core\Templates;
+
 use Telegraph\Entities\TelegraphText;
 use Telegraph\Entities\View;
 use Telegraph\Interfaces\IRender;
-use Telegraph\Entities\Storage;
-use Telegraph\Entities\FileStorage;
-class Swig extends View implements IRender
+
+class Swig extends View 
 {
     public function render(TelegraphText $telegraphText): string
     {
