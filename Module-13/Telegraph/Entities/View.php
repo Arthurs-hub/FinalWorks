@@ -3,8 +3,9 @@
 namespace Telegraph\Entities;
 
 use Telegraph\Entities\TelegraphText;
+use Telegraph\Interfaces\IRender;
 
-abstract class View
+abstract class View implements IRender
 {
     protected string $templateName;
     protected array $variables = [];
