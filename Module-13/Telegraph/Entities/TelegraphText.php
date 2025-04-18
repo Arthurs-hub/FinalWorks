@@ -1,11 +1,6 @@
 <?php
 
 namespace Telegraph\Entities;
-use Telegraph\Interfaces\IRender;
-use Telegraph\Entities\FileStorage;
-use Telegraph\Entities\Storage;
-use Telegraph\Entities\User;
-use Telegraph\Entities\View;    
 
 class TelegraphText
 {
@@ -68,10 +63,10 @@ class TelegraphText
 
     public function setAuthor(string $author): void
     {
-        
+
     }
     public function setPublished(string $published): void
     {
-        
+
     }
 }

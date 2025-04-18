@@ -5,9 +5,6 @@ require_once __DIR__ . '/autoload.php';
 use Telegraph\Entities\TelegraphText;
 use Telegraph\Core\Templates\Spl;
 use Telegraph\Core\Templates\Swig;
-use Telegraph\Interfaces\IRender;
-use Telegraph\Entities\User;
-use Telegraph\Entities\View;
 
 
 $telegraphText = new TelegraphText('Заголовок статьи', 'Текст статьи');

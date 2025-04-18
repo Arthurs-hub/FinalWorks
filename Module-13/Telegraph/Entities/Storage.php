@@ -1,6 +1,7 @@
 <?php
 
 namespace Telegraph\Entities;
+
 abstract class Storage
 {
     abstract public function create($object);

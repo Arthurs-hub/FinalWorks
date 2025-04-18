@@ -1,11 +1,8 @@
 <?php
+
 namespace Telegraph\Entities;
+
 use Telegraph\Entities\TelegraphText;
-use Telegraph\Interfaces\IRender;
-use Telegraph\Entities\Storage;
-use Telegraph\Entities\FileStorage;
-use Telegraph\Core\Templates\Spl;
-use Telegraph\Core\Templates\Swig;
 
 abstract class View
 {
@@ -29,11 +26,11 @@ abstract class View
         }
         return '';
     }
-public function displayTemplateContent(): void 
+    public function displayTemplateContent(): void
     {
         $templatePath = __DIR__ . '/../Core/Templates/' . $this->templateName;
         $content = file_exists($templatePath) ? file_get_contents($templatePath) : 'Template not found';
         echo "Template content for {$this->templateName}:\n{$content}\n";
     }
 
-}    
+}
