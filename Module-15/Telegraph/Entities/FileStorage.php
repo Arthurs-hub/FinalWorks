@@ -5,6 +5,7 @@ namespace Telegraph\Entities;
 class FileStorage extends Storage
 {
     private $directory;
+
     public function __construct($directory)
     {
         $this->directory = $directory;
@@ -12,6 +13,7 @@ class FileStorage extends Storage
             mkdir($directory, 0777, true);
         }
     }
+
     public function create($object)
     {
         $slug = $object->getSlug();
@@ -22,6 +24,7 @@ class FileStorage extends Storage
         }
         return $slug;
     }
+
     public function read($slug)
     {
         $filePath = $this->directory . DIRECTORY_SEPARATOR . $slug . '.txt';
@@ -34,6 +37,7 @@ class FileStorage extends Storage
         }
         return unserialize($data);
     }
+
     public function update($slug, $updatedObject)
     {
         $filePath = $this->directory . DIRECTORY_SEPARATOR . $slug . '.txt';
@@ -46,6 +50,7 @@ class FileStorage extends Storage
         }
         return true;
     }
+
     public function delete($slug)
     {
         $filePath = $this->directory . DIRECTORY_SEPARATOR . $slug . '.txt';
@@ -57,6 +62,7 @@ class FileStorage extends Storage
         }
         return true;
     }
+
     public function list()
     {
         $files = glob($this->directory . DIRECTORY_SEPARATOR . '*.txt');
@@ -65,5 +71,19 @@ class FileStorage extends Storage
             $slugs[] = basename($file, '.txt');
         }
         return $slugs;
+    }
+
+    public function save($object)
+    {
+        $slug = $object->getSlug();
+        $filePath = $this->directory . DIRECTORY_SEPARATOR . $slug . '.txt';
+
+        if (file_exists($filePath)) {
+
+            return $this->update($slug, $object);
+        } else {
+
+            return $this->create($object);
+        }
     }
 }

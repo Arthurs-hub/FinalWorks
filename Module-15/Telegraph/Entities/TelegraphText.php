@@ -10,13 +10,24 @@ class TelegraphText
 
     public function __construct(string $title, string $text)
     {
+        if (trim($text) === '') {
+            throw new \Exception('Текст не может быть пустым. Пожалуйста, введите текст.');
+        }
+
+        if (strlen($text) < 1 || strlen($text) > 500) {
+            throw new \Exception('Длина текста должна быть от 1 до 500 символов.');
+        }
+
         $this->title = $title;
         $this->text = $text;
-        $this->slug = 'Some slug';
+        $this->slug = preg_replace('/[^a-z0-9]+/i', '-', $title) . '-' . time();
     }
 
     public function editText(string $title, string $text): void
     {
+        if (strlen($text) < 1 || strlen($text) > 500) {
+            throw new \Exception('Длина текста должна быть от 1 до 500 символов.');
+        }
         $this->title = $title;
         $this->text = $text;
     }
@@ -69,4 +80,5 @@ class TelegraphText
     {
 
     }
+
 }
