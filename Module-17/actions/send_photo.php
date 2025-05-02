@@ -1,3 +1,53 @@
+<?php
+
+session_start();
+
+$error = '';
+if (!isset($_SESSION['upload_count'])) {
+    $_SESSION['upload_count'] = 0;
+}
+
+if ($_SESSION['upload_count'] >= 1) {
+    $error = 'Вы можете загрузить только один файл за сессию.';
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['photo'])) {
+    try {
+        if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception('Ошибка загрузки файла.');
+        }
+
+        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+            throw new Exception('Ошибка: Размер файла не должен превышать 2 МБ.');
+        }
+
+        $allowedExtensions = ['jpg', 'jpeg', 'png'];
+        $fileExtension = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            throw new Exception('Ошибка: Разрешены только файлы JPG и PNG.');
+        }
+
+        $uploadDir = './images/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $destination = $uploadDir . basename($_FILES['photo']['name']);
+        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $destination)) {
+            throw new Exception('Ошибка при сохранении файла.');
+        }
+
+        $_SESSION['upload_count']++;
+
+        header('Location: ' . $destination);
+        exit;
+    } catch (Exception $e) {
+        $error = '' . $e->getMessage();
+    }
+}
+?>
+
+
 <!DOCTYPE html>
 <html lang="ru">
 
@@ -82,52 +132,3 @@
 </body>
 
 </html>
-
-<?php
-
-session_start();
-
-$error = '';
-if (!isset($_SESSION['upload_count'])) {
-    $_SESSION['upload_count'] = 0;
-}
-
-if ($_SESSION['upload_count'] >= 1) {
-    $error = 'Вы можете загрузить только один файл за сессию.';
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['photo'])) {
-    try {
-        if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
-            throw new Exception('Ошибка загрузки файла.');
-        }
-
-        if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
-            throw new Exception('Ошибка: Размер файла не должен превышать 2 МБ.');
-        }
-
-        $allowedExtensions = ['jpg', 'jpeg', 'png'];
-        $fileExtension = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-        if (!in_array($fileExtension, $allowedExtensions)) {
-            throw new Exception('Ошибка: Разрешены только файлы JPG и PNG.');
-        }
-
-        $uploadDir = './images/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
-        }
-
-        $destination = $uploadDir . basename($_FILES['photo']['name']);
-        if (!move_uploaded_file($_FILES['photo']['tmp_name'], $destination)) {
-            throw new Exception('Ошибка при сохранении файла.');
-        }
-
-        $_SESSION['upload_count']++;
-
-        header('Location: ' . $destination);
-        exit;
-    } catch (Exception $e) {
-        $error = '' . $e->getMessage();
-    }
-}
-?>
