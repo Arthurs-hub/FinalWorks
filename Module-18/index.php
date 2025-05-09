@@ -1,8 +1,3 @@
-<?php
-
-'filepath: c:\xampp\htdocs\welcome\index.php'
-?>
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -19,13 +14,14 @@
         <input type="text" id="url" name="url" required>
         <button type="submit">Обработать</button>
     </form>
+   
 
     <?php
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $url = $_POST['url'];
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'http://localhost:8080/HTMLProcessor.php');
+        curl_setopt($ch, CURLOPT_URL, 'http://localhost:8080/php-developer-base-1/Module-18/HTMLProcessor.php');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, 1);
         $data = ['url' => $url];
