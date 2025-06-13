@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Вход в Cloud Storage</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+        }
+
+        .login-container {
+            max-width: 450px;
+            margin: 80px auto;
+            padding: 32px 28px 28px 28px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+            transition: max-width 0.3s;
+        }
+
+        .login-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .login-logo {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+        }
+
+        .d-none {
+            display: none !important;
+        }
+
+        .login-container.wide {
+            max-width: 700px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <img alt="Cloud Logo" class="login-logo" src="CloudIcon.png">
+            <h3 class="mb-0">Вход в Cloud Storage</h3>
+        </div>
+
+        <form id="loginForm">
+            <div class="mb-3">
+                <label class="form-label" for="email">Email:</label>
+                <input autofocus class="form-control" id="email" name="email" required type="email">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">Пароль:</label>
+                <input class="form-control" id="password" name="password" required type="password">
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Войти</button>
+            <div class="text-center mt-3">
+                <a href="#" id="showRegister">Регистрация</a>
+                <a href="#" id="showForgot">Забыли пароль?</a>
+            </div>
+        </form>
+
+        <form class="d-none" id="registerForm">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Имя:</label>
+                        <input class="form-control" id="reg_firstname" required type="text">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Отчество:</label>
+                        <input class="form-control" id="reg_middlename" type="text">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Фамилия:</label>
+                        <input class="form-control" id="reg_lastname" required type="text">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Пол:</label>
+                        <select class="form-select" id="reg_gender" required>
+                            <option value="">Выберите...</option>
+                            <option value="male">Мужской</option>
+                            <option value="female">Женский</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Возраст:</label>
+                        <input class="form-control" id="reg_age" max="120" min="1" required type="number">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email:</label>
+                        <input class="form-control" id="reg_email" required type="email">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Пароль:</label>
+                        <input class="form-control" id="reg_password" required type="password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Повторите пароль:</label>
+                        <input class="form-control" id="reg_password2" required type="password">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mx-auto">
+                    <button class="btn btn-success w-100" type="submit">Зарегистрироваться</button>
+                </div>
+            </div>
+            <div class="text-center mt-3">
+                <a href="#" id="showLogin1">Уже есть аккаунт? Войти</a>
+            </div>
+        </form>
+
+        <form class="d-none" id="resetForm">
+            <div class="mb-3">
+                <label class="form-label">Email для сброса пароля:</label>
+                <input class="form-control" id="reset_email" required type="email">
+            </div>
+            <button class="btn btn-warning w-100" type="submit">Сбросить пароль</button>
+            <div class="text-center mt-3">
+                <a href="#" id="showLogin2">Войти</a>
+            </div>
+        </form>
+        <div class="alert mt-3 d-none" id="formMsg"></div>
+    </div>
+    <script>
+        const container = document.querySelector('.login-container');
+
+        function toggleForms(show, hide1, hide2) {
+            if (document.getElementById(show) && document.getElementById(hide1) && document.getElementById(hide2)) {
+                document.getElementById(show).classList.remove('d-none');
+                document.getElementById(hide1).classList.add('d-none');
+                document.getElementById(hide2).classList.add('d-none');
+            }
+            if (container) container.classList.toggle('wide', show === 'registerForm');
+        }
+
+        document.getElementById('showRegister').onclick = (e) => {
+            e.preventDefault();
+            toggleForms('registerForm', 'loginForm', 'resetForm');
+        };
+        document.getElementById('showLogin1').onclick = document.getElementById('showLogin2').onclick = (e) => {
+            e.preventDefault();
+            toggleForms('loginForm', 'registerForm', 'resetForm');
+        };
+        document.getElementById('showForgot').onclick = (e) => {
+            e.preventDefault();
+            toggleForms('resetForm', 'loginForm', 'registerForm');
+        };
+
+        async function handleFormSubmit(formId, url, body) {
+
+            const msg = document.getElementById('formMsg');
+            msg.classList.add('d-none');
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                if (!res.ok) {
+                    console.error('Ошибка сервера:', res.status, res.statusText);
+                    throw new Error('Ошибка сервера');
+                }
+
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    msg.textContent = "Ошибка: Сервер вернул некорректный формат данных.";
+                    msg.className = "alert alert-danger mt-3";
+                    msg.classList.remove("d-none");
+                    return;
+                }
+
+                const data = await res.json();
+
+                if (data.success) {
+
+                    if (formId === 'resetForm' && data.temp_password) {
+                        msg.innerHTML = `
+                            <div class="mb-3">
+                                <strong>✅ Пароль успешно сброшен!</strong>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ваш временный пароль:</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control text-center fw-bold" 
+                                           value="${data.temp_password}" 
+                                           id="tempPasswordField" readonly
+                                           style="font-size: 1.2em; letter-spacing: 2px; background: #f8f9fa;">
+                                    <button class="btn btn-outline-primary" type="button" 
+                                            onclick="copyTempPassword()">📋 Копировать</button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <button class="btn btn-success w-100" onclick="goToLogin()">
+                                    Перейти к входу
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                💡 Используйте этот пароль для входа в систему.<br>
+                                Рекомендуем сменить пароль после входа.
+                            </small>
+                        `;
+                        msg.className = "alert alert-success mt-3";
+                        msg.classList.remove("d-none");
+                        return;
+                    } else {
+                        msg.textContent = formId === 'registerForm' ? "Регистрация успешна!" : "Вход выполнен!";
+                        msg.className = "alert alert-success mt-3";
+                        msg.classList.remove("d-none");
+
+                        setTimeout(() => {
+                            if (formId === 'registerForm') {
+                                document.getElementById('showLogin1').click();
+                            } else {
+                                window.location.href = data.role === 'admin' ? '/CloudStorageApp/public/Admin.html' : '/CloudStorageApp/public/upload.html';
+                            }
+                        }, 3000);
+                    }
+                } else {
+                    msg.textContent = data.error || "Ошибка!";
+                    msg.className = "alert alert-danger mt-3";
+                    msg.classList.remove("d-none");
+                }
+            } catch (error) {
+                console.error("Ошибка запроса:", error);
+                msg.textContent = "Произошла ошибка!";
+                msg.className = "alert alert-danger mt-3";
+                msg.classList.remove("d-none");
+            }
+
+            if (formId !== 'resetForm') {
+                setTimeout(() => msg.classList.add("d-none"), 5000);
+            }
+        }
+
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            await handleFormSubmit('loginForm', '/CloudStorageApp/public/login', {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            });
+        };
+
+        document.getElementById('registerForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('reg_password').value;
+            const password2 = document.getElementById('reg_password2').value;
+            const msg = document.getElementById('formMsg');
+
+            if (password !== password2) {
+                msg.textContent = "Пароли не совпадают";
+                msg.className = "alert alert-danger mt-3";
+                msg.classList.remove("d-none");
+                return setTimeout(() => msg.classList.add("d-none"), 3000);
+            }
+
+            const requestData = {
+                first_name: document.getElementById('reg_firstname').value,
+                middle_name: document.getElementById('reg_middlename').value,
+                last_name: document.getElementById('reg_lastname').value,
+                gender: document.getElementById('reg_gender').value,
+                age: document.getElementById('reg_age').value,
+                email: document.getElementById('reg_email').value,
+                password
+            };
+
+
+            await handleFormSubmit('registerForm', '/CloudStorageApp/public/register', {
+                first_name: document.getElementById('reg_firstname').value,
+                middle_name: document.getElementById('reg_middlename').value,
+                last_name: document.getElementById('reg_lastname').value,
+                gender: document.getElementById('reg_gender').value,
+                age: document.getElementById('reg_age').value,
+                email: document.getElementById('reg_email').value,
+                password
+            });
+        };
+
+        document.getElementById('resetForm').onsubmit = async (e) => {
+            e.preventDefault();
+            await handleFormSubmit('resetForm', '/CloudStorageApp/public/password-reset-public', {
+                email: document.getElementById('reset_email').value
+            });
+        };
+
+
+        function copyTempPassword() {
+            const field = document.getElementById('tempPasswordField');
+            if (!field) return;
+
+            field.select();
+            field.setSelectionRange(0, 99999);
+
+            try {
+                document.execCommand('copy');
+
+                const btn = event.target;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✅ Скопировано!';
+                btn.classList.add('btn-success');
+                btn.classList.remove('btn-outline-primary');
+
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                }, 2000);
+            } catch (err) {
+                alert('Не удалось скопировать. Выделите текст вручную.');
+            }
+        }
+
+        function goToLogin() {
+            document.getElementById('showLogin1').click();
+
+            document.getElementById('reset_email').value = '';
+            document.getElementById('formMsg').classList.add('d-none');
+        }
+    </script>
+
+</body>
+
+</html>
