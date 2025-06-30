@@ -5,43 +5,7 @@
     <meta charset="UTF-8">
     <title>Вход в Cloud Storage</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: #f8f9fa;
-        }
-
-        .login-container {
-            max-width: 450px;
-            margin: 80px auto;
-            padding: 32px 28px 28px 28px;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
-            transition: max-width 0.3s;
-        }
-
-        .login-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        .login-logo {
-            width: 70px;
-            height: 70px;
-            object-fit: contain;
-        }
-
-        .d-none {
-            display: none !important;
-        }
-
-        .login-container.wide {
-            max-width: 700px;
-        }
-    </style>
+    <link rel="stylesheet" href="css/login.css">
 </head>
 
 <body>
@@ -52,17 +16,20 @@
         </div>
 
         <form id="loginForm">
-            <div class="mb-3">
-                <label class="form-label" for="email">Email:</label>
-                <input autofocus class="form-control" id="email" name="email" required type="email">
+            <div class="form-group">
+                <label class="form-label" for="login_email">Email:</label>
+                <input autofocus class="form-control" id="login_email" name="email" required type="email"
+                    autocomplete="email">
             </div>
-            <div class="mb-3">
-                <label class="form-label" for="password">Пароль:</label>
-                <input class="form-control" id="password" name="password" required type="password">
+            <div class="form-group">
+                <label class="form-label" for="login_password">Пароль:</label>
+                <input class="form-control" id="login_password" name="password" required type="password"
+                    autocomplete="current-password">
             </div>
-            <button class="btn btn-primary w-100" type="submit">Войти</button>
+            <button class="btn btn-primary w-100 mt-3" type="submit">Войти</button>
             <div class="text-center mt-3">
                 <a href="#" id="showRegister">Регистрация</a>
+                <span class="mx-2">|</span>
                 <a href="#" id="showForgot">Забыли пароль?</a>
             </div>
         </form>
@@ -70,21 +37,26 @@
         <form class="d-none" id="registerForm">
             <div class="row">
                 <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Имя:</label>
-                        <input class="form-control" id="reg_firstname" required type="text">
+                    <div class="form-group">
+                        <label class="form-label" for="reg_firstname">Имя <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="reg_firstname" name="firstname" required type="text"
+                            autocomplete="given-name">
+                        <div class="invalid-feedback">Имя обязательно для заполнения</div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Отчество:</label>
-                        <input class="form-control" id="reg_middlename" type="text">
+                    <div class="form-group">
+                        <label class="form-label" for="reg_middlename">Отчество:</label>
+                        <input class="form-control" id="reg_middlename" name="middlename" type="text"
+                            autocomplete="additional-name">
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Фамилия:</label>
-                        <input class="form-control" id="reg_lastname" required type="text">
+                    <div class="form-group">
+                        <label class="form-label" for="reg_lastname">Фамилия <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="reg_lastname" name="lastname" required type="text"
+                            autocomplete="family-name">
+                        <div class="invalid-feedback">Фамилия обязательна для заполнения</div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Пол:</label>
-                        <select class="form-select" id="reg_gender" required>
+                    <div class="form-group">
+                        <label class="form-label" for="reg_gender">Пол:</label>
+                        <select class="form-select" id="reg_gender" name="gender" autocomplete="sex">
                             <option value="">Выберите...</option>
                             <option value="male">Мужской</option>
                             <option value="female">Женский</option>
@@ -92,25 +64,35 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Возраст:</label>
-                        <input class="form-control" id="reg_age" max="120" min="1" required type="number">
+                    <div class="form-group">
+                        <label class="form-label" for="reg_age">Возраст:</label>
+                        <input class="form-control" id="reg_age" name="age" max="120" min="1" type="number"
+                            autocomplete="off">
+                        <div class="invalid-feedback">Возраст должен быть от 1 до 120 лет</div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email:</label>
-                        <input class="form-control" id="reg_email" required type="email">
+                    <div class="form-group">
+                        <label class="form-label" for="reg_email">Email <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="reg_email" name="email" required type="email"
+                            autocomplete="email">
+                        <div class="invalid-feedback">Введите корректный email</div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Пароль:</label>
-                        <input class="form-control" id="reg_password" required type="password">
+                    <div class="form-group">
+                        <label class="form-label" for="reg_password">Пароль <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="reg_password" name="password" required type="password"
+                            minlength="6" autocomplete="new-password">
+                        <div class="invalid-feedback">Пароль должен содержать минимум 6 символов</div>
+                        <div class="password-strength" id="passwordStrength"></div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Повторите пароль:</label>
-                        <input class="form-control" id="reg_password2" required type="password">
+                    <div class="form-group">
+                        <label class="form-label" for="reg_password2">Повторите пароль <span
+                                class="text-danger">*</span>:</label>
+                        <input class="form-control" id="reg_password2" name="password2" required type="password"
+                            minlength="6" autocomplete="new-password">
+                        <div class="invalid-feedback">Пароли не совпадают</div>
                     </div>
                 </div>
             </div>
-            <div class="row">
+            <div class="row mt-3">
                 <div class="col-md-6 mx-auto">
                     <button class="btn btn-success w-100" type="submit">Зарегистрироваться</button>
                 </div>
@@ -121,17 +103,19 @@
         </form>
 
         <form class="d-none" id="resetForm">
-            <div class="mb-3">
-                <label class="form-label">Email для сброса пароля:</label>
-                <input class="form-control" id="reset_email" required type="email">
+            <div class="form-group">
+                <label class="form-label" for="reset_email">Email для сброса пароля:</label>
+                <input class="form-control" id="reset_email" name="reset_email" required type="email"
+                    autocomplete="email">
             </div>
-            <button class="btn btn-warning w-100" type="submit">Сбросить пароль</button>
+            <button class="btn btn-warning w-100 mt-3" type="submit">Сбросить пароль</button>
             <div class="text-center mt-3">
                 <a href="#" id="showLogin2">Войти</a>
             </div>
         </form>
         <div class="alert mt-3 d-none" id="formMsg"></div>
     </div>
+
     <script>
         const container = document.querySelector('.login-container');
 
@@ -157,8 +141,362 @@
             toggleForms('resetForm', 'loginForm', 'registerForm');
         };
 
-        async function handleFormSubmit(formId, url, body) {
+        function autoHideError(element, isInline = false) {
+            if (isInline) {
+                element.classList.add('auto-hide-inline');
+                setTimeout(() => {
+                    if (element.parentNode) {
+                        element.style.display = 'none';
+                        element.classList.remove('auto-hide-inline');
+                    }
+                }, 3500);
+            } else {
+                element.classList.add('auto-hide');
+                setTimeout(() => {
+                    if (element.parentNode) {
+                        element.style.display = 'none';
+                        element.classList.remove('auto-hide');
+                    }
+                }, 3500);
+            }
+        }
 
+        function showInlineError(input, message) {
+
+            const originalPlaceholder = input.getAttribute('placeholder') || '';
+
+            if (!input.hasAttribute('data-original-placeholder')) {
+                input.setAttribute('data-original-placeholder', originalPlaceholder);
+            }
+
+            input.setAttribute('placeholder', message);
+            input.classList.add('has-inline-error');
+
+            setTimeout(() => {
+                if (input.classList.contains('has-inline-error')) {
+                    input.setAttribute('placeholder', input.getAttribute('data-original-placeholder') || '');
+                    input.classList.remove('has-inline-error');
+                }
+            }, 3000);
+
+            const focusHandler = () => {
+                input.setAttribute('placeholder', input.getAttribute('data-original-placeholder') || '');
+                input.classList.remove('has-inline-error');
+                input.removeEventListener('focus', focusHandler);
+            };
+            input.addEventListener('focus', focusHandler);
+        }
+
+        function shouldUseInlineError(input, message) {
+
+            const tempSpan = document.createElement('span');
+            tempSpan.style.visibility = 'hidden';
+            tempSpan.style.position = 'absolute';
+            tempSpan.style.fontSize = window.getComputedStyle(input).fontSize;
+            tempSpan.style.fontFamily = window.getComputedStyle(input).fontFamily;
+            tempSpan.textContent = message;
+            document.body.appendChild(tempSpan);
+
+            const messageWidth = tempSpan.offsetWidth;
+            const inputWidth = input.offsetWidth - 60;
+
+            document.body.removeChild(tempSpan);
+
+            return messageWidth <= inputWidth;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const firstNameInput = document.getElementById('reg_firstname');
+            if (firstNameInput) {
+                firstNameInput.addEventListener('blur', validateRequired);
+                firstNameInput.addEventListener('input', clearInvalidOnInput);
+            }
+
+            const lastNameInput = document.getElementById('reg_lastname');
+            if (lastNameInput) {
+                lastNameInput.addEventListener('blur', validateRequired);
+                lastNameInput.addEventListener('input', clearInvalidOnInput);
+            }
+
+            const emailInput = document.getElementById('reg_email');
+            if (emailInput) {
+                emailInput.addEventListener('blur', validateEmail);
+                emailInput.addEventListener('input', clearInvalidOnInput);
+            }
+
+            const ageInput = document.getElementById('reg_age');
+            if (ageInput) {
+                ageInput.addEventListener('blur', validateAge);
+                ageInput.addEventListener('input', clearInvalidOnInput);
+            }
+
+            const passwordInput = document.getElementById('reg_password');
+            if (passwordInput) {
+                passwordInput.addEventListener('input', validatePassword);
+                passwordInput.addEventListener('blur', validatePassword);
+            }
+
+            const password2Input = document.getElementById('reg_password2');
+            if (password2Input) {
+                password2Input.addEventListener('input', validatePasswordMatch);
+                password2Input.addEventListener('blur', validatePasswordMatch);
+            }
+        });
+
+        function validateRequired() {
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            const errorMessage = 'Поле обязательно для заполнения';
+
+            if (this.value.trim() === '') {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            }
+        }
+
+        function validateEmail() {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            let errorMessage = '';
+
+            if (this.value.trim() === '') {
+                errorMessage = 'Email обязателен';
+            } else if (!emailRegex.test(this.value)) {
+                errorMessage = 'Введите корректный email';
+            }
+
+            if (errorMessage) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = errorMessage;
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            }
+        }
+
+        function validateAge() {
+            const age = parseInt(this.value);
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            const errorMessage = 'Возраст: 1-120 лет';
+
+            if (this.value && (isNaN(age) || age < 1 || age > 120)) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = errorMessage;
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else if (this.value) {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            } else {
+                this.classList.remove('is-invalid', 'is-valid', 'has-inline-error');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            }
+        }
+
+        function validatePassword() {
+            const password = this.value;
+            const strengthDiv = document.getElementById('passwordStrength');
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            const errorMessage = 'Минимум 6 символов';
+
+            if (password.length === 0) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, 'Пароль обязателен')) {
+                    showInlineError(this, 'Пароль обязателен');
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = 'Пароль обязателен';
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                strengthDiv.style.display = 'none';
+                return false;
+            } else if (password.length < 6) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = errorMessage;
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                strengthDiv.textContent = 'Слишком короткий пароль';
+                strengthDiv.className = 'password-strength weak';
+                strengthDiv.style.display = 'block';
+                autoHideError(strengthDiv, true);
+                return false;
+            } else {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+
+                let strength = 0;
+                if (password.length >= 8) strength++;
+                if (/[a-z]/.test(password)) strength++;
+                if (/[A-Z]/.test(password)) strength++;
+                if (/[0-9]/.test(password)) strength++;
+                if (/[^A-Za-z0-9]/.test(password)) strength++;
+
+                if (strength <= 2) {
+                    strengthDiv.textContent = 'Слабый пароль';
+                    strengthDiv.className = 'password-strength weak';
+                } else if (strength <= 3) {
+                    strengthDiv.textContent = 'Средний пароль';
+                    strengthDiv.className = 'password-strength medium';
+                } else {
+                    strengthDiv.textContent = 'Сильный пароль';
+                    strengthDiv.className = 'password-strength strong';
+                }
+                strengthDiv.style.display = 'block';
+                autoHideError(strengthDiv, true);
+
+                const password2Input = document.getElementById('reg_password2');
+                if (password2Input && password2Input.value) {
+                    validatePasswordMatch.call(password2Input);
+                }
+
+                return true;
+            }
+        }
+
+        function validatePasswordMatch() {
+            const password = document.getElementById('reg_password').value;
+            const password2 = this.value;
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            const errorMessage = 'Пароли не совпадают';
+
+            if (password2.length === 0) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, 'Повторите пароль')) {
+                    showInlineError(this, 'Повторите пароль');
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = 'Повторите пароль';
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else if (password2.length < 6) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, 'Минимум 6 символов')) {
+                    showInlineError(this, 'Минимум 6 символов');
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = 'Минимум 6 символов';
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else if (password !== password2) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = errorMessage;
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            }
+        }
+
+        function clearInvalidOnInput() {
+            if (this.classList.contains('is-invalid') && this.value.trim() !== '') {
+                this.classList.remove('is-invalid');
+                const errorElement = this.parentNode.querySelector('.invalid-feedback');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+            }
+            if (this.classList.contains('has-inline-error')) {
+                this.classList.remove('has-inline-error');
+                this.setAttribute('placeholder', this.getAttribute('data-original-placeholder') || '');
+            }
+        }
+
+        async function handleFormSubmit(formId, url, body) {
             const msg = document.getElementById('formMsg');
             msg.classList.add('d-none');
 
@@ -169,12 +507,35 @@
                     body: JSON.stringify(body),
                 });
 
+                console.log('Статус ответа:', res.status);
+
+                const responseText = await res.text();
+                console.log('Полный текст ответа:', responseText);
+
                 if (!res.ok) {
-                    console.error('Ошибка сервера:', res.status, res.statusText);
-                    throw new Error('Ошибка сервера');
+
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(responseText);
+                        console.log('Данные ошибки (JSON):', errorData);
+
+                        msg.textContent = errorData.error || `Ошибка сервера: ${res.status} ${res.statusText}`;
+                        msg.className = "alert alert-danger mt-3";
+                        msg.classList.remove("d-none");
+                        return;
+                    } catch (parseError) {
+                        console.error('Не удалось парсить ответ как JSON:', parseError);
+                        console.log('Сырой ответ сервера:', responseText);
+                        msg.textContent = `Ошибка сервера: ${res.status}. ${responseText.substring(0, 200)}`;
+                        msg.className = "alert alert-danger mt-3";
+                        msg.classList.remove("d-none");
+                        return;
+                    }
                 }
 
                 const contentType = res.headers.get("content-type");
+                console.log('Content-Type:', contentType);
+
                 if (!contentType || !contentType.includes("application/json")) {
                     msg.textContent = "Ошибка: Сервер вернул некорректный формат данных.";
                     msg.className = "alert alert-danger mt-3";
@@ -182,17 +543,26 @@
                     return;
                 }
 
-                const data = await res.json();
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    console.log('Успешный ответ:', data);
+                } catch (parseError) {
+                    console.error('Не удалось парсить успешный ответ:', parseError);
+                    msg.textContent = "Ошибка: Некорректный формат ответа сервера.";
+                    msg.className = "alert alert-danger mt-3";
+                    msg.classList.remove("d-none");
+                    return;
+                }
 
                 if (data.success) {
-
                     if (formId === 'resetForm' && data.temp_password) {
                         msg.innerHTML = `
                             <div class="mb-3">
                                 <strong>✅ Пароль успешно сброшен!</strong>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Ваш временный пароль:</label>
+                                <label class="form-label" for="tempPasswordField">Ваш временный пароль:</label>
                                 <div class="input-group">
                                     <input type="text" class="form-control text-center fw-bold" 
                                            value="${data.temp_password}" 
@@ -224,18 +594,22 @@
                             if (formId === 'registerForm') {
                                 document.getElementById('showLogin1').click();
                             } else {
-                                window.location.href = data.role === 'admin' ? '/CloudStorageApp/public/Admin.html' : '/CloudStorageApp/public/upload.html';
+                                window.location.href = (data.user && (data.user.is_admin === 1 || data.user.role === 'admin'))
+                                    ? '/CloudStorageApp/public/Admin.html'
+                                    : '/CloudStorageApp/public/upload.html';
                             }
                         }, 3000);
                     }
                 } else {
-                    msg.textContent = data.error || "Ошибка!";
+
+                    msg.textContent = data.error || "Неизвестная ошибка!";
                     msg.className = "alert alert-danger mt-3";
                     msg.classList.remove("d-none");
                 }
             } catch (error) {
                 console.error("Ошибка запроса:", error);
-                msg.textContent = "Произошла ошибка!";
+
+                msg.textContent = `Произошла ошибка: ${error.message}`;
                 msg.className = "alert alert-danger mt-3";
                 msg.classList.remove("d-none");
             }
@@ -248,44 +622,67 @@
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
             await handleFormSubmit('loginForm', '/CloudStorageApp/public/login', {
-                email: document.getElementById('email').value,
-                password: document.getElementById('password').value
+                email: document.getElementById('login_email').value,
+                password: document.getElementById('login_password').value
             });
         };
 
         document.getElementById('registerForm').onsubmit = async (e) => {
             e.preventDefault();
-            const password = document.getElementById('reg_password').value;
-            const password2 = document.getElementById('reg_password2').value;
-            const msg = document.getElementById('formMsg');
 
-            if (password !== password2) {
+            const firstName = document.getElementById('reg_firstname');
+            const lastName = document.getElementById('reg_lastname');
+            const email = document.getElementById('reg_email');
+            const password = document.getElementById('reg_password');
+            const password2 = document.getElementById('reg_password2');
+            const age = document.getElementById('reg_age');
+
+            let isValid = true;
+            if (!validateRequired.call(firstName)) isValid = false;
+            if (!validateRequired.call(lastName)) isValid = false;
+            if (!validateEmail.call(email)) isValid = false;
+            if (!validatePassword.call(password)) isValid = false;
+            if (!validatePasswordMatch.call(password2)) isValid = false;
+            if (!validateAge.call(age)) isValid = false;
+
+            if (!isValid) {
+                const msg = document.getElementById('formMsg');
+                msg.textContent = "Пожалуйста, исправьте ошибки в форме";
+                msg.className = "alert alert-danger mt-3";
+                msg.classList.remove("d-none");
+                setTimeout(() => msg.classList.add("d-none"), 5000);
+                return;
+            }
+
+            if (password.value !== password2.value) {
+                const msg = document.getElementById('formMsg');
                 msg.textContent = "Пароли не совпадают";
                 msg.className = "alert alert-danger mt-3";
                 msg.classList.remove("d-none");
-                return setTimeout(() => msg.classList.add("d-none"), 3000);
+                setTimeout(() => msg.classList.add("d-none"), 3000);
+                return;
+            }
+
+            if (password.value.length < 6) {
+                const msg = document.getElementById('formMsg');
+                msg.textContent = "Пароль должен содержать минимум 6 символов";
+                msg.className = "alert alert-danger mt-3";
+                msg.classList.remove("d-none");
+                setTimeout(() => msg.classList.add("d-none"), 3000);
+                return;
             }
 
             const requestData = {
-                first_name: document.getElementById('reg_firstname').value,
-                middle_name: document.getElementById('reg_middlename').value,
-                last_name: document.getElementById('reg_lastname').value,
-                gender: document.getElementById('reg_gender').value,
-                age: document.getElementById('reg_age').value,
-                email: document.getElementById('reg_email').value,
-                password
+                first_name: firstName.value.trim(),
+                middle_name: document.getElementById('reg_middlename').value.trim() || null,
+                last_name: lastName.value.trim(),
+                gender: document.getElementById('reg_gender').value || null,
+                age: age.value ? parseInt(age.value) : null,
+                email: email.value.trim(),
+                password: password.value
             };
 
-
-            await handleFormSubmit('registerForm', '/CloudStorageApp/public/register', {
-                first_name: document.getElementById('reg_firstname').value,
-                middle_name: document.getElementById('reg_middlename').value,
-                last_name: document.getElementById('reg_lastname').value,
-                gender: document.getElementById('reg_gender').value,
-                age: document.getElementById('reg_age').value,
-                email: document.getElementById('reg_email').value,
-                password
-            });
+            await handleFormSubmit('registerForm', '/CloudStorageApp/public/register', requestData);
         };
 
         document.getElementById('resetForm').onsubmit = async (e) => {
@@ -294,7 +691,6 @@
                 email: document.getElementById('reset_email').value
             });
         };
-
 
         function copyTempPassword() {
             const field = document.getElementById('tempPasswordField');
@@ -324,7 +720,6 @@
 
         function goToLogin() {
             document.getElementById('showLogin1').click();
-
             document.getElementById('reset_email').value = '';
             document.getElementById('formMsg').classList.add('d-none');
         }

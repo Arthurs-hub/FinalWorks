@@ -8,870 +8,556 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary-color: #f8fafc;
-            --accent-color: #10b981;
-            --danger-color: #ef4444;
-            --warning-color: #f59e0b;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border-color: #e2e8f0;
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-            --radius: 12px;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
-            overflow-x: hidden;
-        }
-
-        #messageContainer {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            min-width: 300px;
-            max-width: 90vw;
-        }
-
-        #messageContainer .alert {
-            margin-bottom: 0;
-            box-shadow: var(--shadow-lg);
-            border: none;
-            border-radius: var(--radius);
-            backdrop-filter: blur(10px);
-        }
-
-        .admin-container {
-            display: flex;
-            min-height: 100vh;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            margin: 10px;
-            border-radius: 20px;
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-            max-width: calc(100vw - 20px);
-        }
-
-        .sidebar {
-            width: 250px;
-            min-width: 250px;
-            background: linear-gradient(180deg, #1e293b 0%, #334155 100%);
-            color: white;
-            padding: 1.5rem 0;
-            position: relative;
-            flex-shrink: 0;
-        }
-
-        .sidebar::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            opacity: 0.1;
-        }
-
-        .sidebar-header {
-            padding: 0 1.5rem 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 1.5rem;
-            position: relative;
-            z-index: 1;
-        }
-
-        .sidebar-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #60a5fa, #34d399);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .sidebar-subtitle {
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 0 1rem;
-            position: relative;
-            z-index: 1;
-        }
-
-        .nav-item {
-            margin-bottom: 0.5rem;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 1rem;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            border-radius: var(--radius);
-            transition: all 0.3s ease;
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            transform: translateX(5px);
-        }
-
-        .nav-link.active {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            box-shadow: var(--shadow-md);
-        }
-
-        .nav-link i {
-            margin-right: 0.75rem;
-            font-size: 1rem;
-        }
-
-        .main-content {
-            flex: 1;
-            padding: 1.5rem;
-            background: var(--secondary-color);
-            min-width: 0;
-            overflow-x: auto;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding: 1.2rem 1.5rem;
-            background: white;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-sm);
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .header-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        .user-greeting {
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .content-card {
-            background: white;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-sm);
-            overflow: hidden;
-        }
-
-        .card-header {
-            padding: 1.2rem 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .card-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        .btn-modern {
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: var(--radius);
-            font-weight: 500;
-            font-size: 0.8rem;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .btn-primary-modern {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .btn-primary-modern:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .btn-success-modern {
-            background: linear-gradient(135deg, var(--accent-color), #059669);
-            color: white;
-        }
-
-        .btn-danger-modern {
-            background: linear-gradient(135deg, var(--danger-color), #dc2626);
-            color: white;
-        }
-
-        .btn-sm-modern {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.75rem;
-        }
-
-        .table-responsive {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .modern-table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-
-        .modern-table th:nth-child(1) {
-            width: 60px;
-        }
-
-        .modern-table th:nth-child(2) {
-            width: 200px;
-        }
-
-        .modern-table th:nth-child(3) {
-            width: 120px;
-        }
-
-        .modern-table th:nth-child(4) {
-            width: 120px;
-        }
-
-        .modern-table th:nth-child(5) {
-            width: 120px;
-        }
-
-        .modern-table th:nth-child(6) {
-            width: 60px;
-        }
-
-        .modern-table th:nth-child(7) {
-            width: 80px;
-        }
-
-        .modern-table th:nth-child(8) {
-            width: 120px;
-        }
-
-        .modern-table th:nth-child(9) {
-            width: 180px;
-        }
-
-        .modern-table th {
-            background: var(--secondary-color);
-            padding: 0.8rem 0.5rem;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text-primary);
-            border-bottom: 2px solid var(--border-color);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .modern-table td {
-            padding: 0.8rem 0.5rem;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-primary);
-            font-size: 0.8rem;
-            vertical-align: middle;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .modern-table tr:hover {
-            background: rgba(99, 102, 241, 0.05);
-        }
-
-        .badge-modern {
-            padding: 0.25rem 0.6rem;
-            border-radius: 50px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            white-space: nowrap;
-        }
-
-        .badge-admin {
-            background: linear-gradient(135deg, var(--danger-color), #dc2626);
-            color: white;
-        }
-
-        .badge-user {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-        }
-
-        .modal-content {
-            border: none;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .modal-header {
-            background: var(--secondary-color);
-            border-bottom: 1px solid var(--border-color);
-            padding: 1.2rem 1.5rem;
-        }
-
-        .modal-title {
-            font-weight: 600;
-            color: var(--text-primary);
-            font-size: 1.1rem;
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-        }
-
-        .form-label {
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .form-control {
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius);
-            padding: 0.6rem 0.8rem;
-            transition: all 0.3s ease;
-            font-size: 0.85rem;
-        }
-
-        .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 0.3rem;
-            align-items: center;
-            justify-content: flex-start;
-            flex-wrap: nowrap;
-        }
-
-        @media (max-width: 1400px) {
-            .action-buttons .btn-sm-modern span {
-                display: none !important;
-            }
-
-            .modern-table th:nth-child(9) {
-                width: 100px;
-            }
-        }
-
-        @media (max-width: 1200px) {
-            .admin-container {
-                margin: 5px;
-            }
-
-            .sidebar {
-                width: 220px;
-                min-width: 220px;
-            }
-
-            .main-content {
-                padding: 1rem;
-            }
-
-            .modern-table th:nth-child(2) {
-                width: 180px;
-            }
-
-            .modern-table th:nth-child(3) {
-                width: 100px;
-            }
-
-            .modern-table th:nth-child(4) {
-                width: 100px;
-            }
-
-            .modern-table th:nth-child(5) {
-                width: 100px;
-            }
-
-            .modern-table th:nth-child(8) {
-                width: 100px;
-            }
-
-            .modern-table th:nth-child(9) {
-                width: 90px;
-            }
-        }
-
-        @media (max-width: 992px) {
-            .admin-container {
-                flex-direction: column;
-                margin: 5px;
-                border-radius: 15px;
-            }
-
-            .sidebar {
-                width: 100%;
-                min-width: auto;
-                padding: 1rem 0;
-            }
-
-            .nav-menu {
-                display: flex;
-                overflow-x: auto;
-                padding: 0 1rem;
-                gap: 0.5rem;
-            }
-
-            .nav-item {
-                margin-right: 0;
-                margin-bottom: 0;
-                white-space: nowrap;
-                flex-shrink: 0;
-            }
-
-            .main-content {
-                padding: 1rem;
-            }
-
-            .header {
-                flex-direction: column;
-                text-align: center;
-                padding: 1rem;
-            }
-
-            .card-header {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1rem;
-            }
-
-            .modern-table th:nth-child(5),
-            .modern-table td:nth-child(5),
-            .modern-table th:nth-child(6),
-            .modern-table td:nth-child(6),
-            .modern-table th:nth-child(7),
-            .modern-table td:nth-child(7) {
-                display: none;
-            }
-
-            .modern-table th:nth-child(2) {
-                width: 160px;
-            }
-
-            .modern-table th:nth-child(3) {
-                width: 120px;
-            }
-
-            .modern-table th:nth-child(4) {
-                width: 120px;
-            }
-
-            .modern-table th:nth-child(8) {
-                width: 100px;
-            }
-
-            .modern-table th:nth-child(9) {
-                width: 80px;
-            }
-
-            .modern-table th,
-            .modern-table td {
-                padding: 0.5rem;
-            }
-
-            .btn-modern {
-                font-size: 0.75rem;
-                padding: 0.5rem 1rem;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .header-title {
-                font-size: 1.5rem;
-            }
-
-            .card-title {
-                font-size: 1rem;
-            }
-
-            .modern-table th:nth-child(1) {
-                width: 50px;
-            }
-
-            .modern-table th:nth-child(2) {
-                width: 140px;
-            }
-
-            .modern-table th:nth-child(3) {
-                width: 100px;
-            }
-
-            .modern-table th:nth-child(4) {
-                width: 100px;
-            }
-
-            .modern-table th:nth-child(8) {
-                width: 80px;
-            }
-
-            .modern-table th:nth-child(9) {
-                width: 70px;
-            }
-
-            .modern-table th,
-            .modern-table td {
-                padding: 0.5rem 0.3rem;
-                font-size: 0.75rem;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-                gap: 0.2rem;
-            }
-
-            .btn-sm-modern {
-                padding: 0.2rem 0.4rem;
-                font-size: 0.65rem;
-            }
-        }
-
-
-        @media (min-width: 1200px) {
-            .sidebar {
-                width: 220px;
-                min-width: 200px;
-            }
-        }
-
-
-        @media (min-width: 1400px) {
-            .sidebar {
-                width: 180px;
-                min-width: 180px;
-            }
-
-            .sidebar-title {
-                font-size: 1.1rem;
-            }
-
-            .nav-link {
-                padding: 0.7rem 0.8rem;
-                font-size: 0.85rem;
-            }
-
-            .nav-link i {
-                margin-right: 0.5rem;
-                font-size: 0.9rem;
-            }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .content-card {
-            animation: fadeInUp 0.6s ease-out;
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--secondary-color);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--text-secondary);
-        }
-
-        .form-control.is-valid {
-            border-color: var(--accent-color);
-        }
-
-        .form-control.is-invalid {
-            border-color: var(--danger-color);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-        }
-
-        .empty-state i {
-            font-size: 3rem;
-            color: var(--text-secondary);
-            opacity: 0.5;
-            margin-bottom: 1rem;
-        }
-
-        .empty-state h5 {
-            color: var(--text-secondary);
-            margin-bottom: 0.5rem;
-        }
-
-        .empty-state p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .text-truncate-custom {
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .modern-table td[title] {
-            cursor: help;
-        }
-    </style>
+    <link rel="stylesheet" href="css/Admin.css">
 </head>
 
 <body>
     <div id="messageContainer"></div>
 
     <div class="admin-container">
+
         <nav class="sidebar">
             <div class="sidebar-header">
-                <h1 class="sidebar-title">CloudStorageApp</h1>
-                <p class="sidebar-subtitle">Панель администратора</p>
+                <div class="sidebar-title">CloudStorageApp</div>
             </div>
-
             <ul class="nav-menu">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#users" onclick="showUsersSection()">
-                        <i class="bi bi-people-fill"></i>
-                        Пользователи
+                    <a href="#dashboard" class="nav-link active" data-section="dashboard">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Панель управления</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/CloudStorageApp/public/upload.html">
-                        <i class="bi bi-arrow-left-circle"></i>
-                        К файлам
+                    <a href="#users" class="nav-link" data-section="users">
+                        <i class="bi bi-people"></i>
+                        <span>Пользователи</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" id="logoutBtn">
+                    <a href="#files" class="nav-link" data-section="files">
+                        <i class="bi bi-file-earmark"></i>
+                        <span>Файлы</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#system" class="nav-link" data-section="system">
+                        <i class="bi bi-gear"></i>
+                        <span>Система</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#logs" class="nav-link" data-section="logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Логи</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/CloudStorageApp/public/upload.html" class="nav-link">
+                        <i class="bi bi-arrow-left"></i>
+                        <span>Вернуться в приложение</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" onclick="logout(event)">
                         <i class="bi bi-box-arrow-right"></i>
-                        Выйти
+                        <span>Выход</span>
                     </a>
                 </li>
             </ul>
         </nav>
 
         <main class="main-content">
-            <div class="header">
-                <h1 class="header-title">Управление системой</h1>
-                <div id="userGreeting" class="user-greeting"></div>
-            </div>
 
-            <div id="usersSection" class="content-card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="bi bi-people-fill me-2"></i>
-                        Управление пользователями
-                    </h3>
-                    <button class="btn-modern btn-primary-modern" onclick="showCreateUserModal()">
-                        <i class="bi bi-plus-lg"></i>
-                        Добавить пользователя
-                    </button>
+            <div class="header">
+                <div>
+                    <h1 class="header-title">Панель администратора</h1>
+                    <div class="user-greeting">Добро пожаловать, <span id="adminName">Администратор</span></div>
                 </div>
 
+                <div class="search-container" id="searchContainer" style="display:none;">
+                    <input type="text" class="search-input" id="searchInput"
+                        placeholder="Поиск по email, имени или фамилии...">
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn-modern btn-primary-modern" id="refreshBtn">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Обновить</span>
+                    </button>
+                    <button class="btn-modern btn-success-modern" id="exportBtn">
+                        <i class="bi bi-download"></i>
+                        <span>Экспорт</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="content-card" id="usersSection">
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
+                    <div>
+                        <button class="btn-modern btn-primary-modern" onclick="showCreateUserModal()">
+                            <i class="bi bi-person-plus"></i>
+                            <span>Добавить пользователя</span>
+                        </button>
+                    </div>
+                    <div class="user-filters d-flex gap-2">
+                        <button class="filter-btn active" data-role-filter="all">Все</button>
+                        <button class="filter-btn" data-role-filter="user">Пользователи</button>
+                        <button class="filter-btn" data-role-filter="admin">Администраторы</button>
+                        <button class="filter-btn" data-role-filter="banned">Заблокированные</button>
+                    </div>
+                </div>
                 <div class="table-responsive">
-                    <table class="modern-table">
+                    <table class="modern-table" id="usersTable">
                         <thead>
                             <tr>
                                 <th>ID</th>
                                 <th>Email</th>
                                 <th>Имя</th>
-                                <th>Фамилия</th>
-                                <th>Отчество</th>
-                                <th>Пол</th>
-                                <th>Возраст</th>
                                 <th>Роль</th>
+                                <th>Статус</th>
+                                <th>Файлы</th>
+                                <th>Размер</th>
+                                <th>Последний вход</th>
                                 <th>Действия</th>
                             </tr>
                         </thead>
-                        <tbody id="usersTableBody">
-
+                        <tbody>
+                            <tr>
+                                <td colspan="9" class="text-center">
+                                    <div class="loading-spinner me-2"></div>
+                                    Загрузка пользователей...
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div class="content-card" id="dashboardSection" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="bi bi-graph-up me-2"></i>
+                        Статистика системы
+                    </h2>
+                </div>
+                <div class="stats-container">
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-icon users">
+                                <i class="bi bi-people"></i>
+                            </div>
+                            <div class="stat-value" id="totalUsers">0</div>
+                            <div class="stat-label">Всего пользователей</div>
+                            <div class="stat-change positive" id="usersChange">+0 за месяц</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon admins">
+                                <i class="bi bi-shield-check"></i>
+                            </div>
+                            <div class="stat-value" id="totalAdmins">0</div>
+                            <div class="stat-label">Администраторы</div>
+                            <div class="stat-change" id="adminsChange">Активных</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon active">
+                                <i class="bi bi-person-check"></i>
+                            </div>
+                            <div class="stat-value" id="activeUsers30">0</div>
+                            <div class="stat-label">Активные пользователи</div>
+                            <div class="stat-change positive" id="activeChange">За 30 дней</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon active">
+                                <i class="bi bi-person-check"></i>
+                            </div>
+                            <div class="stat-value" id="activeUsers7">0</div>
+                            <div class="stat-label">Активные пользователи</div>
+                            <div class="stat-change positive" id="active7Change">За 7 дней</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon files">
+                                <i class="bi bi-file-earmark"></i>
+                            </div>
+                            <div class="stat-value" id="totalFiles">0</div>
+                            <div class="stat-label">Всего файлов</div>
+                            <div class="stat-change positive" id="filesChange">+0 сегодня</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon size">
+                                <i class="bi bi-hdd"></i>
+                            </div>
+                            <div class="stat-value" id="totalSize">0 MB</div>
+                            <div class="stat-label">Общий размер</div>
+                            <div class="stat-change" id="sizeChange">Использовано</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon directories">
+                                <i class="bi bi-folder"></i>
+                            </div>
+                            <div class="stat-value" id="totalDirectories">0</div>
+                            <div class="stat-label">Папки</div>
+                            <div class="stat-change" id="directoriesChange">Всего создано</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon shares">
+                                <i class="bi bi-share"></i>
+                            </div>
+                            <div class="stat-value" id="totalShares">0</div>
+                            <div class="stat-label">Общие файлы</div>
+                            <div class="stat-change positive" id="sharesChange">Активных</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon system">
+                                <i class="bi bi-cpu"></i>
+                            </div>
+                            <div class="stat-value" id="systemLoad">Н/Д</div>
+                            <div class="stat-label">Нагрузка системы</div>
+                            <div class="stat-change" id="systemChange">Память</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon system">
+                                <i class="bi bi-code-slash"></i>
+                            </div>
+                            <div class="stat-value" id="phpVersion">Н/Д</div>
+                            <div class="stat-label">Версия PHP</div>
+                            <div class="stat-change">Текущая версия</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" id="filesSection" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="bi bi-file-earmark me-2"></i>
+                        Управление файлами
+                    </h2>
+                    <div class="d-flex gap-2">
+                        <button class="btn-modern btn-primary-modern" onclick="loadFiles()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Обновить</span>
+                        </button>
+                        <button class="btn-modern btn-danger-modern" onclick="cleanupFiles()">
+                            <i class="bi bi-trash"></i>
+                            <span>Очистка</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-3">
+                    <div class="table-responsive">
+                        <table class="modern-table" id="filesTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;">ID</th>
+                                    <th style="width: 180px;">Имя файла</th>
+                                    <th style="width: 140px;">Владелец</th>
+                                    <th style="width: 80px;">Размер</th>
+                                    <th style="width: 100px;">Тип</th>
+                                    <th style="width: 160px;">Дата создания</th>
+                                    <th style="width: 100px;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="loading-spinner me-2"></div>
+                                        Загрузка файлов...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" id="systemSection" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="bi bi-gear me-2"></i>
+                        Системные настройки
+                    </h2>
+                </div>
+                <div class="p-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="stat-card">
+                                <h6 class="mb-3">Настройки безопасности</h6>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableTwoFactor">
+                                    <label class="form-check-label" for="enableTwoFactor">
+                                        Двухфакторная аутентификация
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enablePasswordPolicy">
+                                    <label class="form-check-label" for="enablePasswordPolicy">
+                                        Политика паролей
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="enableSessionTimeout">
+                                    <label class="form-check-label" for="enableSessionTimeout">
+                                        Тайм-аут сессии
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stat-card">
+                                <h6 class="mb-3">Настройки файлов</h6>
+                                <div class="mb-3">
+                                    <label for="maxFileSize" class="form-label">Максимальный размер файла (MB)</label>
+                                    <input type="number" class="form-control" id="maxFileSize" value="50">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="allowedExtensions" class="form-label">Разрешенные расширения</label>
+                                    <textarea class="form-control" id="allowedExtensions"
+                                        rows="3">jpg,jpeg,png,gif,pdf,doc,docx,txt</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" id="logsSection" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="bi bi-journal-text me-2"></i>
+                        Системные логи
+                    </h2>
+                    <div class="d-flex gap-2">
+                        <button class="btn-modern btn-primary-modern" onclick="loadLogs()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Обновить</span>
+                        </button>
+                        <button class="btn-modern btn-danger-modern" onclick="clearLogs()">
+                            <i class="bi bi-trash"></i>
+                            <span>Очистить</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-3">
+                    <div class="mb-3">
+                        <select class="form-select" id="logLevel">
+                            <option value="all">Все уровни</option>
+                            <option value="error">Ошибки</option>
+                            <option value="warning">Предупреждения</option>
+                            <option value="info">Информация</option>
+                        </select>
+                    </div>
+                    <div id="logsContainer"
+                        style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 1rem; border-radius: 8px;">
+                        <div class="text-center">
+                            <div class="loading-spinner me-2"></div>
+                            Загрузка логов...
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal fade" id="createUserModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-person-gear me-2"></i>
-                        Редактировать пользователя
-                    </h5>
+                    <h5 class="modal-title">Добавить нового пользователя</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="editUserForm">
-                        <input type="hidden" id="editUserId">
-
+                    <form id="createUserForm">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="editEmail" class="form-label">
-                                        <i class="bi bi-envelope me-1"></i>
-                                        Email <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="email" class="form-control" id="editEmail" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="editFirstName" class="form-label">
-                                        <i class="bi bi-person me-1"></i>
-                                        Имя <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="text" class="form-control" id="editFirstName" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="editLastName" class="form-label">
-                                        <i class="bi bi-person me-1"></i>
-                                        Фамилия <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="text" class="form-control" id="editLastName" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="editMiddleName" class="form-label">
-                                        <i class="bi bi-person me-1"></i>
-                                        Отчество
-                                    </label>
-                                    <input type="text" class="form-control" id="editMiddleName">
+                                    <label for="createUserEmail" class="form-label">Email *</label>
+                                    <input type="email" class="form-control" id="createUserEmail" required>
                                 </div>
                             </div>
-
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="editRole" class="form-label">
-                                        <i class="bi bi-shield-check me-1"></i>
-                                        Роль <span class="text-danger">*</span>
-                                    </label>
-                                    <select class="form-control" id="editRole" required>
-                                        <option value="user">Пользователь</option>
-                                        <option value="admin">Администратор</option>
-                                    </select>
+                                    <label for="createUserFirstName" class="form-label">Имя *</label>
+                                    <input type="text" class="form-control" id="createUserFirstName" required>
                                 </div>
-
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="editGender" class="form-label">
-                                        <i class="bi bi-gender-ambiguous me-1"></i>
-                                        Пол
-                                    </label>
-                                    <select class="form-control" id="editGender">
+                                    <label for="createUserLastName" class="form-label">Фамилия *</label>
+                                    <input type="text" class="form-control" id="createUserLastName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserMiddleName" class="form-label">Отчество</label>
+                                    <input type="text" class="form-control" id="createUserMiddleName">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserPassword" class="form-label">Пароль *</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="createUserPassword" required>
+                                        <button class="btn btn-outline-secondary" type="button"
+                                            onclick="generatePassword()">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserConfirmPassword" class="form-label">Подтвердить пароль
+                                        *</label>
+                                    <input type="password" class="form-control" id="createUserConfirmPassword" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserAge" class="form-label">Возраст</label>
+                                    <input type="number" class="form-control" id="createUserAge" min="13" max="120">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserGender" class="form-label">Пол</label>
+                                    <select class="form-select" id="createUserGender">
                                         <option value="">Не указан</option>
                                         <option value="male">Мужской</option>
                                         <option value="female">Женский</option>
                                     </select>
                                 </div>
-
-                                <div class="mb-3">
-                                    <label for="editAge" class="form-label">
-                                        <i class="bi bi-calendar me-1"></i>
-                                        Возраст
-                                    </label>
-                                    <input type="number" class="form-control" id="editAge" min="1" max="120">
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="editPassword" class="form-label">
-                                        <i class="bi bi-key me-1"></i>
-                                        Пароль <span id="passwordRequired" class="text-danger">*</span>
-                                        <small class="text-muted d-block">(оставьте пустым при редактировании, если не
-                                            нужно менять)</small>
-                                    </label>
-                                    <input type="password" class="form-control" id="editPassword">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="createUserIsAdmin">
+                                    <label class="form-check-label" for="createUserIsAdmin">Администратор</label>
                                 </div>
                             </div>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x-lg me-1"></i>
-                        Отмена
-                    </button>
-                    <button type="button" class="btn-modern btn-success-modern" onclick="updateUser()">
-                        <i class="bi bi-check-lg me-1"></i>
-                        Сохранить
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="createUser()">Создать пользователя</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editUserForm">
+                        <input type="hidden" id="editUserId">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editUserEmail" class="form-label">Email *</label>
+                                    <input type="email" class="form-control" id="editUserEmail" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editUserFirstName" class="form-label">Имя *</label>
+                                    <input type="text" class="form-control" id="editUserFirstName" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editUserLastName" class="form-label">Фамилия *</label>
+                                    <input type="text" class="form-control" id="editUserLastName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editUserPassword" class="form-label">Новый пароль (оставьте пустым,
+                                        чтобы не менять)</label>
+                                    <input type="password" class="form-control" id="editUserPassword"
+                                        placeholder="Оставьте пустым, если не хотите менять пароль">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="editUserIsAdmin">
+                                    <label class="form-check-label" for="editUserIsAdmin">Администратор</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="editUserIsBanned">
+                                    <label class="form-check-label" for="editUserIsBanned">Заблокирован</label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="saveUserBtn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="viewUserModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Просмотр пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body" id="userDetailsContent">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="viewFileModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Информация о файле</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+                    <div id="fileDetailsContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="downloadFileFromModal()">
+                        <i class="bi bi-download"></i> Скачать
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="deleteFileFromModal()">
+                        <i class="bi bi-trash"></i> Удалить
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/admin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

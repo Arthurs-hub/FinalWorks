@@ -1,6 +1,7 @@
 let currentView = 'list';
 let currentDirectoryId = localStorage.getItem("currentDirectoryId") || "root";
 
+
 async function refreshLists() {
     try {
 
@@ -39,7 +40,8 @@ function addRefreshButton() {
 
 function handleDragEnter(event) {
     event.preventDefault();
-    if (event.currentTarget.dataset.folderId) {
+    if (event.currentTarget.dataset.folderId ||
+        (event.currentTarget.dataset.id && event.currentTarget.dataset.type === 'directory')) {
         event.currentTarget.classList.add('drag-over');
     }
 }
@@ -52,155 +54,347 @@ function handleDragOver(event) {
 }
 
 function handleDragLeave(event) {
-    if (event.currentTarget.dataset.folderId) {
+    if (event.currentTarget.dataset.folderId ||
+        (event.currentTarget.dataset.id && event.currentTarget.dataset.type === 'directory')) {
         event.currentTarget.classList.remove('drag-over');
     }
 }
 
-async function handleDrop(event) {
-    event.preventDefault();
-    const folderId = event.currentTarget?.dataset?.folderId;
-    console.log('Drop target folderId:', folderId);
-    if (!folderId) {
-        showMessage('Целевая папка не определена', 'danger');
-        return;
+
+
+function renderFoldersList(folders, currentDirectory) {
+    const foldersList = document.getElementById('foldersList');
+    foldersList.innerHTML = '';
+    foldersList.className = 'list-group mb-3';
+
+    let hasBack = false;
+    if (currentDirectory && currentDirectory.parent_id !== null) {
+        const backLi = document.createElement('li');
+        backLi.className = 'list-group-item d-flex align-items-center';
+        backLi.innerHTML = `<span style="cursor:pointer" onclick="goBack()">⬅️ Назад</span>
+            <span class="fw-bold ms-3">${currentDirectory.name}</span>`;
+        foldersList.appendChild(backLi);
+        hasBack = true;
     }
 
-    const data = event.dataTransfer.getData('text/plain');
-    console.log('Dragged data:', data);
-    if (!data) return;
+    if (folders.length > 0) {
+        folders.forEach(folder => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
 
-    try {
-        const parsed = JSON.parse(data);
-        console.log('handleDrop parsed data:', parsed);
+            li.setAttribute('draggable', 'true');
+            li.dataset.folderId = folder.id;
+            li.dataset.type = 'directory';
+            li.dataset.id = folder.id;
 
-        const sourceIdNum = Number(parsed.id);
-        const targetIdNum = Number(folderId);
+            const isOwner = Number(folder.user_id) === Number(currentUserId);
 
-        if (parsed.type === 'file') {
-
-            const res = await fetch('/CloudStorageApp/public/files/move', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    file_id: sourceIdNum,
-                    target_directory_id: targetIdNum
-                }),
-                credentials: 'include'
-            });
-
-            const result = await res.json();
-
-            if (result.success) {
-                showMessage('Файл успешно перемещён', 'success');
-                await loadFolders();
-            } else {
-                showMessage(result.error || 'Ошибка при перемещении файла', 'danger');
-            }
-        } else if (parsed.type === 'folder') {
-            if (!sourceIdNum || !targetIdNum) {
-                showMessage('Недостаточно данных для перемещения папки', 'danger');
-                return;
+            let sharedInfo = '';
+            if (folder.is_shared && !folder.is_shared_by_owner) {
+                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" title="Общая папка" style="min-width: 80px; justify-content: center;">👥 Общая</span>`;
+            } else if (folder.is_shared_by_owner && isOwner) {
+                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 120px; justify-content: center;">👥 (вы поделились)</span>`;
             }
 
-            if (sourceIdNum === targetIdNum) {
-                showMessage('Нельзя переместить папку в саму себя', 'warning');
-                return;
-            }
+            const actionLinkHtml = isOwner
+                ? `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folder.id})">Удалить</a></li>`
+                : `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFolder(${folder.id})">Отказаться от доступа</a></li>`;
 
-            if (await isDescendantFolder(sourceIdNum, targetIdNum)) {
-                showMessage('Нельзя переместить папку в её вложенную папку', 'warning');
-                return;
-            }
+            li.innerHTML = `
+                <div class="d-flex align-items-center" style="flex-grow: 1; overflow: hidden;">
+                    <span style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                        <svg width="28" height="28" viewBox="0 0 48 48">
+                          <rect x="6" y="16" width="36" height="24" rx="4" fill="#FFD54F" stroke="#FFA000" stroke-width="2"/>
+                          <path d="M6 16L18 10H56C58.2091 10 60 11.7909 60 14V16H6Z" fill="#FFE082"/>
+                        </svg>
+                    </span>
+                    ${sharedInfo}
+                    <span style="cursor:pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${folder.name}</span>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-link p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50%; width: 28px; height: 28px;">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <circle cx="2" cy="8" r="2"/>
+                            <circle cx="8" cy="8" r="2"/>
+                            <circle cx="14" cy="8" r="2"/>
+                        </svg>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')">Переименовать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')">Поделиться</a></li>
+                        <li><a class="dropdown-item" href="/CloudStorageApp/public/directories/download/${folder.id}">Скачать</a></li>
+                        ${actionLinkHtml}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})">+ Создать папку</a></li>
+                    </ul>
+                </div>
+            `;
 
-            const res = await fetch('/CloudStorageApp/public/directories/move', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({
-                    directory_id: sourceIdNum,
-                    target_directory_id: targetIdNum
-                }),
-                credentials: 'include'
-            });
+            li.addEventListener('dragstart', handleDragStart);
+            li.addEventListener('dragend', handleDragEnd);
 
-            if (!res.ok) {
-                const errorText = await res.text();
-                console.error('Ошибка HTTP при перемещении папки:', res.status, errorText);
-                showMessage('Ошибка при перемещении папки', 'danger');
-                return;
-            }
+            li.onclick = (e) => {
+                if (!e.target.closest('.dropdown')) {
+                    openFolder(folder.id);
+                }
+            };
 
-            const result = await res.json();
-
-            if (result.success) {
-                showMessage('Папка успешно перемещена', 'success');
-                await loadFolders();
-            } else {
-                showMessage(result.error || 'Ошибка при перемещении папки', 'danger');
-            }
-        }
-    } catch (error) {
-        console.error('Ошибка при обработке перемещения:', error);
-        showMessage('Произошла ошибка при перемещении', 'danger');
-    } finally {
-        if (event.currentTarget && event.currentTarget.classList) {
-            event.currentTarget.classList.remove('drag-over');
-        }
+            foldersList.appendChild(li);
+        });
+    } else if (!hasBack) {
+        foldersList.innerHTML += '<li class="list-group-item">Нет папок</li>';
     }
 }
 
-async function isDescendantFolder(sourceFolderId, targetFolderId) {
-    try {
 
-        const res = await fetch(`/CloudStorageApp/public/directories/get/${targetFolderId}`, {
-            credentials: 'include',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+function renderFoldersGrid(folders, currentDirectory) {
+    const foldersList = document.getElementById('foldersList');
+    foldersList.innerHTML = '';
+    foldersList.className = 'd-flex flex-wrap gap-3 mb-3';
+
+    let hasBack = false;
+    if (currentDirectory && currentDirectory.parent_id !== null) {
+        const backCard = document.createElement('div');
+        backCard.className = 'card position-relative p-2 text-center';
+        backCard.style.width = '180px';
+        backCard.style.cursor = 'pointer';
+        backCard.onclick = () => goBack();
+        backCard.innerHTML = `
+            <div class="img-container" style="height: 120px; display: flex; align-items: center; justify-content: center;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="fw-bold text-truncate mt-2">Назад</div>
+            <div class="text-muted text-truncate" title="${currentDirectory.name}">${currentDirectory.name}</div>
+        `;
+        foldersList.appendChild(backCard);
+        hasBack = true;
+    }
+
+    if (folders && folders.length > 0) {
+        folders.forEach(folder => {
+            const card = document.createElement('div');
+            card.className = 'card position-relative p-2 text-center';
+            card.style.width = '180px';
+            card.style.cursor = 'pointer';
+
+            card.setAttribute('draggable', 'true');
+            card.dataset.folderId = folder.id;
+            card.dataset.type = 'directory';
+            card.dataset.id = folder.id;
+
+            const isOwner = Number(folder.user_id) === Number(currentUserId);
+
+            const folderIconSvg = `
+                <svg width="96" height="96" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="16" width="36" height="24" rx="4" fill="#FFD54F" stroke="#FFA000" stroke-width="2"/>
+                    <path d="M6 16L18 10H56C58.2091 10 60 11.7909 60 14V16H6Z" fill="#FFE082"/>
+                </svg>
+            `;
+
+            let sharedBadge = '';
+            if (folder.is_shared && !folder.is_shared_by_owner) {
+                const sharedByText = folder.shared_by ? ` (Доступ предоставил: ${folder.shared_by})` : '';
+                sharedBadge = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Общая папка${sharedByText}">👥 Общая</span>`;
+            } else if (folder.is_shared_by_owner && isOwner) {
+                sharedBadge = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1">👥 (вы поделились)</span>`;
             }
-        });
-        if (!res.ok) {
-            console.error('Ошибка при проверке вложенности папок:', res.status);
-            return false;
-        }
-        const data = await res.json();
-        if (!data.success || !data.directory) {
-            return false;
-        }
 
-        let currentParentId = data.directory.parent_id;
+            const actionLinkHtml = isOwner
+                ? `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folder.id})">Удалить</a></li>`
+                : `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFolder(${folder.id})">Отказаться от доступа</a></li>`;
 
-        while (currentParentId !== null && currentParentId !== undefined) {
-            if (currentParentId === sourceFolderId) {
-                return true;
-            }
+            card.innerHTML = `
+                ${sharedBadge}
+                <div class="img-container" style="height: 120px; display: flex; align-items: center; justify-content: center;">
+                    ${folderIconSvg}
+                </div>
+                <div class="fw-bold text-truncate mt-2" title="${folder.name}">${folder.name}</div>
+                <div class="dropdown position-absolute top-0 end-0 m-1">
+                    <button class="btn btn-sm btn-link p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50%; width: 28px; height: 28px;">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <circle cx="2" cy="8" r="2"/>
+                            <circle cx="8" cy="8" r="2"/>
+                            <circle cx="14" cy="8" r="2"/>
+                        </svg>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')">Переименовать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')">Поделиться</a></li>
+                        <li><a class="dropdown-item" href="/CloudStorageApp/public/directories/download/${folder.id}">Скачать</a></li>
+                        ${actionLinkHtml}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})">+ Создать папку</a></li>
+                    </ul>
+                </div>
+            `;
 
-            const parentRes = await fetch(`/CloudStorageApp/public/directories/get/${currentParentId}`, {
-                credentials: 'include',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragend', handleDragEnd);
+
+            card.onclick = (e) => {
+                if (!e.target.closest('.dropdown')) {
+                    openFolder(folder.id);
                 }
-            });
-            if (!parentRes.ok) {
-                break;
-            }
-            const parentData = await parentRes.json();
-            if (!parentData.success || !parentData.directory) {
-                break;
-            }
-            currentParentId = parentData.directory.parent_id;
+            };
+
+            foldersList.appendChild(card);
+        });
+    } else if (!hasBack) {
+        const noFolders = document.createElement('div');
+        noFolders.textContent = 'Нет папок';
+        foldersList.appendChild(noFolders);
+    }
+}
+
+
+function handleDragStart(event) {
+    const element = event.currentTarget;
+    const itemType = element.dataset.type;
+    const itemId = element.dataset.id || element.dataset.fileId || element.dataset.folderId;
+
+    if (!itemId || !itemType) {
+        console.error('Не удалось получить данные элемента для перетаскивания');
+        event.preventDefault();
+        return;
+    }
+
+    event.dataTransfer.setData('text/type', itemType);
+    event.dataTransfer.setData('text/id', itemId);
+    event.dataTransfer.effectAllowed = 'move';
+
+    element.style.opacity = '0.5';
+}
+
+
+async function handleDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+
+    const draggedType = event.dataTransfer.getData('text/type');
+    const draggedId = event.dataTransfer.getData('text/id');
+    const targetFolderId = event.currentTarget.dataset.folderId || event.currentTarget.dataset.id;
+
+    if (!draggedId || !targetFolderId || !draggedType) {
+        console.error('Недостаточно данных для перемещения:', { draggedType, draggedId, targetFolderId });
+        showMessage('Недостаточно данных для перемещения', 'error');
+        return;
+    }
+
+    if (draggedType === 'directory' && draggedId === targetFolderId) {
+        showMessage('Нельзя переместить папку саму в себя', 'error');
+        return;
+    }
+
+    try {
+        let url, body;
+
+        if (draggedType === 'directory') {
+            url = '/CloudStorageApp/public/directories/move';
+            body = {
+                directory_id: parseInt(draggedId),
+                target_parent_id: targetFolderId === 'root' ? 'root' : parseInt(targetFolderId)
+            };
+        } else if (draggedType === 'file') {
+            url = '/CloudStorageApp/public/files/move';
+            body = {
+                file_id: parseInt(draggedId),
+                target_directory_id: targetFolderId === 'root' ? 'root' : parseInt(targetFolderId)
+            };
+        } else {
+            throw new Error('Неизвестный тип элемента: ' + draggedType);
         }
+
+
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const responseText = await response.text();
+
+        if (!response.ok) {
+
+            try {
+                const errorData = JSON.parse(responseText);
+                console.error('Server error:', errorData);
+                throw new Error(`Server error: ${errorData.error || 'Unknown error'}`);
+            } catch (parseError) {
+                console.error('Could not parse error response:', responseText);
+                throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
+            }
+        }
+
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            throw new Error('Сервер вернул некорректный ответ: ' + responseText.substring(0, 100));
+        }
+
+        if (result.success) {
+            showMessage(result.message || 'Элемент успешно перемещен', 'success');
+            await loadFolders();
+        } else {
+            showMessage(result.error || 'Ошибка при перемещении', 'error');
+        }
+
+    } catch (error) {
+        console.error('Ошибка при обработке перемещения:', error);
+        showMessage('Ошибка при перемещении: ' + error.message, 'error');
+    }
+}
+
+function handleDragEnd(event) {
+
+    event.currentTarget.style.opacity = '1';
+    event.currentTarget.classList.remove('dragging');
+}
+
+
+async function isDescendantFolder(sourceId, targetId) {
+    try {
+        const res = await fetch(`/CloudStorageApp/public/directories/get/${targetId}`, {
+            credentials: 'include'
+        });
+
+        if (!res.ok) return false;
+
+        const data = await res.json();
+        if (!data.success || !data.directory) return false;
+
+        const directory = data.directory;
+
+        if (directory.parent_id === sourceId) return true;
+
+        if (directory.parent_id && directory.parent_id !== directory.id) {
+            return await isDescendantFolder(sourceId, directory.parent_id);
+        }
+
         return false;
-    } catch (e) {
-        console.error('Ошибка при проверке вложенности папок:', e);
+    } catch (error) {
+        console.error('Ошибка при проверке иерархии папок:', error);
         return false;
     }
+}
+
+function addDragAndDropHandlersToFolders() {
+    const folderElements = document.querySelectorAll('[data-folder-id], [data-id][data-type="directory"]');
+    folderElements.forEach(folderEl => {
+        folderEl.addEventListener('dragenter', handleDragEnter);
+        folderEl.addEventListener('dragover', handleDragOver);
+        folderEl.addEventListener('dragleave', handleDragLeave);
+        folderEl.addEventListener('drop', handleDrop);
+    });
 }
 
 async function loadUserInfo() {
@@ -230,21 +424,66 @@ async function loadUserInfo() {
 }
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-
         await loadUserInfo();
         await loadFolders();
         addRefreshButton();
-
     } catch (error) {
-
+        // ...
     }
 
     document.getElementById("fileInput").addEventListener("change", handleFileSelection);
     document.getElementById("folderInput").addEventListener("change", handleFileSelection);
+
+
+    const fileInput = document.getElementById("fileInput");
+    const folderInput = document.getElementById("folderInput");
+    const uploadBtn = document.getElementById("uploadFilesBtn");
+
+    if (fileInput) {
+        fileInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                uploadBtn.click();
+            }
+        });
+    }
+
+    if (folderInput) {
+        folderInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                uploadBtn.click();
+            }
+        });
+    }
+
+
+    const selectedFilesSpan = document.getElementById("selectedFiles");
+    if (selectedFilesSpan) {
+        selectedFilesSpan.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                uploadBtn.click();
+            }
+        });
+    }
+
     document.getElementById("createFolderBtn").onclick = (e) => {
         e.preventDefault();
         createFolder();
     };
+
+
+    const newFolderNameInput = document.getElementById('newFolderName');
+    if (newFolderNameInput) {
+        newFolderNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('createFolderBtn').click();
+            }
+        });
+    }
+
     document.getElementById('logoutBtn').onclick = async () => {
         await fetch('/CloudStorageApp/public/logout', { method: 'POST', credentials: 'include' });
         localStorage.removeItem("currentDirectoryId");
@@ -332,13 +571,55 @@ function handleFileSelection(event) {
     }
 }
 
+function showMessage(message, type = 'info') {
+    const messageContainer = document.getElementById('messageContainer');
+    if (!messageContainer) {
+        alert(message);
+        return;
+    }
+
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.textContent = message;
+
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.left = '50%';
+    alertDiv.style.transform = 'translateX(-50%)';
+    alertDiv.style.zIndex = '1100';
+    alertDiv.style.minWidth = '200px';
+    alertDiv.style.maxWidth = '800px';
+    alertDiv.style.textAlign = 'center';
+    alertDiv.style.opacity = '0';
+    alertDiv.style.transition = 'opacity 0.3s ease-in-out';
+
+    messageContainer.appendChild(alertDiv);
+
+    requestAnimationFrame(() => {
+        alertDiv.style.opacity = '1';
+    });
+
+    setTimeout(() => {
+        alertDiv.style.opacity = '0';
+
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                messageContainer.removeChild(alertDiv);
+            }
+        }, 300);
+    }, 3000);
+}
+
 async function loadFiles() {
     try {
-        const res = await fetch(`/CloudStorageApp/public/files/list?directory_id=${currentDirectoryId}`, {
+        const timestamp = Date.now();
+
+        const res = await fetch(`/CloudStorageApp/public/files/list?directory_id=${currentDirectoryId}&_t=${timestamp}`, {
             credentials: 'include',
             headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         });
 
@@ -373,6 +654,9 @@ function renderFilesList(files) {
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
             li.setAttribute('draggable', 'true');
 
+            li.dataset.type = 'file';
+            li.dataset.id = file.id;
+
             const isOwner = Number(file.user_id) === Number(currentUserId);
 
             const isImage = file.mime_type && file.mime_type.startsWith('image/');
@@ -393,9 +677,10 @@ function renderFilesList(files) {
 
             let sharedInfo = '';
             if (isOwner && file.is_shared_by_owner) {
-                sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1">👥 (вы поделились)</span>`;
+                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 140px; justify-content: center;">👥 (вы поделились)</span>`;
             } else if (!isOwner && file.is_shared) {
-                sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Доступ предоставил: ${file.shared_by}">👥</span>`;
+                const sharedByText = file.shared_by ? ` (Доступ предоставил: ${file.shared_by})` : '';
+                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 80px; justify-content: center;" title="Доступ предоставил${sharedByText}">👥 Общая</span>`;
             }
 
             const fileSize = file.file_size ? `<span class="text-muted ms-2">(${file.file_size})</span>` : '';
@@ -408,10 +693,10 @@ function renderFilesList(files) {
             }
 
             li.innerHTML = `
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center" style="flex-grow: 1; overflow: hidden;">
                     ${fileIcon}
                     ${sharedInfo}
-                    <span style="cursor:pointer">${file.name}</span>
+                    <span style="cursor:pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${file.name}</span>
                     ${fileSize}
                 </div>
                 <div class="dropdown">
@@ -431,12 +716,8 @@ function renderFilesList(files) {
                 </div>
             `;
 
-            li.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', JSON.stringify({
-                    id: file.id,
-                    type: 'file'
-                }));
-            });
+            li.addEventListener('dragstart', handleDragStart);
+            li.addEventListener('dragend', handleDragEnd);
 
             li.addEventListener('click', function (e) {
                 if (e.target.closest('.dropdown')) return;
@@ -463,6 +744,9 @@ function renderFilesGrid(files) {
             card.style.cursor = 'pointer';
             card.setAttribute('draggable', 'true');
 
+            card.dataset.type = 'file';
+            card.dataset.id = file.id;
+
             const isOwner = Number(file.user_id) === Number(currentUserId);
 
             const isImage = file.mime_type && file.mime_type.startsWith('image/');
@@ -485,7 +769,8 @@ function renderFilesGrid(files) {
             if (isOwner && file.is_shared_by_owner) {
                 sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1">👥 (вы поделились)</span>`;
             } else if (!isOwner && file.is_shared) {
-                sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Доступ предоставил: ${file.shared_by}">👥</span>`;
+                const sharedByText = file.shared_by ? ` (Доступ предоставил: ${file.shared_by})` : '';
+                sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Доступ предоставил${sharedByText}">👥 Общая</span>`;
             }
 
             const fileSize = file.file_size ? `<div class="text-muted">${file.file_size}</div>` : '';
@@ -534,19 +819,20 @@ function renderFilesGrid(files) {
 
             if (file.mime_type === 'application/pdf') {
                 card.querySelector('.img-container').innerHTML = '<div class="text-muted">Загрузка превью...</div>';
-                getPdfPreviewImageUrl(file.id).then(imgUrl => {
-                    card.querySelector('.img-container').innerHTML = `<img src="${imgUrl}" style="max-width:100%;max-height:100%;">`;
-                }).catch(() => {
+
+                if (typeof pdfjsLib !== 'undefined') {
+                    getPdfPreviewImageUrl(file.id).then(imgUrl => {
+                        card.querySelector('.img-container').innerHTML = `<img src="${imgUrl}" style="max-width:100%;max-height:100%;">`;
+                    }).catch(() => {
+                        card.querySelector('.img-container').innerHTML = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
+                    });
+                } else {
                     card.querySelector('.img-container').innerHTML = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
-                });
+                }
             }
 
-            card.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', JSON.stringify({
-                    id: file.id,
-                    type: 'file'
-                }));
-            });
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragend', handleDragEnd);
 
             card.onclick = (e) => {
                 if (!e.target.closest('.dropdown')) {
@@ -563,6 +849,18 @@ function renderFilesGrid(files) {
     }
 }
 
+async function getPdfPreviewImageUrl(fileId) {
+    const url = `/CloudStorageApp/public/files/download/${fileId}?inline=1`;
+    const pdf = await pdfjsLib.getDocument(url).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 1 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    return canvas.toDataURL();
+}
+
 async function loadFolders() {
     try {
         let directoryIdToLoad = currentDirectoryId;
@@ -571,11 +869,14 @@ async function loadFolders() {
             directoryIdToLoad = 'root';
         }
 
-        const res = await fetch(`/CloudStorageApp/public/directories/get/${directoryIdToLoad}`, {
+        const timestamp = Date.now();
+
+        const res = await fetch(`/CloudStorageApp/public/directories/get/${directoryIdToLoad}?_t=${timestamp}`, {
             credentials: 'include',
             headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         });
 
@@ -612,532 +913,6 @@ async function loadFolders() {
         console.error('Ошибка при загрузке папок:', error);
         showMessage('Ошибка при загрузке папок', 'danger');
     }
-}
-
-async function renameFile(fileId, currentName) {
-    const newName = prompt(`Введите новое имя для файла "${currentName}":`, currentName);
-    if (!newName || newName.trim() === '' || newName === currentName) {
-        return;
-    }
-
-    try {
-        const res = await fetch('/CloudStorageApp/public/files/rename', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                file_id: fileId,
-                new_name: newName.trim()
-            }),
-            credentials: 'include'
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            showMessage('Файл успешно переименован', 'success');
-            await loadFiles();
-        } else {
-            showMessage(data.error || 'Ошибка при переименовании файла', 'danger');
-        }
-    } catch (error) {
-        console.error('Ошибка при переименовании файла:', error);
-        showMessage('Произошла ошибка при переименовании файла', 'danger');
-    }
-}
-
-async function renameFolder(folderId, currentName) {
-    const newName = prompt(`Введите новое имя для папки "${currentName}":`, currentName);
-    if (!newName || newName.trim() === '' || newName === currentName) {
-        return;
-    }
-
-    try {
-        const res = await fetch('/CloudStorageApp/public/directories/rename', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                id: folderId,
-                new_name: newName.trim()
-            }),
-            credentials: 'include'
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            showMessage('Папка успешно переименована', 'success');
-            await loadFolders();
-        } else {
-            showMessage(data.error || 'Ошибка при переименовании папки', 'danger');
-        }
-    } catch (error) {
-        console.error('Ошибка при переименовании папки:', error);
-        showMessage('Произошла ошибка при переименовании папки', 'danger');
-    }
-}
-
-async function shareFile(fileId, fileName) {
-    const email = prompt(`Введите email пользователя, которому хотите предоставить доступ к файлу "${fileName}":`);
-    if (!email) return;
-
-    try {
-        const response = await fetch('/CloudStorageApp/public/files/share', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                file_id: fileId,
-                email: email.trim()
-            }),
-            credentials: 'include'
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showMessage('Доступ к файлу успешно предоставлен', 'success');
-            await loadFiles();
-        } else {
-            showMessage(data.error || 'Ошибка при предоставлении доступа', 'danger');
-        }
-    } catch (error) {
-        console.error('Ошибка при отправке запроса:', error);
-        showMessage('Произошла ошибка при предоставлении доступа', 'danger');
-    }
-}
-
-window.shareFile = shareFile;
-
-async function shareFolder(folderId, folderName) {
-    try {
-        const email = prompt(`Введите email пользователя, которому хотите предоставить доступ к папке "${folderName}":`);
-        if (!email) {
-            return;
-        }
-
-        const response = await fetch('/CloudStorageApp/public/directories/share', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                folder_id: folderId,
-                email: email.trim()
-            }),
-            credentials: 'include'
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showMessage('Доступ к папке успешно предоставлен', 'success');
-            await loadFolders();
-        } else {
-            showMessage(data.error || 'Ошибка при предоставлении доступа', 'danger');
-        }
-    } catch (error) {
-        console.error('Ошибка при отправке запроса:', error);
-        showMessage('Произошла ошибка при предоставлении доступа', 'danger');
-    }
-}
-
-document.getElementById('filePreviewModal').addEventListener('hidden.bs.modal', () => { const safeElement = document.getElementById('userGreeting') || document.body; if (safeElement) { safeElement.setAttribute('tabindex', '-1'); safeElement.focus(); } });
-
-function shareFromModal(fileId, fileName) {
-    if (!fileId || !fileName) {
-        console.error('Не указан ID файла или имя файла');
-        return;
-    }
-    shareFile(fileId, fileName);
-}
-
-async function deleteFile(fileId) {
-    if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
-
-    try {
-        const res = await fetch(`/CloudStorageApp/public/files/remove/${fileId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-        const data = await res.json();
-        if (data.success) {
-            showMessage('Файл успешно удалён', 'success');
-            await loadFiles();
-        } else {
-            showMessage(data.error || 'Ошибка при удалении файла', 'danger');
-        }
-    } catch (error) {
-        console.error('Ошибка при удалении файла:', error);
-        showMessage('Произошла ошибка при удалении файла', 'danger');
-    }
-}
-
-async function deleteFolder(folderId) {
-    if (!confirm('Вы уверены, что хотите удалить эту папку?')) return;
-
-    try {
-        const res = await fetch(`/CloudStorageApp/public/directories/delete/${folderId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-        const data = await res.json();
-        if (data.success) {
-            showMessage('Папка успешно удалена', 'success');
-            await loadFolders();
-        } else {
-            showMessage(data.error || 'Ошибка при удалении папки', 'danger');
-        }
-    } catch (error) {
-        console.error('Ошибка при удалении папки:', error);
-        showMessage('Произошла ошибка при удалении папки', 'danger');
-    }
-}
-
-async function deleteFileFromPreview(fileId) {
-    try {
-        const res = await fetch(`/CloudStorageApp/public/files/remove/${fileId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            showPreviewMessage("Файл успешно удален!", "success");
-            const modal = bootstrap.Modal.getInstance(document.getElementById('filePreviewModal'));
-            modal.hide();
-
-            showMessage('Файл успешно удалён', 'success');
-
-        } else {
-            showPreviewMessage(data.error || "Ошибка удаления файла", "danger");
-        }
-    } catch (error) {
-        console.error('Ошибка при удалении файла:', error);
-        showPreviewMessage("Произошла ошибка при удалении файла", "danger");
-    }
-}
-
-async function unshareFolder(folderId) {
-    if (!confirm("Вы уверены, что хотите отказаться от доступа к этой папке?")) {
-        return;
-    }
-
-    try {
-        const res = await fetch('/CloudStorageApp/public/directories/unshare', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ directory_id: folderId }),
-            credentials: 'include'
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            showMessage('Доступ к папке успешно отозван', 'success');
-            await loadFolders();
-        } else {
-            showMessage(data.error || 'Ошибка при отзыве доступа', 'danger');
-        }
-    } catch (error) {
-        console.error('Ошибка при отзыве доступа:', error);
-        showMessage('Произошла ошибка при отзыве доступа', 'danger');
-    }
-}
-
-function renderFoldersList(folders, currentDirectory) {
-    const foldersList = document.getElementById('foldersList');
-    foldersList.innerHTML = '';
-    foldersList.className = 'list-group mb-3';
-
-    let hasBack = false;
-    if (currentDirectory && currentDirectory.parent_id !== null) {
-        const backLi = document.createElement('li');
-        backLi.className = 'list-group-item d-flex align-items-center';
-        backLi.innerHTML = `<span style="cursor:pointer" onclick="goBack()">⬅️ Назад</span>
-            <span class="fw-bold ms-3">${currentDirectory.name}</span>`;
-        foldersList.appendChild(backLi);
-        hasBack = true;
-    }
-
-    if (folders.length > 0) {
-        folders.forEach(folder => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.setAttribute('draggable', 'true');
-
-            li.dataset.folderId = folder.id;
-
-            const isOwner = Number(folder.user_id) === Number(currentUserId);
-
-            let sharedInfo = '';
-            if (folder.is_shared && !isOwner) {
-
-                sharedInfo = `<span class="badge bg-info me-2" title="Доступ предоставил: ${folder.shared_by}">👥 Общая</span>`;
-            } else if (folder.is_shared_by_owner && isOwner) {
-
-                sharedInfo = `<span class="badge bg-info me-2">👥 Общая (вы поделились)</span>`;
-            }
-
-            const actionLinkHtml = isOwner
-                ? `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folder.id})">Удалить</a></li>`
-                : `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFolder(${folder.id})">Отказаться от доступа</a></li>`;
-
-            li.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <span style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                        <svg width="28" height="28" viewBox="0 0 48 48">
-                          <rect x="4" y="14" width="40" height="24" rx="4" fill="#FFD54F" stroke="#FFA000" stroke-width="2"/>
-                          <rect x="4" y="10" width="16" height="8" rx="2" fill="#FFE082" stroke="#FFA000" stroke-width="2"/>
-                        </svg>
-                    </span>
-                    ${sharedInfo}
-                    <span style="cursor:pointer">${folder.name}</span>
-                </div>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-link p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50%; width: 28px; height: 28px;">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                            <circle cx="2" cy="8" r="2"/>
-                            <circle cx="8" cy="8" r="2"/>
-                            <circle cx="14" cy="8" r="2"/>
-                        </svg>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')">Переименовать</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" href="/CloudStorageApp/public/directories/download/${folder.id}">Скачать</a></li>
-                        ${actionLinkHtml}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})">+ Создать папку</a></li>
-                    </ul>
-                </div>
-            `;
-
-            li.onclick = null;
-            li.onclick = (e) => {
-                if (!e.target.closest('.dropdown')) {
-                    openFolder(folder.id);
-                }
-            };
-
-            foldersList.appendChild(li);
-        });
-    } else if (!hasBack) {
-        foldersList.innerHTML += '<li class="list-group-item">Нет папок</li>';
-    }
-}
-
-function renderFoldersGrid(folders, currentDirectory) {
-    const foldersList = document.getElementById('foldersList');
-    foldersList.innerHTML = '';
-    foldersList.className = 'd-flex flex-wrap gap-3 mb-3';
-
-    let hasBack = false;
-    if (currentDirectory && currentDirectory.parent_id !== null) {
-        const backCard = document.createElement('div');
-        backCard.className = 'card position-relative p-2 text-center';
-        backCard.style.width = '180px';
-        backCard.style.cursor = 'pointer';
-        backCard.onclick = () => goBack();
-        backCard.innerHTML = `
-            <div class="img-container" style="height: 120px; display: flex; align-items: center; justify-content: center;">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-            <div class="fw-bold text-truncate mt-2">Назад</div>
-            <div class="text-muted text-truncate" title="${currentDirectory.name}">${currentDirectory.name}</div>
-        `;
-        foldersList.appendChild(backCard);
-        hasBack = true;
-    }
-
-    if (folders && folders.length > 0) {
-        folders.forEach(folder => {
-            const card = document.createElement('div');
-            card.className = 'card position-relative p-2 text-center';
-            card.style.width = '180px';
-            card.style.cursor = 'pointer';
-            card.dataset.folderId = folder.id;
-
-            card.onclick = null;
-            card.onclick = (e) => {
-                if (!e.target.closest('.dropdown')) {
-                    openFolder(folder.id);
-                }
-            };
-
-            const isOwner = Number(folder.user_id) === Number(currentUserId);
-
-            let sharedBadge = '';
-            if (folder.is_shared && !isOwner) {
-
-                sharedBadge = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Доступ предоставил: ${folder.shared_by}">👥</span>`;
-            } else if (folder.is_shared_by_owner && isOwner) {
-
-                sharedBadge = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1">👥</span>`;
-            }
-
-            const actionLinkHtml = isOwner
-                ? `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folder.id})">Удалить</a></li>`
-                : `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFolder(${folder.id})">Отказаться от доступа</a></li>`;
-
-            card.innerHTML = `
-                ${sharedBadge}
-                <div class="img-container" style="height: 120px; display: flex; align-items: center; justify-content: center;">
-                    <svg width="96" height="96" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M40 12H24L20 8H8C5.8 8 4 9.8 4 12V36C4 38.2 5.8 40 8 40H40C42.2 40 44 38.2 44 36V16C44 13.8 42.2 12 40 12Z" fill="#FFD54F"/>
-                        <path d="M40 12H24L20 8H8C5.8 8 4 9.8 4 12V16H44V16C44 13.8 42.2 12 40 12Z" fill="#FFE082"/>
-                    </svg>
-                </div>
-                <div class="fw-bold text-truncate mt-2" title="${folder.name}">${folder.name}</div>
-                <div class="dropdown position-absolute top-0 end-0 m-1">
-                    <button class="btn btn-sm btn-link p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50%; width: 28px; height: 28px;">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                            <circle cx="2" cy="8" r="2"/>
-                            <circle cx="8" cy="8" r="2"/>
-                            <circle cx="14" cy="8" r="2"/>
-                        </svg>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')">Переименовать</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" href="/CloudStorageApp/public/directories/download/${folder.id}">Скачать</a></li>
-                        ${actionLinkHtml}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})">+ Создать папку</a></li>
-                    </ul>
-                </div>
-            `;
-
-            foldersList.appendChild(card);
-        });
-    } else if (!hasBack) {
-        const noFolders = document.createElement('div');
-        noFolders.textContent = 'Нет папок';
-        foldersList.appendChild(noFolders);
-    }
-}
-
-async function getPdfPreviewImageUrl(fileId) {
-    const url = `/CloudStorageApp/public/files/download/${fileId}?inline=1`;
-    const pdf = await pdfjsLib.getDocument(url).promise;
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 1 });
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    return canvas.toDataURL();
-}
-
-function getPreviewHtml(file) {
-
-    if (file.mime_type === 'application/pdf') {
-        return `<iframe src="/CloudStorageApp/public/files/download/${file.id}?inline=1" width="100%" height="600px" style="border:none"></iframe>`;
-    }
-
-    if (file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const fileUrl = encodeURIComponent(window.location.origin + `/CloudStorageApp/public/files/download/${file.id}?inline=1`);
-        return `
-            <div class="alert alert-info mb-2">Если документ не отображается, скачайте его или откройте в Word Online вручную.</div>
-            <iframe src="https://view.officeapps.live.com/op/view.aspx?src=${fileUrl}" width="100%" height="600px" style="border:none"></iframe>
-        `;
-    }
-
-    if (file.mime_type === 'application/msword') {
-        const fileUrl = encodeURIComponent(window.location.origin + `/CloudStorageApp/public/files/download/${file.id}?inline=1`);
-        return `
-            <div class="alert alert-info mb-2">Если документ не отображается, скачайте его или откройте в Word Online вручную.</div>
-            <iframe src="https://view.officeapps.live.com/op/view.aspx?src=${fileUrl}" width="100%" height="600px" style="border:none"></iframe>
-        `;
-    }
-
-    if (file.mime_type && file.mime_type.startsWith('image/')) {
-        return `<img src="/CloudStorageApp/public/files/download/${file.id}?inline=1" style="max-width:100%;max-height:600px;" alt="preview">`;
-    }
-
-    return `<div class="text-center text-muted">Нет предпросмотра для этого типа файла</div>`;
-}
-
-function showMessage(message, type = 'info') {
-    const messageContainer = document.getElementById('messageContainer');
-    if (!messageContainer) {
-        alert(message);
-        return;
-    }
-
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type}`;
-    alertDiv.textContent = message;
-
-    alertDiv.style.position = 'fixed';
-    alertDiv.style.top = '20px';
-    alertDiv.style.left = '50%';
-    alertDiv.style.transform = 'translateX(-50%)';
-    alertDiv.style.zIndex = '1100';
-    alertDiv.style.minWidth = '200px';
-    alertDiv.style.maxWidth = '800px';
-    alertDiv.style.textAlign = 'center';
-    alertDiv.style.opacity = '0';
-    alertDiv.style.transition = 'opacity 0.3s ease-in-out';
-
-    messageContainer.appendChild(alertDiv);
-
-    requestAnimationFrame(() => {
-        alertDiv.style.opacity = '1';
-    });
-
-    setTimeout(() => {
-        alertDiv.style.opacity = '0';
-
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                messageContainer.removeChild(alertDiv);
-            }
-        }, 300);
-    }, 3000);
-}
-
-function showPreviewMessage(message, type = 'info') {
-    const previewMessageContainer = document.getElementById('filePreviewMessage');
-    if (!previewMessageContainer) {
-        alert(message);
-        return;
-    }
-    previewMessageContainer.textContent = message;
-    previewMessageContainer.className = `alert alert-${type}`;
-    previewMessageContainer.style.display = 'block';
-    previewMessageContainer.style.position = 'absolute';
-    previewMessageContainer.style.top = '10px';
-    previewMessageContainer.style.left = '50%';
-    previewMessageContainer.style.transform = 'translateX(-50%)';
-    previewMessageContainer.style.zIndex = '1050';
-    previewMessageContainer.style.width = 'auto';
-    previewMessageContainer.style.maxWidth = '90%';
-    previewMessageContainer.style.textAlign = 'center';
-
-    setTimeout(() => {
-        previewMessageContainer.style.display = 'none';
-        previewMessageContainer.textContent = '';
-        previewMessageContainer.className = '';
-        previewMessageContainer.style.position = '';
-        previewMessageContainer.style.top = '';
-        previewMessageContainer.style.left = '';
-        previewMessageContainer.style.transform = '';
-        previewMessageContainer.style.zIndex = '';
-        previewMessageContainer.style.width = '';
-        previewMessageContainer.style.maxWidth = '';
-        previewMessageContainer.style.textAlign = '';
-    }, 3000);
 }
 
 async function createFolder() {
@@ -1223,15 +998,16 @@ async function createSubfolderPrompt(parentFolderId) {
 }
 
 function openFolder(folderId) {
-    currentDirectoryId = folderId;
-    localStorage.setItem("currentDirectoryId", folderId);
+    if (!folderId) return;
+    currentDirectoryId = folderId.toString();
+    localStorage.setItem("currentDirectoryId", currentDirectoryId);
     loadFolders();
 }
 
 async function goBack() {
     try {
         if (currentDirectoryId === 'root' || !currentDirectoryId) {
-            return;
+            currentDirectoryId = 'root';
         }
 
         const res = await fetch(`/CloudStorageApp/public/directories/get/${currentDirectoryId}`, {
@@ -1241,7 +1017,6 @@ async function goBack() {
                 'Pragma': 'no-cache'
             }
         });
-
         if (!res.ok) {
             currentDirectoryId = 'root';
             localStorage.setItem("currentDirectoryId", currentDirectoryId);
@@ -1299,23 +1074,207 @@ async function goBack() {
     }
 }
 
-function addDragAndDropHandlersToFolders() {
-    const folderElements = document.querySelectorAll('[data-folder-id]');
-    folderElements.forEach(folderEl => {
-        folderEl.setAttribute('draggable', 'true');
+async function renameFile(fileId, currentName) {
+    const newName = prompt(`Введите новое имя для файла "${currentName}":`, currentName);
+    if (!newName || newName.trim() === '' || newName === currentName) {
+        return;
+    }
 
-        folderEl.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', JSON.stringify({
-                id: folderEl.dataset.folderId,
-                type: 'folder'
-            }));
+    try {
+        const res = await fetch('/CloudStorageApp/public/files/rename', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                file_id: fileId,
+                new_name: newName.trim()
+            }),
+            credentials: 'include'
         });
 
-        folderEl.addEventListener('dragenter', handleDragEnter);
-        folderEl.addEventListener('dragover', handleDragOver);
-        folderEl.addEventListener('dragleave', handleDragLeave);
-        folderEl.addEventListener('drop', handleDrop);
-    });
+        const data = await res.json();
+
+        if (data.success) {
+            showMessage('Файл успешно переименован', 'success');
+            await loadFiles();
+        } else {
+            showMessage(data.error || 'Ошибка при переименовании файла', 'danger');
+        }
+    } catch (error) {
+        console.error('Ошибка при переименовании файла:', error);
+        showMessage('Произошла ошибка при переименовании файла', 'danger');
+    }
+}
+
+async function renameFolder(folderId, currentName) {
+    const newName = prompt(`Введите новое имя для папки "${currentName}":`, currentName);
+    if (!newName || newName.trim() === '' || newName === currentName) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/CloudStorageApp/public/directories/rename', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: folderId,
+                new_name: newName.trim()
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showMessage('Папка успешно переименована', 'success');
+            await loadFolders();
+        } else {
+            showMessage(data.error || 'Ошибка при переименовании папки', 'danger');
+        }
+    } catch (error) {
+        console.error('Ошибка при переименовании папки:', error);
+        showMessage('Произошла ошибка при переименовании папки', 'danger');
+    }
+}
+
+async function shareFile(fileId, fileName) {
+    const email = prompt(`Введите email пользователя, которому хотите предоставить доступ к файлу "${fileName}":`);
+    if (!email) return;
+
+    try {
+        const response = await fetch('/CloudStorageApp/public/files/share', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                file_id: fileId,
+                email: email.trim()
+            }),
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showMessage('Доступ к файлу успешно предоставлен', 'success');
+            await loadFiles();
+        } else {
+            showMessage(data.error || 'Ошибка при предоставлении доступа', 'danger');
+        }
+    } catch (error) {
+        console.error('Ошибка при отправке запроса:', error);
+        showMessage('Произошла ошибка при предоставлении доступа', 'danger');
+    }
+}
+
+window.shareFile = shareFile;
+
+async function shareFolder(folderId, folderName) {
+    try {
+        const email = prompt(`Введите email пользователя, которому хотите предоставить доступ к папке "${folderName}":`);
+        if (!email) {
+            return;
+        }
+
+        const response = await fetch('/CloudStorageApp/public/directories/share', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                folder_id: folderId,
+                email: email.trim()
+            }),
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showMessage('Доступ к папке успешно предоставлен', 'success');
+            await loadFolders();
+        } else {
+            showMessage(data.error || 'Ошибка при предоставлении доступа', 'danger');
+        }
+    } catch (error) {
+        console.error('Ошибка при отправке запроса:', error);
+        showMessage('Произошла ошибка при предоставлении доступа', 'danger');
+    }
+}
+
+async function unshareFolder(folderId) {
+    if (!confirm("Вы уверены, что хотите отказаться от доступа к этой папке?")) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/CloudStorageApp/public/directories/unshare', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ directory_id: folderId }),
+            credentials: 'include'
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showMessage('Доступ к папке успешно отозван', 'success');
+            await loadFolders();
+        } else {
+            showMessage(data.error || 'Ошибка при отзыве доступа', 'danger');
+        }
+    } catch (error) {
+        console.error('Ошибка при отзыве доступа:', error);
+        showMessage('Произошла ошибка при отзыве доступа', 'danger');
+    }
+}
+
+async function deleteFolder(folderId) {
+    if (!confirm('Вы уверены, что хотите удалить эту папку?')) return;
+
+    try {
+        const res = await fetch(`/CloudStorageApp/public/directories/delete/${folderId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        const data = await res.json();
+        if (data.success) {
+            showMessage('Папка успешно удалена', 'success');
+            await loadFolders();
+        } else {
+            showMessage(data.error || 'Ошибка при удалении папки', 'danger');
+        }
+    } catch (error) {
+        console.error('Ошибка при удалении папки:', error);
+        showMessage('Произошла ошибка при удалении папки', 'danger');
+    }
+}
+
+async function deleteFile(fileId) {
+    if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
+
+    try {
+        const res = await fetch(`/CloudStorageApp/public/files/remove/${fileId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        const data = await res.json();
+        if (data.success) {
+            showMessage('Файл успешно удалён', 'success');
+            await loadFiles();
+        } else {
+            showMessage(data.error || 'Ошибка при удалении файла', 'danger');
+        }
+    } catch (error) {
+        console.error('Ошибка при удалении файла:', error);
+        showMessage('Произошла ошибка при удалении файла', 'danger');
+    }
 }
 
 document.getElementById('uploadFilesBtn').addEventListener('click', async (e) => {
@@ -1349,7 +1308,7 @@ document.getElementById('uploadFilesBtn').addEventListener('click', async (e) =>
         const res = await fetch('/CloudStorageApp/public/files/upload', {
             method: 'POST',
             credentials: 'include',
-            body: formData
+            body: formData,
         });
 
         if (!res.ok) {
@@ -1362,7 +1321,14 @@ document.getElementById('uploadFilesBtn').addEventListener('click', async (e) =>
         const data = await res.json();
 
         if (data.success) {
-            showMessage('Файлы успешно загружены', 'success');
+
+            const isFolderUpload = Array.from(files).some(file => file.webkitRelativePath && file.webkitRelativePath.includes('/'));
+
+            if (isFolderUpload) {
+                showMessage('Папка успешно загружена', 'success');
+            } else {
+                showMessage('Файлы успешно загружены', 'success');
+            }
 
             fileInput.value = '';
             folderInput.value = '';

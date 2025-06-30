@@ -2,24 +2,45 @@
 
 namespace App\Services;
 
-use RuntimeException;
+use App\Core\AuthMiddleware;
 
 class AuthService
 {
-    /**
-     * Получает ID текущего авторизованного пользователя
-     * @throws RuntimeException если пользователь не авторизован
-     */
-    public function getCurrentUserId(): int
+    private UserService $userService;
+
+    public function __construct(UserService $userService = null)
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        $this->userService = $userService ?? new UserService();
+    }
+
+    public function authenticate(string $email, string $password): array
+    {
+        $user = $this->userService->authenticateUser($email, $password);
+
+        if (!$user) {
+            return [
+                'success' => false,
+                'message' => 'Неверный email или пароль'
+            ];
         }
 
-        if (!isset($_SESSION['user_id'])) {
-            throw new RuntimeException('Пользователь не авторизован');
+        if ($user['is_banned']) {
+            return [
+                'success' => false,
+                'message' => 'Аккаунт заблокирован'
+            ];
         }
 
-        return (int)$_SESSION['user_id'];
+        AuthMiddleware::login($user['id']);
+
+        return [
+            'success' => true,
+            'user' => $user
+        ];
+    }
+
+    public function logout(): void
+    {
+        AuthMiddleware::logout();
     }
 }

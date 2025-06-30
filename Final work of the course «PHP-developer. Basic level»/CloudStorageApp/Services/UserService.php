@@ -3,150 +3,1261 @@
 namespace App\Services;
 
 use App\Core\Db;
-use PDO;
+use App\Core\Logger;
+use App\Repositories\UserRepository;
 use Exception;
+use RuntimeException;
 
 class UserService
 {
-    private $db;
+    private UserRepository $userRepository;
 
     public function __construct()
     {
-        $this->db = new Db();
-    }
-
-    public function getAllUsers(): array
-    {
-        try {
-            $conn = $this->db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT id, email, first_name, last_name, middle_name, role, age, gender, created_at 
-                FROM users 
-                ORDER BY created_at DESC
-            ");
-            $stmt->execute();
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (Exception $e) {
-            error_log("UserService::getAllUsers exception: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    public function getUserById($id): ?array
-    {
-        try {
-            $conn = $this->db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT id, email, first_name, last_name, middle_name, role, age, gender, created_at 
-                FROM users 
-                WHERE id = ?
-            ");
-            $stmt->execute([$id]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $user ?: null;
-        } catch (Exception $e) {
-            error_log("UserService::getUserById exception: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    public function deleteUser($id): bool
-    {
-        try {
-            error_log("UserService::deleteUser called for ID: $id");
-
-            $conn = $this->db->getConnection();
-            $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
-            $result = $stmt->execute([$id]);
-
-            error_log("UserService::deleteUser result: " . ($result ? 'success' : 'failed'));
-            return $result;
-        } catch (Exception $e) {
-            error_log("UserService::deleteUser exception: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    public function updateUser(int $id, array $data): bool
-    {
-        try {
-            error_log("UserService::updateUser called for ID: $id with data: " . json_encode($data));
-
-            $conn = $this->db->getConnection();
-
-            $fields = [];
-            $values = [];
-
-            foreach ($data as $key => $value) {
-                $fields[] = "$key = ?";
-                $values[] = $value;
-            }
-
-            $values[] = $id;
-
-            $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
-            error_log("UserService::updateUser SQL: " . $sql);
-
-            $stmt = $conn->prepare($sql);
-            $result = $stmt->execute($values);
-
-            error_log("UserService::updateUser result: " . ($result ? 'success' : 'failed'));
-            return $result;
-        } catch (Exception $e) {
-            error_log("UserService::updateUser exception: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    public function createUser(array $data): int
-    {
-        try {
-            error_log("UserService::createUser called with data: " . json_encode($data));
-
-            $conn = $this->db->getConnection();
-
-            $stmt = $conn->prepare("
-                INSERT INTO users (email, first_name, last_name, middle_name, password, role, age, gender) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            $result = $stmt->execute([
-                $data['email'],
-                $data['first_name'],
-                $data['last_name'],
-                $data['middle_name'] ?? null,
-                $data['password'],
-                $data['role'] ?? 'user',
-                $data['age'] ?? null,
-                $data['gender'] ?? null
-            ]);
-
-            if ($result) {
-                $userId = (int)$conn->lastInsertId();
-                return $userId;
-            } else {
-                return 0;
-            }
-        } catch (Exception $e) {
-            throw $e;
-        }
+        $this->userRepository = new UserRepository();
     }
 
     public function findUserByEmail(string $email): ?array
     {
+        return $this->userRepository->findUserByEmail($email);
+    }
+
+    public function findUserById(int $userId): ?array
+    {
+        return $this->userRepository->findById($userId);
+    }
+
+    public function getUserById(int $userId): ?array
+    {
+        return $this->userRepository->getUserById($userId);
+    }
+
+    public function getUserStats(int $userId): array
+    {
+        return $this->userRepository->getUserStats($userId);
+    }
+
+    public function createUser(array $userData): int
+    {
+        if (isset($userData['password'])) {
+            $userData['password'] = password_hash($userData['password'], PASSWORD_DEFAULT);
+        }
+
+        $userId = $this->userRepository->create($userData);
+
+        if ($userId) {
+            Logger::info("User created", [
+                'user_id' => $userId,
+                'email' => $userData['email'] ?? 'unknown'
+            ]);
+        }
+
+        return $userId;
+    }
+
+    public function createUserWithRootDirectory(array $userData): int
+    {
         try {
-            $conn = $this->db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT id, email, first_name, last_name, middle_name, role, password, age, gender, created_at 
-                FROM users 
-                WHERE email = ?
-            ");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $user ?: null;
+            $db = new Db();
+            $conn = $db->getConnection();
+            $conn->beginTransaction();
+
+            try {
+
+                $userId = $this->createUser($userData);
+
+                $directoryRepo = new \App\Repositories\DirectoryRepository();
+                $directoryRepo->createRootDirectory($userId);
+
+                $conn->commit();
+
+                Logger::info("User created with root directory", [
+                    'user_id' => $userId,
+                    'email' => $userData['email'] ?? 'unknown'
+                ]);
+
+                return $userId;
+            } catch (Exception $e) {
+                $conn->rollBack();
+                throw $e;
+            }
         } catch (Exception $e) {
-            error_log("UserService::findUserByEmail exception: " . $e->getMessage());
+            Logger::error("Error creating user with root directory", [
+                'email' => $userData['email'] ?? 'unknown',
+                'error' => $e->getMessage()
+            ]);
+            throw new RuntimeException('Ошибка при создании пользователя: ' . $e->getMessage());
+        }
+    }
+
+    public function updateUser(int $userId, array $data): bool
+    {
+        $result = $this->userRepository->updateUser($userId, $data);
+
+        if ($result) {
+            Logger::info("User updated", [
+                'user_id' => $userId,
+                'updated_fields' => array_keys($data)
+            ]);
+        }
+
+        return $result;
+    }
+
+    public function deleteUser(int $userId): bool
+    {
+        $result = $this->userRepository->deleteUser($userId);
+
+        if ($result) {
+            Logger::info("User deleted", [
+                'deleted_user_id' => $userId
+            ]);
+        }
+
+        return $result;
+    }
+
+    public function getAllUsers(): array
+    {
+        return $this->userRepository->getAllUsers();
+    }
+
+    public function searchUsers(string $query): array
+    {
+        return $this->userRepository->searchUsers($query);
+    }
+
+    public function isAdmin(?int $userId): bool
+    {
+        if (!$userId) {
+            return false;
+        }
+
+        try {
+            return $this->userRepository->isAdmin($userId);
+        } catch (Exception $e) {
+            Logger::error("Error checking admin status", ['user_id' => $userId, 'error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+
+    public function makeAdmin(int $userId): bool
+    {
+        $result = $this->userRepository->makeAdmin($userId);
+
+        if ($result) {
+            Logger::info("User promoted to admin", [
+                'user_id' => $userId
+            ]);
+        }
+
+        return $result;
+    }
+
+
+    public function removeAdmin(int $userId): bool
+    {
+        $result = $this->userRepository->removeAdmin($userId);
+
+        if ($result) {
+            Logger::info("User demoted from admin", [
+                'user_id' => $userId
+            ]);
+        }
+
+        return $result;
+    }
+
+
+    public function authenticateUser(string $email, string $password): ?array
+    {
+        try {
+
+            $user = $this->userRepository->findByEmailWithPassword($email);
+
+            if (!$user) {
+                Logger::warning("Authentication failed - user not found", [
+                    'email' => $email
+                ]);
+                return null;
+            }
+
+            if (!password_verify($password, $user['password'])) {
+                Logger::warning("Authentication failed - invalid password", [
+                    'email' => $email,
+                    'user_id' => $user['id']
+                ]);
+                return null;
+            }
+
+            unset($user['password']);
+
+            $this->userRepository->updateLastLogin($user['id']);
+
+            Logger::info("User authenticated successfully", [
+                'user_id' => $user['id'],
+                'email' => $email
+            ]);
+
+            return $user;
+        } catch (Exception $e) {
+            Logger::error("Authentication error", [
+                'email' => $email,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    public function validateUserData(array $data, bool $isUpdate = false): array
+    {
+        $errors = [];
+
+        if (!$isUpdate || isset($data['email'])) {
+            $email = $data['email'] ?? '';
+            if (empty($email)) {
+                $errors[] = 'Email обязателен';
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = 'Некорректный формат email';
+            } else {
+
+                $existingUser = $this->userRepository->findByEmail($email);
+                if ($existingUser && (!$isUpdate || $existingUser['id'] != ($data['id'] ?? 0))) {
+                    $errors[] = 'Пользователь с таким email уже существует';
+                }
+            }
+        }
+
+        if (!$isUpdate || isset($data['password'])) {
+            $password = $data['password'] ?? '';
+            if (!$isUpdate && empty($password)) {
+                $errors[] = 'Пароль обязателен';
+            } elseif (!empty($password) && strlen($password) < 6) {
+                $errors[] = 'Пароль должен содержать минимум 6 символов';
+            }
+        }
+
+        if (!$isUpdate || isset($data['first_name'])) {
+            $firstName = trim($data['first_name'] ?? '');
+            if (empty($firstName)) {
+                $errors[] = 'Имя обязательно';
+            } elseif (strlen($firstName) < 2) {
+                $errors[] = 'Имя должно содержать минимум 2 символа';
+            }
+        }
+
+        if (!$isUpdate || isset($data['last_name'])) {
+            $lastName = trim($data['last_name'] ?? '');
+            if (empty($lastName)) {
+                $errors[] = 'Фамилия обязательна';
+            } elseif (strlen($lastName) < 2) {
+                $errors[] = 'Фамилия должна содержать минимум 2 символа';
+            }
+        }
+
+        if (isset($data['age'])) {
+            $age = (int)$data['age'];
+            if ($age < 13 || $age > 120) {
+                $errors[] = 'Возраст должен быть от 13 до 120 лет';
+            }
+        }
+
+        if (isset($data['gender'])) {
+            $allowedGenders = ['male', 'female', 'other'];
+            if (!in_array($data['gender'], $allowedGenders)) {
+                $errors[] = 'Некорректное значение пола';
+            }
+        }
+
+        return $errors;
+    }
+
+    public function changePassword(int $userId, string $currentPassword, string $newPassword): void
+    {
+        $user = $this->userRepository->findById($userId);
+        if (!$user) {
+            throw new RuntimeException('Пользователь не найден');
+        }
+
+        $userWithPassword = $this->userRepository->findByEmailWithPassword($user['email']);
+        if (!$userWithPassword) {
+            throw new RuntimeException('Ошибка получения данных пользователя');
+        }
+
+        if (!password_verify($currentPassword, $userWithPassword['password'])) {
+            Logger::warning("Password change failed - invalid current password", [
+                'user_id' => $userId
+            ]);
+            throw new RuntimeException('Неверный текущий пароль');
+        }
+
+        if (strlen($newPassword) < 6) {
+            throw new RuntimeException('Новый пароль должен содержать минимум 6 символов');
+        }
+
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        if (!$this->userRepository->updatePassword($userId, $hashedPassword)) {
+            throw new RuntimeException('Ошибка при обновлении пароля');
+        }
+
+        Logger::info("Password changed successfully", [
+            'user_id' => $userId
+        ]);
+    }
+
+    public function resetPassword(string $email): string
+    {
+        try {
+            $user = $this->userRepository->findByEmail($email);
+            if (!$user) {
+                throw new RuntimeException('Пользователь не найден');
+            }
+
+            $tempPassword = $this->generateTempPassword();
+            $hashedPassword = password_hash($tempPassword, PASSWORD_DEFAULT);
+
+            if (!$this->userRepository->updatePassword($user['id'], $hashedPassword)) {
+                throw new RuntimeException('Ошибка при обновлении пароля');
+            }
+
+            Logger::info("Password reset", [
+                'user_id' => $user['id'],
+                'email' => $email
+            ]);
+
+            return $tempPassword;
+        } catch (Exception $e) {
+            Logger::error("Password reset failed", [
+                'email' => $email,
+                'error' => $e->getMessage()
+            ]);
             throw $e;
+        }
+    }
+
+    private function generateTempPassword(int $length = 12): string
+    {
+        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+        $password = '';
+
+        for ($i = 0; $i < $length; $i++) {
+            $password .= $chars[random_int(0, strlen($chars) - 1)];
+        }
+
+        return $password;
+    }
+
+    public function userExists(int $userId): bool
+    {
+        return $this->userRepository->userExists($userId);
+    }
+
+    public function getUsersWithPagination(int $page = 1, int $perPage = 20): array
+    {
+        $offset = ($page - 1) * $perPage;
+        return $this->userRepository->getUsersWithPagination($offset, $perPage);
+    }
+
+    public function getActiveUsers(int $days = 30): array
+    {
+        return $this->userRepository->getActiveUsers($days);
+    }
+
+    public function getUsersStatistics(): array
+    {
+        return [
+            'total_users' => $this->userRepository->countUsers(),
+            'total_admins' => $this->userRepository->countAdmins(),
+            'active_users_30_days' => count($this->userRepository->getActiveUsers(30)),
+            'active_users_7_days' => count($this->userRepository->getActiveUsers(7)),
+        ];
+    }
+
+    public function checkAdminRights(int $userId): bool
+    {
+        $user = $this->userRepository->findById($userId);
+        return $user && ($user['role'] === 'admin' || $user['is_admin'] == 1);
+    }
+
+    public function promoteToAdmin(int $userId): bool
+    {
+        if (!$this->userRepository->userExists($userId)) {
+            throw new RuntimeException('Пользователь не найден');
+        }
+
+        return $this->userRepository->makeAdmin($userId);
+    }
+
+    public function demoteFromAdmin(int $userId): bool
+    {
+        if (!$this->userRepository->userExists($userId)) {
+            throw new RuntimeException('Пользователь не найден');
+        }
+
+        return $this->userRepository->removeAdmin($userId);
+    }
+
+    public function getAdminStats(): array
+    {
+        try {
+
+            $fileRepo = new \App\Repositories\FileRepository();
+
+            $totalUsers = $this->userRepository->countUsers();
+            $totalAdmins = $this->userRepository->countAdmins();
+            $activeUsers30Days = count($this->userRepository->getActiveUsers(30));
+            $activeUsers7Days = count($this->userRepository->getActiveUsers(7));
+
+            $totalFiles = $this->getTotalFilesCount();
+            $totalFilesSize = $this->getTotalFilesSize();
+            $totalDirectories = $this->getTotalDirectoriesCount();
+            $totalShares = $this->getTotalSharesCount();
+
+            $recentUsers = $this->getRecentUsers(5);
+
+            $topUsersByFiles = $this->getTopUsersByFiles(5);
+
+            $memoryUsage = memory_get_usage(true);
+            $memoryLimitRaw = ini_get('memory_limit');
+            $memoryLimit = $this->convertToBytes($memoryLimitRaw);
+
+            $memoryUsageFormatted = $this->formatFileSize($memoryUsage);
+            $memoryUsagePercent = null;
+            if ($memoryLimit > 0) {
+                $memoryUsagePercent = round(($memoryUsage / $memoryLimit) * 100, 1);
+            }
+
+            $systemStats = [
+                'php_version' => PHP_VERSION,
+                'memory_usage' => $memoryUsage,
+                'memory_limit' => $memoryLimit,
+                'memory_usage_formatted' => $memoryUsageFormatted,
+                'memory_usage_percent' => $memoryUsagePercent,
+                'disk_free_space' => disk_free_space(__DIR__),
+                'disk_free_space_formatted' => $this->formatFileSize(disk_free_space(__DIR__)),
+                'log_file_size' => Logger::getLogFileSize()
+            ];
+
+            return [
+                'users' => [
+                    'total' => $totalUsers,
+                    'admins' => $totalAdmins,
+                    'active_30_days' => $activeUsers30Days,
+                    'active_7_days' => $activeUsers7Days,
+                    'recent' => $recentUsers
+                ],
+                'files' => [
+                    'total_count' => $totalFiles,
+                    'total_size' => $totalFilesSize,
+                    'total_size_formatted' => $this->formatFileSize($totalFilesSize),
+                    'total_directories' => $totalDirectories,
+                    'total_shares' => $totalShares
+                ],
+                'top_users' => $topUsersByFiles,
+                'system' => $systemStats
+            ];
+        } catch (Exception $e) {
+            Logger::error("UserService::getAdminStats error", [
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'users' => ['total' => 0, 'admins' => 0, 'active_30_days' => 0, 'active_7_days' => 0, 'recent' => []],
+                'files' => ['total_count' => 0, 'total_size' => 0, 'total_size_formatted' => '0 B', 'total_directories' => 0, 'total_shares' => 0],
+                'top_users' => [],
+                'system' => [
+                    'php_version' => PHP_VERSION,
+                    'memory_usage' => 0,
+                    'memory_limit' => 0,
+                    'memory_usage_formatted' => '0 B',
+                    'memory_usage_percent' => '0%',
+                    'disk_free_space' => 0,
+                    'disk_free_space_formatted' => '0 B',
+                    'log_file_size' => '0 B'
+                ]
+            ];
+        }
+    }
+
+    private function getTotalFilesCount(): int
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM files");
+            $stmt->execute();
+            $result = $stmt->fetch();
+            return (int)($result['count'] ?? 0);
+        } catch (Exception $e) {
+            Logger::error("Error getting total files count", ['error' => $e->getMessage()]);
+            return 0;
+        }
+    }
+
+    private function getTotalFilesSize(): int
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("SELECT COALESCE(SUM(size), 0) as total_size FROM files");
+            $stmt->execute();
+            $result = $stmt->fetch();
+            return (int)($result['total_size'] ?? 0);
+        } catch (Exception $e) {
+            Logger::error("Error getting total files size", ['error' => $e->getMessage()]);
+            return 0;
+        }
+    }
+
+    private function getTotalDirectoriesCount(): int
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM directories");
+            $stmt->execute();
+            $result = $stmt->fetch();
+            return (int)($result['count'] ?? 0);
+        } catch (Exception $e) {
+            Logger::error("Error getting total directories count", ['error' => $e->getMessage()]);
+            return 0;
+        }
+    }
+
+    private function getTotalSharesCount(): int
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM shared_items");
+            $stmt->execute();
+            $result = $stmt->fetch();
+            return (int)($result['count'] ?? 0);
+        } catch (Exception $e) {
+            Logger::error("Error getting total shares count", ['error' => $e->getMessage()]);
+            return 0;
+        }
+    }
+
+    private function getRecentUsers(int $limit = 5): array
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("
+                SELECT id, email, first_name, last_name, created_at, is_admin
+                FROM users 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            ");
+            $stmt->execute([$limit]);
+            return $stmt->fetchAll() ?: [];
+        } catch (Exception $e) {
+            Logger::error("Error getting recent users", ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    private function getTopUsersByFiles(int $limit = 5): array
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("
+                SELECT 
+                    u.id,
+                    u.email,
+                    u.first_name,
+                    u.last_name,
+                    COUNT(f.id) as files_count,
+                    COALESCE(SUM(f.size), 0) as total_size
+                FROM users u
+                LEFT JOIN files f ON u.id = f.user_id
+                GROUP BY u.id, u.email, u.first_name, u.last_name
+                ORDER BY files_count DESC, total_size DESC
+                LIMIT ?
+            ");
+            $stmt->execute([$limit]);
+            $users = $stmt->fetchAll() ?: [];
+
+            foreach ($users as &$user) {
+                $user['total_size_formatted'] = $this->formatFileSize((int)$user['total_size']);
+            }
+
+            return $users;
+        } catch (Exception $e) {
+            Logger::error("Error getting top users by files", ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    private function convertToBytes(string $memoryLimitRaw): int
+    {
+        if ($memoryLimitRaw === '-1') {
+            return -1;
+        }
+
+        $memoryLimit = trim($memoryLimitRaw);
+        $last = strtolower($memoryLimit[strlen($memoryLimit) - 1]);
+        $value = (int)$memoryLimit;
+
+        switch ($last) {
+            case 'g':
+                $value *= 1024;
+            case 'm':
+                $value *= 1024;
+            case 'k':
+                $value *= 1024;
+        }
+
+        return $value;
+    }
+
+    private function formatFileSize(int $bytes): string
+    {
+        if ($bytes === 0) return '0 B';
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= pow(1024, $pow);
+
+        return round($bytes, 2) . ' ' . $units[$pow];
+    }
+
+
+    public function getAllUsersWithStats(): array
+    {
+        return $this->userRepository->getAllUsersWithStats();
+    }
+
+
+    public function getUserForAdmin(int $userId): ?array
+    {
+        $user = $this->userRepository->findById($userId);
+        if (!$user) {
+            return null;
+        }
+
+        $stats = $this->userRepository->getUserStats($userId);
+
+        return array_merge($user, [
+            'files_count' => $stats['files_count'] ?? 0,
+            'total_size' => $stats['total_size'] ?? 0,
+            'total_size_formatted' => $this->formatFileSize($stats['total_size'] ?? 0),
+            'directories_count' => $stats['directories_count'] ?? 0,
+            'shared_files_count' => $stats['shared_files_count'] ?? 0,
+            'received_shares_count' => $stats['received_shares_count'] ?? 0
+        ]);
+    }
+
+    public function updateLastLogin(int $userId): bool
+    {
+        return $this->userRepository->updateLastLogin($userId);
+    }
+
+    public function banUser(int $userId): bool
+    {
+        try {
+            $result = $this->userRepository->banUser($userId);
+
+            if ($result) {
+                Logger::info("User banned", ['user_id' => $userId]);
+            }
+
+            return $result;
+        } catch (Exception $e) {
+            Logger::error("Error banning user", [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    public function unbanUser(int $userId): bool
+    {
+        try {
+            $result = $this->userRepository->unbanUser($userId);
+
+            if ($result) {
+                Logger::info("User unbanned", ['user_id' => $userId]);
+            }
+
+            return $result;
+        } catch (Exception $e) {
+            Logger::error("Error unbanning user", [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    public function isUserBanned(int $userId): bool
+    {
+        return $this->userRepository->isUserBanned($userId);
+    }
+
+    public function getUserActivity(int $userId, int $days = 30): array
+    {
+        try {
+            return $this->userRepository->getUserActivity($userId, $days);
+        } catch (Exception $e) {
+            Logger::error("Error getting user activity", [
+                'user_id' => $userId,
+                'days' => $days,
+                'error' => $e->getMessage()
+            ]);
+            return [];
+        }
+    }
+
+    public function cleanupInactiveUsers(int $days = 365): int
+    {
+        try {
+            $inactiveUsers = $this->userRepository->getInactiveUsers($days);
+            $deletedCount = 0;
+
+            foreach ($inactiveUsers as $user) {
+                if ($this->deleteUser($user['id'])) {
+                    $deletedCount++;
+                }
+            }
+
+            Logger::info("Inactive users cleanup completed", [
+                'days' => $days,
+                'deleted_count' => $deletedCount
+            ]);
+
+            return $deletedCount;
+        } catch (Exception $e) {
+            Logger::error("Error during inactive users cleanup", [
+                'days' => $days,
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
+    }
+
+    public function exportUserData(int $userId): array
+    {
+        try {
+            $user = $this->userRepository->findById($userId);
+            if (!$user) {
+                throw new RuntimeException('Пользователь не найден');
+            }
+
+            $userData = [
+                'user_info' => $user,
+                'files' => $this->getUserFiles($userId),
+                'directories' => $this->getUserDirectories($userId),
+                'shared_files' => $this->getUserSharedFiles($userId),
+                'received_shares' => $this->getUserReceivedShares($userId),
+                'activity_log' => $this->getUserActivity($userId, 90) // последние 90 дней
+            ];
+
+            Logger::info("User data exported", [
+                'user_id' => $userId,
+                'exported_by' => $_SESSION['user_id'] ?? 'system'
+            ]);
+
+            return $userData;
+        } catch (Exception $e) {
+            Logger::error("Error exporting user data", [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    private function getUserFiles(int $userId): array
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("
+                SELECT id, filename, mime_type, size, created_at, directory_id
+                FROM files 
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+            ");
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll() ?: [];
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    private function getUserDirectories(int $userId): array
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("
+                SELECT id, name, parent_id, created_at
+                FROM directories 
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+            ");
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll() ?: [];
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    private function getUserSharedFiles(int $userId): array
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("
+                SELECT f.id, f.filename, u.email as shared_with, si.created_at as shared_at
+                FROM files f
+                JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
+                JOIN users u ON si.shared_with_user_id = u.id
+                WHERE f.user_id = ?
+                ORDER BY si.created_at DESC
+            ");
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll() ?: [];
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    private function getUserReceivedShares(int $userId): array
+    {
+        try {
+            $db = new Db();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("
+                SELECT f.id, f.filename, u.email as shared_by, si.created_at as shared_at
+                FROM files f
+                JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
+                JOIN users u ON si.shared_by_user_id = u.id
+                WHERE si.shared_with_user_id = ?
+                ORDER BY si.created_at DESC
+            ");
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll() ?: [];
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    public function sendPasswordResetEmail(string $email): bool
+    {
+        try {
+            $user = $this->userRepository->findByEmail($email);
+            if (!$user) {
+
+                Logger::warning("Password reset requested for non-existent email", [
+                    'email' => $email
+                ]);
+                return true;
+            }
+
+            $resetToken = bin2hex(random_bytes(32));
+            $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+            if (!$this->userRepository->savePasswordResetToken($user['id'], $resetToken, $expiresAt)) {
+                throw new RuntimeException('Ошибка при сохранении токена сброса');
+            }
+
+            Logger::info("Password reset token generated", [
+                'user_id' => $user['id'],
+                'email' => $email,
+                'token' => $resetToken
+            ]);
+
+            return true;
+        } catch (Exception $e) {
+            Logger::error("Error sending password reset email", [
+                'email' => $email,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    public function resetPasswordWithToken(string $token, string $newPassword): bool
+    {
+        try {
+
+            $user = $this->userRepository->findByPasswordResetToken($token);
+            if (!$user) {
+                Logger::warning("Invalid password reset token used", [
+                    'token' => substr($token, 0, 8) . '...' // Логируем только начало токена
+                ]);
+                return false;
+            }
+
+            if (strtotime($user['reset_token_expires']) < time()) {
+                Logger::warning("Expired password reset token used", [
+                    'user_id' => $user['id'],
+                    'expired_at' => $user['reset_token_expires']
+                ]);
+                return false;
+            }
+
+            if (strlen($newPassword) < 6) {
+                throw new RuntimeException('Пароль должен содержать минимум 6 символов');
+            }
+
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+            if (!$this->userRepository->updatePasswordAndClearToken($user['id'], $hashedPassword)) {
+                throw new RuntimeException('Ошибка при обновлении пароля');
+            }
+
+            Logger::info("Password reset completed successfully", [
+                'user_id' => $user['id']
+            ]);
+
+            return true;
+        } catch (Exception $e) {
+            Logger::error("Error resetting password with token", [
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function validatePasswordResetToken(string $token): bool
+    {
+        try {
+            $user = $this->userRepository->findByPasswordResetToken($token);
+
+            if (!$user) {
+                return false;
+            }
+
+            return strtotime($user['reset_token_expires']) >= time();
+        } catch (Exception $e) {
+            Logger::error("Error validating password reset token", [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    public function cleanupExpiredTokens(): int
+    {
+        try {
+            $deletedCount = $this->userRepository->deleteExpiredPasswordResetTokens();
+
+            if ($deletedCount > 0) {
+                Logger::info("Expired password reset tokens cleaned up", [
+                    'deleted_count' => $deletedCount
+                ]);
+            }
+
+            return $deletedCount;
+        } catch (Exception $e) {
+            Logger::error("Error cleaning up expired tokens", [
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
+    }
+
+    public function getUsersCount(): int
+    {
+        return $this->userRepository->countUsers();
+    }
+
+    public function getAdminsCount(): int
+    {
+        return $this->userRepository->countAdmins();
+    }
+
+    public function getUsersByRole(string $role = 'user'): array
+    {
+        return $this->userRepository->getUsersByRole($role);
+    }
+
+    public function bulkDeleteUsers(array $userIds): array
+    {
+        $results = [
+            'success' => [],
+            'failed' => [],
+            'total' => count($userIds)
+        ];
+
+        foreach ($userIds as $userId) {
+            try {
+                if ($this->deleteUser((int)$userId)) {
+                    $results['success'][] = $userId;
+                } else {
+                    $results['failed'][] = [
+                        'id' => $userId,
+                        'error' => 'Не удалось удалить пользователя'
+                    ];
+                }
+            } catch (Exception $e) {
+                $results['failed'][] = [
+                    'id' => $userId,
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        Logger::info("Bulk user deletion completed", [
+            'total' => $results['total'],
+            'success_count' => count($results['success']),
+            'failed_count' => count($results['failed'])
+        ]);
+
+        return $results;
+    }
+
+    public function bulkUpdateUsers(array $updates): array
+    {
+        $results = [
+            'success' => [],
+            'failed' => [],
+            'total' => count($updates)
+        ];
+
+        foreach ($updates as $update) {
+            $userId = $update['id'] ?? null;
+            $data = $update['data'] ?? [];
+
+            if (!$userId) {
+                $results['failed'][] = [
+                    'id' => null,
+                    'error' => 'ID пользователя не указан'
+                ];
+                continue;
+            }
+
+            try {
+                if ($this->updateUser((int)$userId, $data)) {
+                    $results['success'][] = $userId;
+                } else {
+                    $results['failed'][] = [
+                        'id' => $userId,
+                        'error' => 'Не удалось обновить пользователя'
+                    ];
+                }
+            } catch (Exception $e) {
+                $results['failed'][] = [
+                    'id' => $userId,
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        Logger::info("Bulk user update completed", [
+            'total' => $results['total'],
+            'success_count' => count($results['success']),
+            'failed_count' => count($results['failed'])
+        ]);
+
+        return $results;
+    }
+
+    public function getSystemHealth(): array
+    {
+        try {
+            $health = [
+                'status' => 'healthy',
+                'checks' => [],
+                'timestamp' => date('Y-m-d H:i:s')
+            ];
+
+            try {
+                $db = new Db();
+                $conn = $db->getConnection();
+                $stmt = $conn->prepare("SELECT 1");
+                $stmt->execute();
+                $health['checks']['database'] = [
+                    'status' => 'ok',
+                    'message' => 'Подключение к базе данных работает'
+                ];
+            } catch (Exception $e) {
+                $health['checks']['database'] = [
+                    'status' => 'error',
+                    'message' => 'Ошибка подключения к базе данных: ' . $e->getMessage()
+                ];
+                $health['status'] = 'unhealthy';
+            }
+
+            $uploadsDir = __DIR__ . '/../uploads';
+            if (is_dir($uploadsDir) && is_writable($uploadsDir)) {
+                $health['checks']['uploads_directory'] = [
+                    'status' => 'ok',
+                    'message' => 'Директория uploads доступна для записи'
+                ];
+            } else {
+                $health['checks']['uploads_directory'] = [
+                    'status' => 'error',
+                    'message' => 'Директория uploads недоступна или не доступна для записи'
+                ];
+                $health['status'] = 'unhealthy';
+            }
+
+            $logsDir = __DIR__ . '/../logs';
+            if (is_dir($logsDir) && is_writable($logsDir)) {
+                $health['checks']['logs_directory'] = [
+                    'status' => 'ok',
+                    'message' => 'Директория logs доступна для записи'
+                ];
+            } else {
+                $health['checks']['logs_directory'] = [
+                    'status' => 'warning',
+                    'message' => 'Директория logs недоступна или не доступна для записи'
+                ];
+            }
+
+            $freeSpace = disk_free_space(__DIR__);
+            $minFreeSpace = 100 * 1024 * 1024;
+
+            if ($freeSpace > $minFreeSpace) {
+                $health['checks']['disk_space'] = [
+                    'status' => 'ok',
+                    'message' => 'Достаточно свободного места на диске',
+                    'free_space' => $this->formatFileSize($freeSpace)
+                ];
+            } else {
+                $health['checks']['disk_space'] = [
+                    'status' => 'warning',
+                    'message' => 'Мало свободного места на диске',
+                    'free_space' => $this->formatFileSize($freeSpace)
+                ];
+            }
+
+            $memoryUsage = memory_get_usage(true);
+            $memoryLimitRaw = ini_get('memory_limit');
+            $memoryLimit = $this->convertToBytes($memoryLimitRaw);
+
+            if ($memoryLimit > 0 && $memoryUsage < ($memoryLimit * 0.8)) {
+                $health['checks']['memory_usage'] = [
+                    'status' => 'ok',
+                    'message' => 'Использование памяти в норме',
+                    'usage' => $this->formatFileSize($memoryUsage),
+                    'limit' => $memoryLimitRaw
+                ];
+            } else {
+                $health['checks']['memory_usage'] = [
+                    'status' => 'warning',
+                    'message' => 'Высокое использование памяти',
+                    'usage' => $this->formatFileSize($memoryUsage),
+                    'limit' => $memoryLimitRaw
+                ];
+            }
+
+            return $health;
+        } catch (Exception $e) {
+            Logger::error("Error checking system health", [
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => 'Ошибка при проверке состояния системы',
+                'error' => $e->getMessage(),
+                'timestamp' => date('Y-m-d H:i:s')
+            ];
+        }
+    }
+
+    public function getSecurityReport(): array
+    {
+        try {
+            $report = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'security_checks' => [],
+                'recommendations' => []
+            ];
+
+            $weakPasswordsCount = $this->userRepository->countWeakPasswords();
+            if ($weakPasswordsCount > 0) {
+                $report['security_checks']['weak_passwords'] = [
+                    'status' => 'warning',
+                    'count' => $weakPasswordsCount,
+                    'message' => "Найдено пользователей со слабыми паролями: $weakPasswordsCount"
+                ];
+                $report['recommendations'][] = 'Рекомендуется уведомить пользователей о необходимости смены паролей';
+            } else {
+                $report['security_checks']['weak_passwords'] = [
+                    'status' => 'ok',
+                    'message' => 'Слабые пароли не обнаружены'
+                ];
+            }
+
+            $inactiveAdmins = $this->userRepository->getInactiveAdmins(90); // 90 дней
+            if (count($inactiveAdmins) > 0) {
+                $report['security_checks']['inactive_admins'] = [
+                    'status' => 'warning',
+                    'count' => count($inactiveAdmins),
+                    'message' => 'Найдены неактивные администраторы'
+                ];
+                $report['recommendations'][] = 'Рассмотрите возможность отзыва прав администратора у неактивных пользователей';
+            } else {
+                $report['security_checks']['inactive_admins'] = [
+                    'status' => 'ok',
+                    'message' => 'Все администраторы активны'
+                ];
+            }
+
+            $suspiciousActivity = $this->getSuspiciousLoginActivity();
+            if (count($suspiciousActivity) > 0) {
+                $report['security_checks']['suspicious_activity'] = [
+                    'status' => 'warning',
+                    'count' => count($suspiciousActivity),
+                    'message' => 'Обнаружена подозрительная активность входа'
+                ];
+                $report['recommendations'][] = 'Проверьте логи на предмет попыток взлома';
+            } else {
+                $report['security_checks']['suspicious_activity'] = [
+                    'status' => 'ok',
+                    'message' => 'Подозрительная активность не обнаружена'
+                ];
+            }
+
+            return $report;
+        } catch (Exception $e) {
+            Logger::error("Error generating security report", [
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'error' => 'Ошибка при генерации отчета безопасности',
+                'timestamp' => date('Y-m-d H:i:s')
+            ];
+        }
+    }
+
+    private function getSuspiciousLoginActivity(): array
+    {
+        try {
+            $logs = Logger::getRecentLogs(1000);
+            $suspiciousIPs = [];
+
+            foreach ($logs as $log) {
+                if (
+                    isset($log['message']) &&
+                    strpos($log['message'], 'Authentication failed') !== false
+                ) {
+                    $ip = $log['ip'] ?? 'unknown';
+                    if (!isset($suspiciousIPs[$ip])) {
+                        $suspiciousIPs[$ip] = 0;
+                    }
+                    $suspiciousIPs[$ip]++;
+                }
+            }
+
+            return array_filter($suspiciousIPs, function ($count) {
+                return $count > 10;
+            });
+        } catch (Exception $e) {
+            return [];
         }
     }
 }

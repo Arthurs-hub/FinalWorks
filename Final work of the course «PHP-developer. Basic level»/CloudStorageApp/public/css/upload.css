@@ -1,0 +1,150 @@
+ body {
+     background: #f8f9fa;
+ }
+
+ .container-box {
+     width: 700px;
+     background: #fff;
+     padding: 32px 36px 36px 36px;
+     border-radius: 12px;
+     box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+     box-sizing: border-box;
+ }
+
+ .container-fluid {
+     margin: 20px 0;
+ }
+
+ .file-label {
+     white-space: nowrap;
+     max-width: 150px;
+     overflow: hidden;
+     text-overflow: ellipsis;
+ }
+
+ #selectedFiles {
+     max-width: 700px;
+     overflow: hidden;
+     text-overflow: ellipsis;
+     white-space: nowrap;
+     margin-left: 3px;
+ }
+
+ .alert {
+     padding: 1rem;
+     margin-bottom: 1rem;
+     border: 1px solid transparent;
+     border-radius: 0.25rem;
+ }
+
+ .alert-success {
+     color: #0f5132;
+     background-color: #d1e7dd;
+     border-color: #badbcc;
+ }
+
+ .alert-danger {
+     color: #842029;
+     background-color: #f8d7da;
+     border-color: #f5c2c7;
+ }
+
+ .d-none {
+     display: none !important;
+ }
+
+ .drag-over {
+     background-color: #e9ecef;
+ }
+
+ .file-buttons-container {
+     display: flex;
+     gap: 10px;
+     align-items: center;
+     white-space: nowrap;
+ }
+
+ .file-buttons-container .btn {
+     flex-shrink: 0;
+ }
+
+ @keyframes fadeIn {
+     from {
+         opacity: 0;
+         transform: translateY(-10px);
+     }
+
+     to {
+         opacity: 1;
+         transform: translateY(0);
+     }
+ }
+
+ #folderMessageContainer .alert {
+     position: fixed;
+     top: 20px;
+     left: 50%;
+     transform: translateX(-50%);
+     width: auto;
+     max-width: 80%;
+ }
+
+ .list-group-item.drag-over {
+     background-color: #f8f9fa;
+     border: 2px dashed #0d6efd !important;
+ }
+
+ .card.drag-over {
+     background-color: #f8f9fa;
+     border: 2px dashed #0d6efd !important;
+     transform: scale(1.02);
+     transition: all 0.2s ease;
+ }
+
+ @keyframes fadeIn {
+     from {
+         opacity: 0;
+         transform: translateY(-10px);
+     }
+
+     to {
+         opacity: 1;
+         transform: translateY(0);
+     }
+ }
+
+ .file-select-btn i {
+     font-size: 1.2rem;
+     color: white;
+     opacity: 0.9;
+     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+ }
+
+ .file-select-btn:hover i {
+     opacity: 1;
+     transform: scale(1.05);
+ }
+
+ .upload-btn {
+     white-space: nowrap;
+     margin-left: 1px;
+ }
+
+ .input-group {
+     align-items: center;
+     height: 38px;
+ }
+
+ .preview-modal-actions {
+     position: absolute;
+     right: 24px;
+     bottom: 24px;
+     z-index: 10;
+ }
+
+ #filePreviewModal .modal-body {
+     position: relative;
+     min-height: 200px;
+     padding-bottom: 80px;
+ }
+ 

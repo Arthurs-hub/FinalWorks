@@ -20,4 +20,9 @@ class Response
         error_log(json_encode($this->data));
         echo json_encode($this->data);
     }
+
+    public function getData()
+    {
+        return $this->data;
+    }
 }
