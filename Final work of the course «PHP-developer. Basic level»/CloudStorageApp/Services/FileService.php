@@ -39,12 +39,14 @@ class FileService
             $directoryId = (int)$directoryId;
         }
 
+        // Проверяем доступ к директории
         if (!$this->fileRepository->checkDirectoryAccess($directoryId, $userId)) {
             $directoryId = $this->fileRepository->getRootDirectoryId($userId);
         }
 
         $directories = $this->fileRepository->getDirectoriesInDirectory($userId, $directoryId);
 
+        // Исправляем ошибку в вызове метода
         if ($directoryId === $this->fileRepository->getRootDirectoryId($userId)) {
             $sharedRootIds = $this->fileRepository->getSharedRootDirectoryIds($userId);
             $files = $this->fileRepository->getFilesInRootDirectory($userId, $directoryId, $sharedRootIds);
@@ -75,7 +77,7 @@ class FileService
             $file = $this->fileRepository->deleteFile($fileId, $userId);
 
             if ($file) {
-
+                // Исправляем ошибку в обращении к массиву
                 $filePath = __DIR__ . '/../uploads/files/' . $file['stored_name'];
                 if (file_exists($filePath)) {
                     unlink($filePath);
@@ -93,14 +95,16 @@ class FileService
         }
     }
 
+    // Исправляем название метода
     public function rename(int $fileId, string $newName, int $userId): Response
     {
         try {
-
+            // Проверяем доступ к файлу - исправляем название метода
             if (!$this->fileRepository->checkFileAccessForRename($fileId, $userId)) {
                 throw new RuntimeException('Файл не найден или нет прав доступа');
             }
 
+            // Переименовываем
             if ($this->fileRepository->renameFile($fileId, $newName)) {
                 Logger::info("File renamed successfully", [
                     'file_id' => $fileId,
@@ -130,12 +134,13 @@ class FileService
     public function share(int $fileId, string $targetEmail, int $userId): Response
     {
         try {
-
+            // Проверяем права на файл
             $file = $this->fileRepository->getFileForShare($fileId, $userId);
             if (!$file) {
                 throw new RuntimeException('Файл не найден или нет прав доступа');
             }
 
+            // Находим пользователя
             $targetUser = $this->userService->findUserByEmail($targetEmail);
             if (!$targetUser) {
                 throw new RuntimeException('Пользователь с указанным email не найден');
@@ -145,10 +150,12 @@ class FileService
                 throw new RuntimeException('Нельзя предоставить доступ самому себе');
             }
 
+            // Проверяем, не расшарен ли уже
             if ($this->fileRepository->checkExistingShare($fileId, $targetUser['id'])) {
                 throw new RuntimeException('Доступ к файлу уже предоставлен этому пользователю');
             }
 
+            // Создаем расшаривание
             if ($this->fileRepository->createShare($fileId, $userId, $targetUser['id'])) {
                 Logger::info("File shared successfully", [
                     'file_id' => $fileId,
@@ -180,11 +187,12 @@ class FileService
     public function move(int $fileId, $targetDirId, int $userId): Response
     {
         try {
-
+            // Проверяем доступ к файлу
             if (!$this->fileRepository->checkFileAccessForRename($fileId, $userId)) {
                 return new Response(['success' => false, 'error' => 'Файл не найден или нет прав доступа'], 404);
             }
 
+            // Определяем целевую директорию
             if ($targetDirId === 'root') {
                 $targetDirId = $this->fileRepository->getRootDirectoryId($userId);
             } else {
@@ -211,7 +219,7 @@ class FileService
     public function upload(array $file, $directoryId, int $userId, string $relativePath = ''): Response
     {
         try {
-            if ($file['size'] > 50 * 1024 * 1024) {
+            if ($file['size'] > 50 * 1024 * 1024) { // 50MB limit
                 return new Response(['success' => false, 'error' => 'Файл слишком большой (максимум 50MB)'], 400);
             }
 
@@ -235,19 +243,19 @@ class FileService
 
                 $parentId = $directoryId;
                 foreach ($pathParts as $folderName) {
-
+                    // Проверяем, существует ли папка с таким именем у пользователя в parentId
                     $existingDir = $this->fileRepository->findExistingDirectory($folderName, $parentId, $userId);
                     if ($existingDir) {
                         $parentId = (int)$existingDir['id'];
                     } else {
-
+                        // Создаём новую папку
                         $parentId = $this->fileRepository->createDirectory($folderName, $folderName, $parentId, $userId);
                     }
                 }
                 $directoryId = $parentId;
-                $file['name'] = $fileName;
+                $file['name'] = $fileName; // Обновляем имя файла на имя без пути
             } else {
-
+                // Если путь пустой или без папок, имя файла не меняем
                 $fileName = $file['name'];
             }
 
@@ -304,7 +312,7 @@ class FileService
             $file = $this->fileRepository->getFileInfo($fileId, $userId);
 
             if ($file) {
-
+                // Добавляем информацию о размере файла
                 $filePath = __DIR__ . '/../uploads/files/' . $file['stored_name'];
                 if (file_exists($filePath)) {
                     $file['file_size_formatted'] = $this->formatFileSize(filesize($filePath));
@@ -325,7 +333,7 @@ class FileService
     public function unshare(int $fileId, int $userId): Response
     {
         try {
-
+            // Проверяем, что файл расшарен с пользователем
             if (!$this->fileRepository->checkSharedFileAccess($fileId, $userId)) {
                 return new Response(['success' => false, 'error' => 'Файл не найден или не расшарен с вами'], 404);
             }
@@ -356,6 +364,7 @@ class FileService
                 exit;
             }
 
+            // Проверяем права доступа (добавляем проверку на администратора)
             $isOwner = $file['user_id'] == $userId;
             $hasSharedAccess = $this->fileRepository->checkFileAccess($fileId, $userId);
             $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
@@ -376,8 +385,10 @@ class FileService
                 exit;
             }
 
+            // Определяем тип отображения (inline для preview, attachment для download)
             $disposition = isset($_GET['inline']) ? 'inline' : 'attachment';
 
+            // Отправляем файл
             header('Content-Type: ' . ($file['mime_type'] ?: 'application/octet-stream'));
             header('Content-Disposition: ' . $disposition . '; filename="' . $file['filename'] . '"');
             header('Content-Length: ' . filesize($filePath));
