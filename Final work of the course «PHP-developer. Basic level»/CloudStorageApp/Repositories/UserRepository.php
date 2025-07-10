@@ -7,7 +7,6 @@ use PDO;
 
 class UserRepository extends Repository
 {
-
     public function fetchOne(string $sql, array $params = []): ?array
     {
         return parent::fetchOne($sql, $params);
@@ -38,6 +37,7 @@ class UserRepository extends Repository
             ");
             $stmt->execute([$email]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
             return $result ?: null;
         } catch (\Exception $e) {
             return null;
@@ -80,7 +80,7 @@ class UserRepository extends Repository
             'total_size' => 0,
             'directories_count' => 0,
             'shares_given' => 0,
-            'shares_received' => 0
+            'shares_received' => 0,
         ];
     }
 
@@ -91,10 +91,9 @@ class UserRepository extends Repository
 
     public function updateUser(int $userId, array $data): bool
     {
-        if (isset($data['password']) && !empty($data['password'])) {
+        if (isset($data['password']) && ! empty($data['password'])) {
             $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
         } else {
-
             unset($data['password']);
         }
 
@@ -104,6 +103,32 @@ class UserRepository extends Repository
     public function deleteUser(int $userId): bool
     {
         return $this->delete('users', ['id' => $userId]);
+    }
+
+    public function bulkDeleteUsers(array $userIds): array
+    {
+        $results = [
+            'total' => count($userIds),
+            'success' => [],
+            'failed' => [],
+        ];
+
+        foreach ($userIds as $userId) {
+            try {
+
+                $deleted = $this->deleteUser($userId);
+                if ($deleted) {
+                    $results['success'][] = $userId;
+                } else {
+                    $results['failed'][] = $userId;
+                }
+            } catch (\Exception $e) {
+
+                $results['failed'][] = $userId;
+            }
+        }
+
+        return $results;
     }
 
     public function getAllUsers(): array
@@ -146,8 +171,9 @@ class UserRepository extends Repository
                 $searchTerm,
                 $query,
                 $query . '%',
-                $searchTerm
+                $searchTerm,
             ]);
+
             return $stmt->fetchAll() ?: [];
         } catch (\Exception $e) {
             return [];
@@ -162,7 +188,7 @@ class UserRepository extends Repository
             WHERE id = ?
         ", [$userId]);
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -184,6 +210,7 @@ class UserRepository extends Repository
         try {
             $conn = $this->db->getConnection();
             $stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+
             return $stmt->execute([$userId]);
         } catch (\Exception $e) {
             return false;
@@ -204,6 +231,7 @@ class UserRepository extends Repository
         try {
             $conn = $this->db->getConnection();
             $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+
             return $stmt->execute([$hashedPassword, $userId]);
         } catch (\Exception $e) {
             return false;
@@ -216,10 +244,43 @@ class UserRepository extends Repository
             $conn = $this->db->getConnection();
             $stmt = $conn->prepare("SELECT 1 FROM users WHERE id = ?");
             $stmt->execute([$userId]);
+
             return $stmt->fetch() !== false;
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    public function exportUsersToCSV(): array
+    {
+        $filePath = tempnam(sys_get_temp_dir(), 'users_export_') . '.csv';
+        $filename = 'users_export_' . date('Y-m-d_H-i-s') . '.csv';
+
+        $file = fopen($filePath, 'w');
+
+        fputcsv($file, ['ID', 'Email', 'First Name', 'Last Name', 'Role', 'Status']);
+
+        $users = $this->getAllUsers();
+
+        foreach ($users as $user) {
+            fputcsv($file, [
+                $user['id'],
+                $user['email'],
+                $user['first_name'],
+                $user['last_name'],
+                $user['is_admin'] ? 'Admin' : 'User',
+                $user['is_banned'] ? 'Banned' : 'Active',
+            ]);
+        }
+
+        fclose($file);
+
+        return [
+            'file_path' => $filePath,
+            'filename' => $filename,
+            'content_type' => 'text/csv; charset=utf-8',
+            'success' => true,
+        ];
     }
 
     public function getUsersWithPagination(int $offset, int $limit): array
@@ -257,14 +318,14 @@ class UserRepository extends Repository
                 'users' => $users,
                 'total' => $total,
                 'offset' => $offset,
-                'limit' => $limit
+                'limit' => $limit,
             ];
         } catch (\Exception $e) {
             return [
                 'users' => [],
                 'total' => 0,
                 'offset' => $offset,
-                'limit' => $limit
+                'limit' => $limit,
             ];
         }
     }
@@ -280,6 +341,7 @@ class UserRepository extends Repository
                 ORDER BY last_login DESC
             ");
             $stmt->execute([$days]);
+
             return $stmt->fetchAll() ?: [];
         } catch (\Exception $e) {
             return [];
@@ -293,6 +355,7 @@ class UserRepository extends Repository
             $stmt = $conn->prepare("SELECT COUNT(*) as count FROM users");
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
             return (int)($result['count'] ?? 0);
         } catch (\Exception $e) {
             return 0;
@@ -306,6 +369,7 @@ class UserRepository extends Repository
             $stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE is_admin = 1");
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
             return (int)($result['count'] ?? 0);
         } catch (\Exception $e) {
             return 0;
@@ -324,6 +388,7 @@ class UserRepository extends Repository
             ");
             $stmt->execute();
             $result = $stmt->fetch();
+
             return (int)($result['count'] ?? 0);
         } catch (\Exception $e) {
             return 0;
@@ -341,6 +406,7 @@ class UserRepository extends Repository
                 AND (last_login IS NULL OR last_login < DATE_SUB(NOW(), INTERVAL ? DAY))
             ");
             $stmt->execute([$days]);
+
             return $stmt->fetchAll() ?: [];
         } catch (\Exception $e) {
             return [];
@@ -356,6 +422,7 @@ class UserRepository extends Repository
                 SET reset_token = ?, reset_token_expires = ? 
                 WHERE id = ?
             ");
+
             return $stmt->execute([$token, $expiresAt, $userId]);
         } catch (\Exception $e) {
             return false;
@@ -373,6 +440,7 @@ class UserRepository extends Repository
             ");
             $stmt->execute([$token]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
             return $result ?: null;
         } catch (\Exception $e) {
             return null;
@@ -388,6 +456,7 @@ class UserRepository extends Repository
                 SET password = ?, reset_token = NULL, reset_token_expires = NULL 
                 WHERE id = ?
             ");
+
             return $stmt->execute([$hashedPassword, $userId]);
         } catch (\Exception $e) {
             return false;
@@ -404,6 +473,7 @@ class UserRepository extends Repository
                 WHERE reset_token_expires < NOW()
             ");
             $stmt->execute();
+
             return $stmt->rowCount();
         } catch (\Exception $e) {
             return 0;
@@ -415,6 +485,7 @@ class UserRepository extends Repository
         try {
             $conn = $this->db->getConnection();
             $stmt = $conn->prepare("UPDATE users SET is_banned = 1 WHERE id = ?");
+
             return $stmt->execute([$userId]);
         } catch (\Exception $e) {
             return false;
@@ -423,13 +494,11 @@ class UserRepository extends Repository
 
     public function unbanUser(int $userId): bool
     {
-        try {
-            $conn = $this->db->getConnection();
-            $stmt = $conn->prepare("UPDATE users SET is_banned = 0 WHERE id = ?");
-            return $stmt->execute([$userId]);
-        } catch (\Exception $e) {
-            return false;
-        }
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("UPDATE users SET is_banned = 0 WHERE id = ?");
+        $stmt->execute([$userId]);
+
+        return $stmt->rowCount() > 0;
     }
 
     public function isUserBanned(int $userId): bool
@@ -439,6 +508,7 @@ class UserRepository extends Repository
             $stmt = $conn->prepare("SELECT is_banned FROM users WHERE id = ?");
             $stmt->execute([$userId]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
             return (bool)($result['is_banned'] ?? false);
         } catch (\Exception $e) {
             return false;
@@ -473,6 +543,7 @@ class UserRepository extends Repository
                 LIMIT 100
             ");
             $stmt->execute([$userId, $days, $userId, $days]);
+
             return $stmt->fetchAll() ?: [];
         } catch (\Exception $e) {
             return [];
@@ -494,6 +565,7 @@ class UserRepository extends Repository
                 AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
             ");
             $stmt->execute([$days, $days]);
+
             return $stmt->fetchAll() ?: [];
         } catch (\Exception $e) {
             return [];
@@ -532,6 +604,7 @@ class UserRepository extends Repository
                 ORDER BY u.created_at DESC
             ");
             $stmt->execute();
+
             return $stmt->fetchAll() ?: [];
         } catch (\Exception $e) {
             return [];
@@ -558,6 +631,7 @@ class UserRepository extends Repository
                 ");
             }
             $stmt->execute();
+
             return $stmt->fetchAll() ?: [];
         } catch (\Exception $e) {
             return [];
@@ -569,6 +643,7 @@ class UserRepository extends Repository
         $conn = $this->db->getConnection();
         $stmt = $conn->prepare("SELECT * FROM files ORDER BY created_at DESC");
         $stmt->execute();
+
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

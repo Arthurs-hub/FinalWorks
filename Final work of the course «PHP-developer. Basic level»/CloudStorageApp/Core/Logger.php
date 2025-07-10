@@ -12,7 +12,7 @@ class Logger
     public static function init(): void
     {
         self::$logDir = __DIR__ . '/../logs/';
-        if (!is_dir(self::$logDir)) {
+        if (! is_dir(self::$logDir)) {
             mkdir(self::$logDir, 0755, true);
         }
         self::$logFile = self::$logDir . 'app_' . date('Y-m-d') . '.log';
@@ -40,12 +40,12 @@ class Logger
 
     private static function log(string $level, string $message, array $context = []): void
     {
-        if (!isset(self::$logFile)) {
+        if (! isset(self::$logFile)) {
             self::init();
         }
 
         $timestamp = date('Y-m-d H:i:s');
-        $contextStr = !empty($context) ? ' ' . json_encode($context, JSON_UNESCAPED_UNICODE) : '';
+        $contextStr = ! empty($context) ? ' ' . json_encode($context, JSON_UNESCAPED_UNICODE) : '';
         $logEntry = "[$timestamp] [$level] $message$contextStr" . PHP_EOL;
 
         file_put_contents(self::$logFile, $logEntry, FILE_APPEND | LOCK_EX);
@@ -54,7 +54,7 @@ class Logger
     public static function getRecentLogs(int $limit = 100, string $level = 'all'): array
     {
         try {
-            if (!isset(self::$logDir)) {
+            if (! isset(self::$logDir)) {
                 self::init();
             }
 
@@ -64,12 +64,12 @@ class Logger
             rsort($logFiles);
 
             foreach ($logFiles as $logFile) {
-                if (!file_exists($logFile)) {
+                if (! file_exists($logFile)) {
                     continue;
                 }
 
                 $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                if (!$lines) {
+                if (! $lines) {
                     continue;
                 }
 
@@ -116,7 +116,7 @@ class Logger
                 'timestamp' => $timestamp,
                 'level' => strtolower($level),
                 'message' => $message,
-                'context' => $context
+                'context' => $context,
             ];
         }
 
@@ -126,7 +126,7 @@ class Logger
     public static function clearLogs(): bool
     {
         try {
-            if (!isset(self::$logDir)) {
+            if (! isset(self::$logDir)) {
                 self::init();
             }
 
@@ -140,6 +140,7 @@ class Logger
             }
 
             self::info("Logs cleared", ['deleted_files' => $deletedCount]);
+
             return true;
         } catch (Exception $e) {
             return false;
@@ -149,7 +150,7 @@ class Logger
     public static function getLogFileSize(): string
     {
         try {
-            if (!isset(self::$logDir)) {
+            if (! isset(self::$logDir)) {
                 self::init();
             }
 
@@ -170,7 +171,9 @@ class Logger
 
     private static function formatFileSize(int $bytes): string
     {
-        if ($bytes === 0) return '0 B';
+        if ($bytes === 0) {
+            return '0 B';
+        }
 
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $bytes = max($bytes, 0);
@@ -184,7 +187,7 @@ class Logger
     public static function getLogStats(): array
     {
         try {
-            if (!isset(self::$logDir)) {
+            if (! isset(self::$logDir)) {
                 self::init();
             }
 
@@ -195,9 +198,9 @@ class Logger
                     'info' => 0,
                     'warning' => 0,
                     'error' => 0,
-                    'debug' => 0
+                    'debug' => 0,
                 ],
-                'recent_errors' => []
+                'recent_errors' => [],
             ];
 
             $logFiles = glob(self::$logDir . '*.log');
@@ -227,6 +230,7 @@ class Logger
             }
 
             $stats['total_size_formatted'] = self::formatFileSize($stats['total_size']);
+
             return $stats;
         } catch (Exception $e) {
             return [
@@ -234,7 +238,7 @@ class Logger
                 'total_size' => 0,
                 'total_size_formatted' => '0 B',
                 'by_level' => ['info' => 0, 'warning' => 0, 'error' => 0, 'debug' => 0],
-                'recent_errors' => []
+                'recent_errors' => [],
             ];
         }
     }

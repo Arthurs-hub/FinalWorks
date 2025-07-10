@@ -3,7 +3,6 @@
 namespace App\Core;
 
 use App\Services\UserService;
-use App\Core\Logger;
 
 class AuthMiddleware
 {
@@ -28,21 +27,21 @@ class AuthMiddleware
 
     public static function isAdmin(): bool
     {
-        if (!self::isAuthenticated()) {
+        if (! self::isAuthenticated()) {
             return false;
         }
 
-        if (!isset($_SESSION['is_admin'])) {
+        if (! isset($_SESSION['is_admin'])) {
             self::init();
             $_SESSION['is_admin'] = self::$userService->isAdmin($_SESSION['user_id']);
         }
 
-        return !empty($_SESSION['is_admin']);
+        return ! empty($_SESSION['is_admin']);
     }
 
     public static function requireAuth(): void
     {
-        if (!self::isAuthenticated()) {
+        if (! self::isAuthenticated()) {
             http_response_code(401);
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Пользователь не авторизован']);
@@ -59,7 +58,7 @@ class AuthMiddleware
             '/CloudStorageApp/public/',
             '/CloudStorageApp/public/login.html',
             '/CloudStorageApp/public/register.html',
-            '/CloudStorageApp/public/password-reset.html'
+            '/CloudStorageApp/public/password-reset.html',
         ];
 
         foreach ($publicRoutes as $route) {
@@ -76,7 +75,7 @@ class AuthMiddleware
         $adminRoutes = [
             '/admin/',
             '/CloudStorageApp/public/admin/',
-            '/CloudStorageApp/admin/'
+            '/CloudStorageApp/admin/',
         ];
 
         foreach ($adminRoutes as $route) {
@@ -92,7 +91,7 @@ class AuthMiddleware
     {
         self::requireAuth();
 
-        if (!self::isAdmin()) {
+        if (! self::isAdmin()) {
             http_response_code(403);
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Недостаточно прав']);
@@ -103,11 +102,12 @@ class AuthMiddleware
     public static function getCurrentUser(): ?array
     {
         $userId = self::getCurrentUserId();
-        if (!$userId) {
+        if (! $userId) {
             return null;
         }
 
         self::init();
+
         return self::$userService->findUserById($userId);
     }
 
@@ -117,7 +117,7 @@ class AuthMiddleware
 
         Logger::info("User logged out", ['user_id' => $userId]);
 
-        $_SESSION = array();
+        $_SESSION = [];
 
         if (isset($_COOKIE[session_name()])) {
             setcookie(session_name(), '', time() - 42000, '/');

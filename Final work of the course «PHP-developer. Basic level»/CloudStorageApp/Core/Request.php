@@ -24,8 +24,10 @@ class Request
                 if (strpos($contentType, 'application/json') !== false) {
                     $input = file_get_contents('php://input');
                     $decoded = json_decode($input, true);
+
                     return $decoded ?? [];
                 }
+
                 return $_POST;
             case 'PUT':
             case 'PATCH':
@@ -34,10 +36,12 @@ class Request
                 if (strpos($contentType, 'application/json') !== false) {
                     $input = file_get_contents('php://input');
                     $decoded = json_decode($input, true);
+
                     return $decoded ?? [];
                 }
 
                 parse_str(file_get_contents('php://input'), $data);
+
                 return $data;
             default:
                 return [];
@@ -77,12 +81,14 @@ class Request
     public function getHeader(string $name): ?string
     {
         $headerName = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+
         return $_SERVER[$headerName] ?? null;
     }
 
     public function isJson(): bool
     {
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
         return strpos($contentType, 'application/json') !== false;
     }
 
@@ -96,12 +102,13 @@ class Request
         $ipKeys = ['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'];
 
         foreach ($ipKeys as $key) {
-            if (!empty($_SERVER[$key])) {
+            if (! empty($_SERVER[$key])) {
                 $ip = $_SERVER[$key];
 
                 if (strpos($ip, ',') !== false) {
                     $ip = trim(explode(',', $ip)[0]);
                 }
+
                 return $ip;
             }
         }
@@ -129,4 +136,5 @@ class Request
 
         return $path;
     }
+
 }

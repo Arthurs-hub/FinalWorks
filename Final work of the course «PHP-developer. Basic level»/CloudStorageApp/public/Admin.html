@@ -90,7 +90,6 @@
                     </button>
                 </div>
             </div>
-
             <div class="content-card" id="usersSection">
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
                     <div>
@@ -107,7 +106,7 @@
                     </div>
                 </div>
                 <div class="table-responsive">
-                    <table class="modern-table" id="usersTable">
+                    <table class="modern-table" id="usersTable" style="table-layout: auto; width: 100%;">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -222,10 +221,21 @@
                             <div class="stat-label">Версия PHP</div>
                             <div class="stat-change">Текущая версия</div>
                         </div>
+                        <div class="stat-card system-health-card" id="systemHealthCard" style="cursor: pointer;">
+                            <div class="stat-icon system"
+                                style="width: 30px; height: 30px; font-size: 1.25rem; line-height: 30px; text-align: center; ">
+                                <i class="bi bi-heart-pulse"></i>
+                            </div>
+                            <div class="stat-value" id="systemHealthStatus">Загрузка...</div>
+                            <div class="stat-label">Состояние системы</div>
+                            <div class="stat-change" id="systemHealthDetails"
+                                style="font-size: 0.75rem; color: var(--text-secondary); max-height: 100px; overflow-y: auto;">
+                            </div>
+                            <span id="systemHealth"></span>
+                        </div>
                     </div>
                 </div>
             </div>
-
             <div class="content-card" id="filesSection" style="display: none;">
                 <div class="card-header">
                     <h2 class="card-title">
@@ -390,14 +400,6 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="createUserMiddleName" class="form-label">Отчество</label>
-                                    <input type="text" class="form-control" id="createUserMiddleName">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
                                     <label for="createUserPassword" class="form-label">Пароль *</label>
                                     <div class="input-group">
                                         <input type="password" class="form-control" id="createUserPassword" required>
@@ -408,6 +410,8 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="createUserConfirmPassword" class="form-label">Подтвердить пароль
@@ -415,14 +419,14 @@
                                     <input type="password" class="form-control" id="createUserConfirmPassword" required>
                                 </div>
                             </div>
-                        </div>
-                        <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="createUserAge" class="form-label">Возраст</label>
                                     <input type="number" class="form-control" id="createUserAge" min="13" max="120">
                                 </div>
                             </div>
+                        </div>
+                        <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="createUserGender" class="form-label">Пол</label>
@@ -431,6 +435,12 @@
                                         <option value="male">Мужской</option>
                                         <option value="female">Женский</option>
                                     </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserMiddleName" class="form-label">Отчество</label>
+                                    <input type="text" class="form-control" id="createUserMiddleName">
                                 </div>
                             </div>
                         </div>
@@ -555,7 +565,6 @@
             </div>
         </div>
     </div>
-
     <script src="js/admin.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

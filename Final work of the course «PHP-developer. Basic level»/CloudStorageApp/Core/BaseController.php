@@ -2,7 +2,6 @@
 
 namespace App\Core;
 
-use App\Core\Logger;
 use Exception;
 
 abstract class BaseController
@@ -11,12 +10,12 @@ abstract class BaseController
     {
         Logger::error(static::class . "::{$method} error", [
             'error' => $e->getMessage(),
-            'admin_id' => AuthMiddleware::getCurrentUserId()
+            'admin_id' => AuthMiddleware::getCurrentUserId(),
         ]);
 
         return new Response([
             'success' => false,
-            'error' => $userMessage
+            'error' => $userMessage,
         ], 500);
     }
 

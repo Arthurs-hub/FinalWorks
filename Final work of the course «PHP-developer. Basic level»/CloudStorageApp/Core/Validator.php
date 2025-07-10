@@ -13,7 +13,7 @@ class Validator
 
     public static function email(string $email): void
     {
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new \InvalidArgumentException("Некорректный email");
         }
     }

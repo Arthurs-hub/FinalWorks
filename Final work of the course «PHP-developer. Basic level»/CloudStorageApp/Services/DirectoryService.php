@@ -2,819 +2,529 @@
 
 namespace App\Services;
 
-use App\Core\Db;
-use App\Core\Request;
-use App\Core\Response;
-use App\Core\AuthMiddleware;
-use App\Core\Validator;
 use App\Core\Logger;
-use App\Services\UserService;
+use App\Core\Response;
+use App\Core\Validator;
 use App\Repositories\DirectoryRepository;
+use App\Repositories\UserRepository;
+use App\Validators\DirectoryValidator;
 use Exception;
-use PDO;
-use PDOException;
-use RuntimeException;
-use ZipArchive;
 
 class DirectoryService
 {
-    private UserService $userService;
-    private Db $db;
+    private UserRepository $userRepository;
     private DirectoryRepository $directoryRepository;
+    private DirectoryValidator $directoryValidator;
 
     public function __construct()
     {
-        $this->userService = new UserService();
-        $this->db = new Db();
-        $this->directoryRepository = new DirectoryRepository(); // Инициализируем
+        $this->userRepository = new UserRepository();
+        $this->directoryRepository = new DirectoryRepository();
+        $this->directoryValidator = new DirectoryValidator();
     }
 
-    public function add(Request $request): Response
+
+    public function addDirectory(array $data, int $userId): array
     {
         try {
+            $this->validateDirectoryData($data);
 
-            $userId = AuthMiddleware::getCurrentUserId();
-
-            $data = $request->getData();
-
-            Validator::required($data['name'] ?? '', 'Имя папки');
-            Validator::maxLength($data['name'], 255, 'Имя папки');
-            Validator::noSpecialChars($data['name'], 'Имя папки');
-
-            $name = $data['name'];
+            $baseName = $data['name'];
             $requestedParentId = $data['parent_id'] ?? 'root';
 
-            $conn = $this->db->getConnection();
+            Logger::info("DirectoryService::addDirectory called with name: {$baseName}, userId: {$userId}");
 
-            $dbParentId = null;
-            if ($requestedParentId === 'root') {
-                $stmt = $conn->prepare("SELECT id FROM directories WHERE parent_id IS NULL AND user_id = ?");
-                $stmt->execute([$userId]);
-                $rootDir = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($rootDir) {
-                    $dbParentId = $rootDir['id'];
-                } else {
-                    $stmtCreateRoot = $conn->prepare("INSERT INTO directories (name, parent_id, user_id) VALUES ('Корневая папка', NULL, ?)");
-                    $stmtCreateRoot->execute([$userId]);
-                    $dbParentId = $conn->lastInsertId();
-                }
-            } else {
-                $dbParentId = $requestedParentId;
-                $stmt = $conn->prepare("SELECT id FROM directories WHERE id = ? AND user_id = ?");
-                $stmt->execute([$dbParentId, $userId]);
-                $validParentDir = $stmt->fetch(PDO::FETCH_ASSOC);
-                if (!$validParentDir) {
-                    Logger::error("Invalid parent directory", ['parent_id' => $dbParentId, 'user_id' => $userId]);
-                    return new Response(['success' => false, 'error' => 'Указанная родительская папка не найдена или недоступна.']);
-                }
+            $dbParentId = $this->directoryRepository->resolveParentId($requestedParentId, $userId);
+
+            if ($dbParentId === false) {
+                return ['success' => false, 'error' => 'Указанная родительская папка не найдена или недоступна.'];
             }
 
-            $stmt = $conn->prepare("INSERT INTO directories (name, parent_id, user_id) VALUES (?, ?, ?)");
-            $insertResult = $stmt->execute([$name, $dbParentId, $userId]);
+            $name = $baseName;
+            $suffix = 0;
 
-            if ($insertResult) {
-                Logger::info("Directory created: {$name} by user {$userId}");
-                return new Response(['success' => true, 'message' => 'Папка успешно создана']);
-            } else {
-                return new Response(['success' => false, 'error' => 'Ошибка при создании папки в базе данных']);
+            while (true) {
+                $existingDir = $this->directoryRepository->findDirectoryByNameAndParent($name, $dbParentId, $userId);
+                if (!$existingDir) {
+                    break;
+                }
+                $suffix++;
+                $name = $baseName . " ({$suffix})";
             }
+
+            $directoryId = $this->directoryRepository->createDirectory($name, $dbParentId, $userId);
+
+            if ($directoryId) {
+                $uploadsDir = __DIR__ . '/../uploads';
+                $foldersDir = $uploadsDir . '/folders';
+
+                if (!is_dir($foldersDir)) {
+                    if (!mkdir($foldersDir, 0777, true)) {
+                        Logger::error("Failed to create folders directory at: $foldersDir");
+                        return ['success' => false, 'error' => 'Не удалось создать директорию folders'];
+                    }
+                }
+
+                $newFolderPath = $foldersDir . '/' . $directoryId;
+                if (!is_dir($newFolderPath)) {
+                    if (!mkdir($newFolderPath, 0777, true)) {
+                        Logger::error("Failed to create physical directory at: $newFolderPath");
+                        return ['success' => false, 'error' => 'Не удалось создать физическую папку'];
+                    }
+                }
+
+                Logger::info("Directory created: {$name} by user {$userId}, physical folder: $newFolderPath");
+                return ['success' => true, 'message' => 'Папка успешно создана', 'directory_id' => $directoryId, 'name' => $name];
+            }
+
+            return ['success' => false, 'error' => 'Ошибка при создании папки в базе данных'];
         } catch (\InvalidArgumentException $e) {
-
-            return new Response(['success' => false, 'error' => $e->getMessage()], 400);
-        } catch (PDOException $e) {
-            Logger::error("Database error in DirectoryService::add", ['error' => $e->getMessage()]);
-            return new Response(['success' => false, 'error' => 'Ошибка базы данных при создании папки'], 500);
+            return ['success' => false, 'error' => $e->getMessage()];
         } catch (Exception $e) {
-            Logger::error("Unexpected error in DirectoryService::add", ['error' => $e->getMessage()]);
-            return new Response(['success' => false, 'error' => 'Внутренняя ошибка сервера'], 500);
+            Logger::error("DirectoryService::addDirectory error", ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'Внутренняя ошибка сервера'];
         }
     }
 
-    public function rename(Request $request): Response
+    public function renameDirectory(array $data, int $userId): array
     {
-        if (!isset($_SESSION['user_id'])) {
-            return new Response(['success' => false, 'error' => 'Пользователь не авторизован']);
+        $validation = $this->directoryValidator->validateRenameDirectory($data);
+        if (!$validation['valid']) {
+            return ['success' => false, 'error' => $validation['message']];
         }
-        $data = $request->getData();
-        $id = $data['id'] ?? null;
-        $newName = $data['new_name'] ?? null;
-        $userId = $_SESSION['user_id'];
-        if (!$id || !$newName) {
-            return new Response(['success' => false, 'error' => 'Недостаточно данных']);
+
+        try {
+            $id = $data['id'] ?? null;
+            $newName = $data['new_name'] ?? null;
+
+            $result = $this->directoryRepository->renameDirectory($id, $newName, $userId);
+
+            if ($result === true) {
+                return ['success' => true, 'message' => 'Папка переименована'];
+            } elseif (is_string($result)) {
+                return ['success' => false, 'error' => $result];
+            } else {
+                return ['success' => false, 'error' => 'Ошибка переименования'];
+            }
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::renameDirectory error", ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'Ошибка при переименовании папки'];
         }
-        $conn = $this->db->getConnection();
-        $stmt = $conn->prepare("UPDATE directories SET name = ? WHERE id = ? AND user_id = ?");
-        $result = $stmt->execute([$newName, $id, $userId]);
-        return new Response(['success' => $result]);
     }
 
-    public function get(Request $request): Response
+    public function getDirectoryWithContents($directoryId, int $userId): ?array
     {
         try {
-            header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
-            header('Pragma: no-cache');
-            header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
-            header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
-            header('ETag: "' . uniqid() . '"');
-
-            if (!isset($_SESSION['user_id'])) {
-                return new Response(['success' => false, 'error' => 'Пользователь не авторизован'], 401);
-            }
-
-            $userId = $_SESSION['user_id'];
-            $idRaw = $request->routeParams['id'] ?? null;
-
-            error_log("DirectoryService::get called with idRaw: " . var_export($idRaw, true) . ", userId: " . $userId);
-
-            if ($idRaw === 'root' || $idRaw === null || $idRaw === '' || $idRaw === 0 || $idRaw === '0') {
-                $id = null;
-            } else {
-                $id = (int)$idRaw;
-            }
-
-            $conn = $this->db->getConnection();
-
-            $isRootDirectory = false;
-
-            if ($id === null) {
-                error_log("Loading root directory for user: " . $userId);
-                $isRootDirectory = true;
-
-                $conn->beginTransaction();
-
-                $stmt = $conn->prepare("
-                    SELECT id, name, parent_id, user_id
-                    FROM directories 
-                    WHERE parent_id IS NULL AND user_id = ?
-                    LIMIT 1
-                ");
-                $stmt->execute([$userId]);
-                $directory = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if (!$directory) {
-                    $stmt = $conn->prepare("
-                        INSERT INTO directories (name, parent_id, user_id) 
-                        VALUES ('Корневая папка', NULL, ?)
-                    ");
-                    $stmt->execute([$userId]);
-                    $directory = [
-                        'id' => $conn->lastInsertId(),
-                        'name' => 'Корневая папка',
-                        'parent_id' => null,
-                        'user_id' => $userId,
-                        'is_shared' => 0,
-                        'is_shared_by_owner' => 0,
-                        'shared_by' => null,
-                    ];
-                } else {
-                    $stmtShared = $conn->prepare("
-                        SELECT 1 FROM shared_items 
-                        WHERE item_type = 'directory' AND item_id = ? AND shared_by_user_id = ? LIMIT 1
-                    ");
-                    $stmtShared->execute([$directory['id'], $userId]);
-                    $directory['is_shared_by_owner'] = $stmtShared->fetch() ? 1 : 0;
-                    $directory['is_shared'] = 0;
-                    $directory['shared_by'] = null;
-                }
-
-                $conn->commit();
-            } else {
-                error_log("Loading directory with id: " . $id . " for user: " . $userId);
-
-                $stmt = $conn->prepare("
-                    SELECT d.id, d.name, d.parent_id, d.user_id,
-                           u.email as shared_by,
-                           CASE 
-                               WHEN d.user_id = ? THEN 0
-                               WHEN EXISTS (
-                                   SELECT 1 FROM shared_items si
-                                   WHERE si.item_id = d.id
-                                     AND si.item_type = 'directory'
-                                     AND si.shared_with_user_id = ?
-                               ) THEN 1
-                               ELSE 0
-                           END as is_shared,
-                           CASE 
-                               WHEN EXISTS (
-                                   SELECT 1 FROM shared_items si2
-                                   WHERE si2.item_id = d.id
-                                     AND si2.item_type = 'directory'
-                                     AND si2.shared_by_user_id = ?
-                               ) THEN 1
-                               ELSE 0
-                           END as is_shared_by_owner
-                    FROM directories d
-                    LEFT JOIN users u ON d.user_id = u.id
-                    WHERE d.id = ? AND (
-                        d.user_id = ? OR 
-                        d.id IN (
-                            SELECT item_id FROM shared_items 
-                            WHERE item_type = 'directory' 
-                            AND shared_with_user_id = ?
-                        )
-                    )
-                ");
-                $stmt->execute([$userId, $userId, $userId, $id, $userId, $userId]);
-                $directory = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if ($directory && $directory['parent_id'] === null && $directory['user_id'] == $userId) {
-                    $isRootDirectory = true;
-                    error_log("This is user's root directory (parent_id is null)");
-                }
-            }
-
-            if (!$directory) {
-                return new Response(['success' => false, 'error' => 'Папка не найдена'], 404);
-            }
-
-            $stmt = $conn->prepare("
-                SELECT DISTINCT d.id, d.name, d.parent_id, d.user_id,
-                       u.email as shared_by,
-                       CASE 
-                           WHEN d.user_id = ? THEN 0
-                           WHEN EXISTS (
-                               SELECT 1 FROM shared_items si
-                               WHERE si.item_id = d.id
-                                 AND si.item_type = 'directory'
-                                 AND si.shared_with_user_id = ?
-                           ) THEN 1
-                           ELSE 0
-                       END as is_shared,
-                       CASE 
-                           WHEN EXISTS (
-                               SELECT 1 FROM shared_items si2
-                               WHERE si2.item_id = d.id
-                                 AND si2.item_type = 'directory'
-                                 AND si2.shared_by_user_id = ?
-                           ) THEN 1
-                           ELSE 0
-                       END as is_shared_by_owner
-                FROM directories d
-                LEFT JOIN users u ON d.user_id = u.id
-                WHERE d.parent_id = ? AND d.id != ?
-                AND (
-                    d.user_id = ? OR 
-                    d.id IN (
-                        SELECT item_id FROM shared_items 
-                        WHERE item_type = 'directory' 
-                        AND shared_with_user_id = ?
-                    )
-                )
-                ORDER BY d.name
-            ");
-            $stmt->execute([
-                $userId,
-                $userId,
-                $userId,
-                $directory['id'],
-                $directory['id'],
-                $userId,
-                $userId
+            return $this->directoryRepository->getDirectoryWithContents($directoryId, $userId);
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::getDirectoryWithContents error", [
+                'error' => $e->getMessage(),
+                'directory_id' => $directoryId,
+                'user_id' => $userId,
             ]);
-            $subdirectories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return null;
+        }
+    }
 
-            $shared_directories = [];
-            if ($isRootDirectory) {
-                error_log("Loading shared directories for root directory, userId: " . $userId);
+    public function getDirectory(?string $directoryId, int $userId): array
+    {
+        try {
+            Logger::info("DirectoryService::getDirectory called", [
+                'directory_id' => $directoryId,
+                'user_id' => $userId
+            ]);
 
-                $stmt = $conn->prepare("
-                    SELECT d.id, d.name, d.parent_id, d.user_id,
-                           u.email as shared_by,
-                           1 as is_shared,
-                           CASE 
-                               WHEN EXISTS (
-                                   SELECT 1 FROM shared_items si2
-                                   WHERE si2.item_id = d.id
-                                     AND si2.item_type = 'directory'
-                                     AND si2.shared_by_user_id = ?
-                               ) THEN 1
-                               ELSE 0
-                           END as is_shared_by_owner
-                    FROM directories d
-                    LEFT JOIN users u ON d.user_id = u.id
-                    WHERE d.id IN (
-                        SELECT item_id FROM shared_items 
-                        WHERE item_type = 'directory' 
-                        AND shared_with_user_id = ?
-                    )
-                    AND (
-                        d.parent_id IS NULL
-                        OR d.parent_id NOT IN (
-                            SELECT item_id FROM shared_items 
-                            WHERE item_type = 'directory' 
-                            AND shared_with_user_id = ?
-                        )
-                    )
-                    AND d.id != ?
-                    ORDER BY d.name
-                ");
-                $stmt->execute([$userId, $userId, $userId, $directory['id']]);
-                $shared_directories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $directoryData = $this->directoryRepository->getDirectoryWithContents($directoryId, $userId);
 
-                error_log("Found " . count($shared_directories) . " shared directories");
-                foreach ($shared_directories as $sharedDir) {
-                    error_log("Shared directory: " . $sharedDir['name'] . " (ID: " . $sharedDir['id'] . ") from " . $sharedDir['shared_by']);
-                }
+            if (!$directoryData) {
+                Logger::warning("Directory not found", [
+                    'directory_id' => $directoryId,
+                    'user_id' => $userId
+                ]);
+                return ['success' => false, 'error' => 'Папка не найдена'];
             }
 
-            $stmt = $conn->prepare("
-                SELECT DISTINCT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.user_id,
-                       f.size AS file_size, u.email as shared_by,
-                       CASE 
-                           WHEN f.user_id = ? THEN 0
-                           WHEN EXISTS (
-                               SELECT 1 FROM shared_items si 
-                               WHERE si.item_id = f.id AND si.item_type = 'file'
-                           ) THEN 1
-                           ELSE 0
-                       END as is_shared,
-                       CASE
-                           WHEN EXISTS (
-                               SELECT 1 FROM shared_items si2 
-                               WHERE si2.item_id = f.id AND si2.item_type = 'file' AND si2.shared_by_user_id = ?
-                           ) THEN 1
-                           ELSE 0
-                       END as is_shared_by_owner
-                FROM files f
-                LEFT JOIN users u ON f.user_id = u.id
-                LEFT JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
-                WHERE (
-                    (f.user_id = ? AND f.directory_id = ?) 
-                    OR 
-                    (si.shared_with_user_id = ? AND f.directory_id = ?)
-                )
-                ORDER BY f.filename
-            ");
-            $stmt->execute([$userId, $userId, $userId, $directory['id'], $userId, $directory['id']]);
-            $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $processedData = $this->processDirectoryData($directoryData, $userId);
 
-            if ($directory['user_id'] != $userId) {
-                foreach ($files as &$file) {
-                    $file['is_shared'] = 1;
-                    $file['shared_by'] = $directory['shared_by'] ?? null;
-                    $file['is_shared_by_owner'] = 0;
-                }
-                unset($file);
+            Logger::info("Directory data processed successfully", [
+                'directory_id' => $directoryId,
+                'user_id' => $userId,
+                'files_count' => count($processedData['files'] ?? []),
+                'subdirectories_count' => count($processedData['subdirectories'] ?? [])
+            ]);
+
+            return [
+                'success' => true,
+                'directory' => $processedData['directory'] ?? null,
+                'subdirectories' => $processedData['subdirectories'] ?? [],
+                'shared_directories' => $processedData['shared_directories'] ?? [],
+                'files' => $processedData['files'] ?? []
+            ];
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::getDirectory error", [
+                'error' => $e->getMessage(),
+                'directory_id' => $directoryId,
+                'user_id' => $userId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ['success' => false, 'error' => 'Ошибка сервера при получении директории'];
+        }
+    }
+
+    public function getOrCreateSubdirectory(string $name, int $parentId, int $userId): array
+    {
+        $existingDir = $this->directoryRepository->findDirectoryByNameAndParent($name, $parentId, $userId);
+        if ($existingDir) {
+            return ['success' => true, 'directory_id' => $existingDir['id'], 'name' => $name];
+        }
+        return $this->addDirectory(['name' => $name, 'parent_id' => $parentId], $userId);
+    }
+
+    public function moveDirectory(array $data, int $userId): array
+    {
+        try {
+            $validationResult = $this->validateMoveData($data, $userId);
+            if (!$validationResult['success']) {
+                return $validationResult;
             }
 
-            foreach ($files as &$file) {
-                $filePath = __DIR__ . '/../uploads/files/' . $file['stored_name'];
-                if (file_exists($filePath)) {
-                    $file['file_size'] = $this->formatFileSize(filesize($filePath));
-                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                    $file['mime_type'] = finfo_file($finfo, $filePath);
-                    finfo_close($finfo);
-                    $file['preview_available'] = strpos($file['mime_type'], 'image/') === 0 ||
-                        $file['mime_type'] === 'application/pdf';
+            $result = $this->directoryRepository->moveDirectory(
+                $validationResult['directory_id'],
+                $validationResult['target_parent_id']
+            );
+
+            if ($result) {
+                Logger::info("Directory moved successfully", [
+                    'directory_id' => $validationResult['directory_id'],
+                    'target_parent_id' => $validationResult['target_parent_id'],
+                    'user_id' => $userId,
+                ]);
+                return ['success' => true, 'message' => 'Папка успешно перемещена'];
+            }
+
+            return ['success' => false, 'error' => 'Ошибка при перемещении папки'];
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::moveDirectory error", ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'Ошибка при перемещении папки'];
+        }
+    }
+
+    public function deleteDirectory(?string $directoryId, int $userId): array
+    {
+        try {
+            $id = ($directoryId === 'root' || $directoryId === null || $directoryId === '' || $directoryId === 0 || $directoryId === '0') ? null : (int)$directoryId;
+
+            if (!$this->directoryRepository->checkDirectoryOwnership($id, $userId)) {
+                return ['success' => false, 'error' => 'Вы можете удалять только свои папки'];
+            }
+
+            $result = $this->directoryRepository->deleteDirectory($id, $userId);
+            return ['success' => $result, 'message' => $result ? 'Папка удалена' : 'Ошибка удаления'];
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::deleteDirectory error", ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'Ошибка при удалении папки'];
+        }
+    }
+
+    public function shareDirectory(array $data, int $userId): array
+    {
+        try {
+            Logger::info("DirectoryService::shareDirectory called", [
+                'data' => $data,
+                'user_id' => $userId
+            ]);
+
+            $this->validateShareData($data);
+
+            $folderId = $data['folder_id'] ?? $data['directory_id'] ?? null;
+            if (!$folderId) {
+                return ['success' => false, 'error' => 'ID папки не указан'];
+            }
+
+            $targetEmail = $data['email'] ?? $data['target_email'] ?? null;
+            if (!$targetEmail) {
+                return ['success' => false, 'error' => 'Email получателя не указан'];
+            }
+
+            if (!$this->directoryRepository->checkDirectoryOwnership($folderId, $userId)) {
+                return ['success' => false, 'error' => 'Нет прав доступа к папке'];
+            }
+
+            $result = $this->directoryRepository->shareDirectory(
+                (int)$folderId,
+                $userId,
+                $targetEmail,
+                $this->userRepository
+            );
+
+            if ($result['success']) {
+                Logger::info("Directory shared successfully", [
+                    'folder_id' => $folderId,
+                    'from_user' => $userId,
+                    'to_email' => $targetEmail,
+                    'target_user_id' => $result['target_user_id'] ?? null,
+                ]);
+            } else {
+                Logger::warning("Directory sharing failed", [
+                    'folder_id' => $folderId,
+                    'from_user' => $userId,
+                    'to_email' => $targetEmail,
+                    'error' => $result['error'] ?? 'Unknown error'
+                ]);
+            }
+
+            return $result;
+        } catch (\InvalidArgumentException $e) {
+            Logger::error("DirectoryService::shareDirectory validation error", [
+                'error' => $e->getMessage(),
+                'data' => $data,
+                'user_id' => $userId
+            ]);
+            return ['success' => false, 'error' => $e->getMessage()];
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::shareDirectory error", [
+                'error' => $e->getMessage(),
+                'data' => $data,
+                'user_id' => $userId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ['success' => false, 'error' => 'Ошибка при расшаривании папки'];
+        }
+    }
+
+    public function unshareDirectory(array $data, int $userId): array
+    {
+        try {
+            $directoryId = $data['directory_id'] ?? null;
+
+            if (!$directoryId) {
+                return ['success' => false, 'error' => 'ID папки не указан'];
+            }
+
+            $this->directoryRepository->unshareDirectoryRecursively($directoryId, $userId);
+            return ['success' => true, 'message' => 'Папка и её содержимое успешно расшарены'];
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::unshareDirectory error", ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'Ошибка при отмене расшаривания папки'];
+        }
+    }
+
+    public function downloadDirectory(?string $directoryId, int $userId): Response
+    {
+        try {
+            $id = ($directoryId === 'root' || $directoryId === null || $directoryId === '' || $directoryId === 0 || $directoryId === '0') ? null : (int)$directoryId;
+
+            $zipFilePath = $this->directoryRepository->createZipArchiveForDirectory($id, $userId);
+
+            if (!file_exists($zipFilePath)) {
+                throw new Exception('Архив не создан');
+            }
+
+            $this->sendZipFile($zipFilePath, $id);
+            return new Response(['success' => true]);
+        } catch (Exception $e) {
+            return new Response(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getSharedDirectoriesList(int $userId): array
+    {
+        try {
+            $sharedDirectories = $this->directoryRepository->getSharedDirectories($userId);
+            return ['success' => true, 'shared_directories' => $sharedDirectories];
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::getSharedDirectoriesList error", ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'Ошибка при загрузке расшаренных папок'];
+        }
+    }
+
+    private function validateDirectoryData(array $data): void
+    {
+        Validator::required($data['name'] ?? '', 'Имя папки');
+        Validator::maxLength($data['name'], 255, 'Имя папки');
+        Validator::noSpecialChars($data['name'], 'Имя папки');
+    }
+
+    private function validateShareData(array $data): void
+    {
+
+        $email = $data['email'] ?? $data['target_email'] ?? '';
+        if (empty($email)) {
+            throw new \InvalidArgumentException('Email получателя не указан');
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new \InvalidArgumentException('Некорректный email адрес');
+        }
+
+        $folderId = $data['folder_id'] ?? $data['directory_id'] ?? '';
+        if (empty($folderId)) {
+            throw new \InvalidArgumentException('ID папки не указан');
+        }
+
+        if (!is_numeric($folderId) || (int)$folderId <= 0) {
+            throw new \InvalidArgumentException('Некорректный ID папки');
+        }
+    }
+
+    private function validateMoveData(array $data, int $userId): array
+    {
+        if (!isset($data['directory_id']) || !isset($data['target_parent_id'])) {
+            return ['success' => false, 'error' => 'Недостаточно данных'];
+        }
+
+        $directoryId = (int)$data['directory_id'];
+        $targetParentId = $data['target_parent_id'];
+
+        if (!$this->directoryRepository->checkDirectoryOwnership($directoryId, $userId)) {
+            return ['success' => false, 'error' => 'Нет прав доступа к папке'];
+        }
+
+        if ($targetParentId === 'root') {
+            $targetParentId = $this->directoryRepository->getOrCreateRootDirectoryId($userId);
+        } else {
+            $targetParentId = (int)$targetParentId;
+            if (!$this->directoryRepository->checkDirectoryOwnership($targetParentId, $userId)) {
+                return ['success' => false, 'error' => 'Нет прав доступа к целевой папке'];
+            }
+        }
+
+        if ($directoryId === $targetParentId) {
+            return ['success' => false, 'error' => 'Нельзя переместить папку саму в себя'];
+        }
+
+        return ['success' => true, 'directory_id' => $directoryId, 'target_parent_id' => $targetParentId];
+    }
+
+    private function processDirectoryData(array $directoryData, int $userId): array
+    {
+        if (isset($directoryData['directory'])) {
+            $directory = &$directoryData['directory'];
+
+            if (!empty($directory['parent_id'])) {
+                $parentId = $directory['parent_id'];
+
+                $hasAccessToParent = $this->directoryRepository->checkDirectoryAccess($parentId, $userId);
+
+                if (!$hasAccessToParent) {
+
+                    $directory['real_parent_id'] = $parentId;
+
+                    $directory['parent_id'] = null;
+                    $directory['is_shared_root'] = true;
                 } else {
-                    $file['file_size'] = 'Н/Д';
-                    $file['mime_type'] = 'Н/Д';
-                    $file['preview_available'] = false;
+                    $directory['real_parent_id'] = $parentId;
+                    $directory['is_shared_root'] = false;
+                }
+            } else {
+                $directory['real_parent_id'] = null;
+                $directory['is_shared_root'] = false;
+            }
+        }
+
+        if (isset($directoryData['directory'])) {
+            $directory = &$directoryData['directory'];
+
+            Logger::info("Processing directory data", [
+                'directory_id' => $directory['id'],
+                'directory_name' => $directory['name'],
+                'parent_id' => $directory['parent_id'],
+                'user_id' => $directory['user_id'],
+                'current_user_id' => $userId
+            ]);
+
+            $sharedInfo = $this->directoryRepository->isDirectorySharedToUser($directory['id'], $userId);
+            if ($sharedInfo) {
+                $directory['is_shared'] = true;
+                $directory['shared_by'] = $sharedInfo['shared_by'];
+            } else {
+                $directory['is_shared'] = false;
+                $directory['shared_by'] = null;
+            }
+
+            $directory['is_shared_by_owner'] = $this->directoryRepository->isDirectorySharedByOwner($directory['id'], $userId);
+
+            $directory['safe_parent_id'] = null;
+            if ($directory['parent_id']) {
+                Logger::info("Looking for accessible parent", [
+                    'directory_id' => $directory['id'],
+                    'parent_id' => $directory['parent_id']
+                ]);
+
+                $accessibleParent = $this->directoryRepository->findAccessibleParentDirectory($directory['id'], $userId);
+                if ($accessibleParent) {
+                    $directory['safe_parent_id'] = $accessibleParent['id'];
+                    Logger::info("Found accessible parent", [
+                        'safe_parent_id' => $directory['safe_parent_id']
+                    ]);
+                } else {
+
+                    $directory['safe_parent_id'] = 'root';
+                    Logger::info("No accessible parent found, setting to root");
+                }
+            } else {
+                Logger::info("No parent_id, this is root directory");
+            }
+
+            Logger::info("Final directory data", [
+                'id' => $directory['id'],
+                'name' => $directory['name'],
+                'parent_id' => $directory['parent_id'],
+                'safe_parent_id' => $directory['safe_parent_id'],
+                'is_shared' => $directory['is_shared'],
+                'user_id' => $directory['user_id']
+            ]);
+        }
+
+        if (isset($directoryData['subdirectories'])) {
+            foreach ($directoryData['subdirectories'] as &$subdir) {
+
+                if ($subdir['user_id'] == $userId) {
+
+                    $subdir['is_shared_by_owner'] = $this->directoryRepository->isDirectorySharedByOwner($subdir['id'], $userId);
+                    $subdir['is_shared'] = false;
+                } else {
+
+                    $subdir['is_shared'] = true;
+                    $subdir['is_shared_by_owner'] = false;
+                }
+            }
+            unset($subdir);
+        }
+
+        if (isset($directoryData['shared_directories'])) {
+            foreach ($directoryData['shared_directories'] as &$sharedDir) {
+                $sharedDir['is_shared'] = true;
+                $sharedDir['is_shared_by_owner'] = false;
+            }
+            unset($sharedDir);
+        }
+
+        if (isset($directoryData['files'])) {
+            foreach ($directoryData['files'] as &$file) {
+                if (isset($file['file_size']) && is_numeric($file['file_size'])) {
+                    $file['file_size_formatted'] = $this->formatFileSize((int)$file['file_size']);
                 }
             }
             unset($file);
-
-            error_log("Returning response with " . count($subdirectories) . " subdirectories and " . count($shared_directories) . " shared directories");
-
-            return new Response([
-                'success' => true,
-                'directory' => $directory,
-                'subdirectories' => $subdirectories,
-                'shared_directories' => $shared_directories,
-                'files' => $files
-            ]);
-        } catch (Exception $e) {
-            if (isset($conn) && $conn->inTransaction()) {
-                $conn->rollBack();
-            }
-            error_log("DirectoryService::get exception: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-            return new Response(['success' => false, 'error' => 'Ошибка сервера при получении директории'], 500);
         }
+
+        return $directoryData;
     }
 
-    public function move(Request $request): Response
+    private function sendZipFile(string $zipFilePath, $directoryId): void
     {
-        if (!isset($_SESSION['user_id'])) {
-            return new Response(['success' => false, 'error' => 'Пользователь не авторизован'], 401);
-        }
-
-        try {
-            $userId = $_SESSION['user_id'];
-            $data = $request->getData();
-
-            error_log("Move request data: " . print_r($data, true));
-
-            if (!isset($data['directory_id']) || !isset($data['target_parent_id'])) {
-                error_log("Missing directory_id or target_parent_id");
-                return new Response([
-                    'success' => false,
-                    'error' => 'Недостаточно данных'
-                ], 400);
-            }
-
-            $directoryId = (int)$data['directory_id'];
-            $targetParentId = $data['target_parent_id'];
-
-            if (!$this->directoryRepository->checkDirectoryOwnership($directoryId, $userId)) {
-                return new Response(['success' => false, 'error' => 'Нет прав доступа к папке'], 403);
-            }
-
-            if ($targetParentId === 'root') {
-                $rootDir = $this->directoryRepository->findRootDirectory($userId);
-                if (!$rootDir) {
-                    $targetParentId = $this->directoryRepository->createRootDirectory($userId);
-                } else {
-                    $targetParentId = $rootDir['id'];
-                }
-            } else {
-                $targetParentId = (int)$targetParentId;
-                if (!$this->directoryRepository->checkDirectoryOwnership($targetParentId, $userId)) {
-                    return new Response(['success' => false, 'error' => 'Нет прав доступа к целевой папке'], 403);
-                }
-            }
-
-            if ($directoryId === $targetParentId) {
-                return new Response(['success' => false, 'error' => 'Нельзя переместить папку саму в себя'], 400);
-            }
-
-            if ($this->directoryRepository->moveDirectory($directoryId, $targetParentId)) {
-                Logger::info("Directory moved successfully", [
-                    'directory_id' => $directoryId,
-                    'target_parent_id' => $targetParentId,
-                    'user_id' => $userId
-                ]);
-
-                return new Response([
-                    'success' => true,
-                    'message' => 'Папка успешно перемещена'
-                ]);
-            }
-
-            return new Response(['success' => false, 'error' => 'Ошибка при перемещении папки'], 500);
-        } catch (Exception $e) {
-            Logger::error("DirectoryService::move error", [
-                'error' => $e->getMessage(),
-                'user_id' => $_SESSION['user_id'] ?? null
-            ]);
-            return new Response(['success' => false, 'error' => 'Ошибка при перемещении папки'], 500);
-        }
-    }
-
-
-    public function delete(Request $request): Response
-    {
-        if (!isset($_SESSION['user_id'])) {
-            return new Response(['success' => false, 'error' => 'Пользователь не авторизован'], 401);
-        }
-
-        $userId = $_SESSION['user_id'];
-        $idRaw = $request->routeParams['id'];
-
-        if ($idRaw === 'root' || $idRaw === null || $idRaw === '' || $idRaw === 0 || $idRaw === '0') {
-            $id = null;
-        } else {
-            $id = (int)$idRaw;
-        }
-
-        try {
-            $conn = $this->db->getConnection();
-
-            $stmt = $conn->prepare("
-                SELECT id FROM directories 
-                WHERE id = ? AND user_id = ?
-            ");
-            $stmt->execute([$id, $userId]);
-            $dir = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$dir) {
-                return new Response([
-                    'success' => false,
-                    'error' => 'Вы можете удалять только свои папки'
-                ]);
-            }
-
-            $stmt = $conn->prepare("
-                DELETE FROM shared_items 
-                WHERE item_type = 'directory' AND item_id = ?
-            ");
-            $stmt->execute([$id]);
-
-            $stmt = $conn->prepare("
-                DELETE FROM directories 
-                WHERE id = ? AND user_id = ?
-            ");
-            $result = $stmt->execute([$id, $userId]);
-
-            return new Response(['success' => $result]);
-        } catch (PDOException $e) {
-            return new Response([
-                'success' => false,
-                'error' => 'Ошибка базы данных: ' . $e->getMessage()
-            ]);
-        }
-    }
-
-    public function share(Request $request): Response
-    {
-        try {
-            $userId = AuthMiddleware::getCurrentUserId();
-            $data = $request->getData();
-
-            Validator::required($data['email'] ?? '', 'Email');
-            Validator::email($data['email']);
-            Validator::required($data['folder_id'] ?? '', 'ID папки');
-
-            $conn = $this->db->getConnection();
-            $conn->beginTransaction();
-
-            try {
-                $stmt = $conn->prepare("SELECT id, name FROM directories WHERE id = ? AND user_id = ?");
-                $stmt->execute([$data['folder_id'], $userId]);
-                $directory = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if (!$directory) {
-                    throw new RuntimeException('Папка не найдена или нет прав доступа');
-                }
-
-                $targetUser = $this->userService->findUserByEmail($data['email']);
-                if (!$targetUser) {
-                    throw new RuntimeException('Пользователь не найден');
-                }
-
-                if ($targetUser['id'] == $userId) {
-                    throw new RuntimeException('Нельзя предоставить доступ самому себе');
-                }
-
-                $stmt = $conn->prepare("SELECT id FROM shared_items WHERE item_id = ? AND item_type = 'directory' AND shared_with_user_id = ?");
-                $stmt->execute([$data['folder_id'], $targetUser['id']]);
-
-                if ($stmt->fetch()) {
-                    throw new RuntimeException('Доступ уже предоставлен этому пользователю');
-                }
-
-                $stmt = $conn->prepare("INSERT INTO shared_items (item_type, item_id, shared_by_user_id, shared_with_user_id) VALUES ('directory', ?, ?, ?)");
-                $stmt->execute([$data['folder_id'], $userId, $targetUser['id']]);
-
-                $this->shareDirectoryContentsRecursively($conn, $data['folder_id'], $userId, $targetUser['id']);
-
-                $conn->commit();
-
-                Logger::info("Directory shared successfully", [
-                    'folder_id' => $data['folder_id'],
-                    'from_user' => $userId,
-                    'to_user' => $targetUser['id']
-                ]);
-
-                return new Response([
-                    'success' => true,
-                    'message' => 'Доступ к папке и её содержимому успешно предоставлен'
-                ]);
-            } catch (Exception $e) {
-                $conn->rollBack();
-                throw $e;
-            }
-        } catch (\InvalidArgumentException $e) {
-            return new Response(['success' => false, 'error' => $e->getMessage()], 400);
-        } catch (Exception $e) {
-            Logger::error("DirectoryService::share exception", ['error' => $e->getMessage()]);
-            return new Response(['success' => false, 'error' => $e->getMessage()]);
-        }
-    }
-
-    private function shareDirectoryContentsRecursively($conn, $directoryId, $ownerId, $targetUserId): void
-    {
-        $stmt = $conn->prepare("
-            SELECT id, filename 
-            FROM files 
-            WHERE directory_id = ? AND user_id = ?
-        ");
-        $stmt->execute([$directoryId, $ownerId]);
-        $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        error_log("Sharing files in directory $directoryId: " . count($files) . " files found");
-
-        foreach ($files as $file) {
-            $stmtCheck = $conn->prepare("
-            SELECT id FROM shared_items 
-            WHERE item_type = 'file' AND item_id = ? AND shared_with_user_id = ?
-        ");
-            $stmtCheck->execute([$file['id'], $targetUserId]);
-
-            if (!$stmtCheck->fetch()) {
-                $stmtInsert = $conn->prepare("
-                INSERT INTO shared_items 
-                (item_type, item_id, shared_by_user_id, shared_with_user_id) 
-                VALUES ('file', ?, ?, ?)
-            ");
-                $result = $stmtInsert->execute([$file['id'], $ownerId, $targetUserId]);
-                error_log("Shared file {$file['filename']} (ID: {$file['id']}) with user $targetUserId: " . ($result ? 'SUCCESS' : 'FAILED'));
-            } else {
-                error_log("File {$file['filename']} already shared with user $targetUserId");
-            }
-        }
-
-        $stmt = $conn->prepare("
-            SELECT id, name 
-            FROM directories 
-            WHERE parent_id = ? AND user_id = ?
-        ");
-        $stmt->execute([$directoryId, $ownerId]);
-        $subdirectories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        foreach ($subdirectories as $subdir) {
-            $stmtCheck = $conn->prepare("
-            SELECT id FROM shared_items 
-            WHERE item_type = 'directory' AND item_id = ? AND shared_with_user_id = ?
-        ");
-            $stmtCheck->execute([$subdir['id'], $targetUserId]);
-
-            if (!$stmtCheck->fetch()) {
-                $stmtInsert = $conn->prepare("
-                INSERT INTO shared_items 
-                (item_type, item_id, shared_by_user_id, shared_with_user_id) 
-                VALUES ('directory', ?, ?, ?)
-            ");
-                $stmtInsert->execute([$subdir['id'], $ownerId, $targetUserId]);
-            }
-
-            $this->shareDirectoryContentsRecursively($conn, $subdir['id'], $ownerId, $targetUserId);
-        }
-    }
-
-    public function unshare(Request $request): Response
-    {
-        if (!isset($_SESSION['user_id'])) {
-            return new Response(['success' => false, 'error' => 'Пользователь не авторизован'], 401);
-        }
-
-        $userId = $_SESSION['user_id'];
-        $directoryId = $request->getData()['directory_id'] ?? null;
-
-        if (!$directoryId) {
-            return new Response(['success' => false, 'error' => 'ID папки не указан'], 400);
-        }
-
-        try {
-            $conn = $this->db->getConnection();
-
-            $stmt = $conn->prepare("
-                SELECT id FROM shared_items 
-                WHERE item_id = ? 
-                  AND item_type = 'directory' 
-                  AND shared_with_user_id = ?
-            ");
-            $stmt->execute([$directoryId, $userId]);
-
-            if (!$stmt->fetch()) {
-                return new Response(['success' => false, 'error' => 'Папка не найдена или не расшарена для вас'], 404);
-            }
-
-            $stmt = $conn->prepare("
-                DELETE FROM shared_items 
-                WHERE item_id = ? 
-                  AND item_type = 'directory' 
-                  AND shared_with_user_id = ?
-            ");
-            $stmt->execute([$directoryId, $userId]);
-
-            return new Response(['success' => true, 'message' => 'Доступ к папке успешно отозван']);
-        } catch (Exception $e) {
-            return new Response(['success' => false, 'error' => 'Ошибка при отзыве доступа: ' . $e->getMessage()], 500);
-        }
-    }
-
-    public function download(Request $request): Response
-    {
-        if (!isset($_SESSION['user_id'])) {
-            return new Response(['success' => false, 'error' => 'Пользователь не авторизован']);
-        }
-
-        try {
-            $userId = $_SESSION['user_id'];
-            $directoryIdRaw = $request->routeParams['id'] ?? null;
-            error_log("Download called for directoryId=$directoryIdRaw, userId=$userId");
-
-            if ($directoryIdRaw === 'root' || $directoryIdRaw === null || $directoryIdRaw === '' || $directoryIdRaw === 0 || $directoryIdRaw === '0') {
-                $directoryId = null;
-            } else {
-                $directoryId = (int)$directoryIdRaw;
-            }
-
-            if (!$directoryId) {
-                throw new RuntimeException('ID папки не указан');
-            }
-
-            $conn = $this->db->getConnection();
-
-            $stmt = $conn->prepare("
-                SELECT 
-                    d.id,
-                    d.name,
-                    d.user_id
-                FROM directories d
-                LEFT JOIN shared_items si ON d.id = si.item_id AND si.item_type = 'directory'
-                WHERE d.id = ? AND (
-                    d.user_id = ? OR 
-                    si.shared_with_user_id = ?
-                )
-            ");
-            $stmt->execute([$directoryId, $userId, $userId]);
-            $directory = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$directory) {
-                throw new RuntimeException('Папка не найдена или нет прав доступа');
-            }
-
-            $zipFileName = tempnam(sys_get_temp_dir(), 'dir_');
-            $zip = new ZipArchive();
-
-            if ($zip->open($zipFileName, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-                throw new RuntimeException('Не удалось создать ZIP-архив');
-            }
-
-            $this->addDirectoryToZip($zip, $directoryId, $directory['name'], $conn, $userId);
-
-            $zip->close();
-
-            if (!file_exists($zipFileName) || filesize($zipFileName) === 0) {
-                throw new RuntimeException('Архив не создан');
-            }
-
-            $safeFileName = $this->sanitizeFileName($directory['name']) . '.zip';
-
-            header('Content-Type: application/zip');
-            header('Content-Disposition: attachment; filename="' . $safeFileName . '"');
-            header('Content-Length: ' . filesize($zipFileName));
-            header('Pragma: no-cache');
-            header('Expires: 0');
-
-            readfile($zipFileName);
-            unlink($zipFileName);
-            error_log("Download finished for directoryId=$directoryId, file=$zipFileName, size=" . filesize($zipFileName));
-            exit;
-        } catch (Exception $e) {
-            return new Response([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    private function addDirectoryToZip(ZipArchive $zip, string $directoryId, string $path, PDO $conn, int $userId, string $parentPath = ''): void
-    {
-        $stmt = $conn->prepare("
-            SELECT 
-                f.id,
-                f.filename,
-                f.stored_name
-            FROM files f
-            LEFT JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
-            WHERE f.directory_id = ? AND (
-                f.user_id = ? OR 
-                si.shared_with_user_id = ?
-            )
-        ");
-        $stmt->execute([$directoryId, $userId, $userId]);
-        $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $currentPath = $parentPath . ($parentPath ? '/' : '') . $this->sanitizeFileName($path);
-
-        $zip->addEmptyDir($currentPath);
-
-        foreach ($files as $file) {
-            $filePath = __DIR__ . '/../uploads/files/' . $file['stored_name'];
-            if (file_exists($filePath)) {
-                $zip->addFile(
-                    $filePath,
-                    $currentPath . '/' . $this->sanitizeFileName($file['filename'])
-                );
-            }
-        }
-
-        $stmt = $conn->prepare("
-            SELECT 
-                d.id,
-                d.name
-            FROM directories d
-            LEFT JOIN shared_items si ON d.id = si.item_id AND si.item_type = 'directory'
-            WHERE d.parent_id = ? AND (
-                d.user_id = ? OR 
-                si.shared_with_user_id = ?
-            )
-        ");
-        $stmt->execute([$directoryId, $userId, $userId]);
-        $subdirectories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        foreach ($subdirectories as $subdir) {
-            $this->addDirectoryToZip(
-                $zip,
-                $subdir['id'],
-                $subdir['name'],
-                $conn,
-                $userId,
-                $currentPath
-            );
-        }
+        $safeFileName = $this->sanitizeFileName('directory_' . $directoryId) . '.zip';
+
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $safeFileName . '"');
+        header('Content-Length: ' . filesize($zipFilePath));
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        readfile($zipFilePath);
+        unlink($zipFilePath);
+        exit;
     }
 
     private function formatFileSize(int $bytes): string
@@ -833,10 +543,5 @@ class DirectoryService
         $fileName = preg_replace('/[\/\\\:\*\?"<>\|]/', '_', $fileName);
         $fileName = preg_replace('/_+/', '_', $fileName);
         return substr($fileName, 0, 255);
-    }
-
-    private function sanitizeFolderName(string $name): string
-    {
-        return preg_replace('/[\/\\\:\*\?"<>\|]/', '_', $name);
     }
 }

@@ -7,6 +7,11 @@ use Exception;
 
 class FileRepository extends Repository
 {
+    public function getConnection()
+    {
+        return $this->db->getConnection();
+    }
+
     public function getRootDirectoryId(int $userId): int
     {
         $result = $this->fetchOne("
@@ -69,22 +74,63 @@ class FileRepository extends Repository
 
     public function getFilesInRootDirectory(int $userId, int $directoryId, array $sharedRootIds): array
     {
-        if ($sharedRootIds) {
-            $placeholders = implode(',', array_fill(0, count($sharedRootIds), '?'));
-            $in = "($placeholders)";
-            $inCondition = "f.directory_id IN $in";
-        } else {
-            $inCondition = "0";
-        }
-
         $sql = "
+        -- Собственные файлы пользователя в его корневой директории
+        SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, 
+               f.size AS file_size, 'file' AS type,
+            0 as is_shared,
+            (SELECT COUNT(*) FROM shared_items si WHERE si.item_type = 'file' AND si.item_id = f.id AND si.shared_by_user_id = ?) as is_shared_by_owner,
+            NULL as shared_by
+        FROM files f
+        WHERE f.user_id = ? AND f.directory_id = ?
+        
+        UNION
+        
+        -- ТОЛЬКО файлы, расшаренные напрямую (не через папку), которые находятся в корневых директориях других пользователей
+        SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, 
+               f.size AS file_size, 'file' AS type,
+            1 as is_shared,
+            0 as is_shared_by_owner,
+            u.email as shared_by
+        FROM files f
+        JOIN shared_items si ON si.item_type = 'file' AND si.item_id = f.id
+        JOIN users u ON si.shared_by_user_id = u.id
+        JOIN directories d ON f.directory_id = d.id
+        WHERE si.shared_with_user_id = ? 
+        AND d.parent_id IS NULL 
+        AND d.user_id != ?
+        AND NOT EXISTS (
+            -- Исключаем файлы, которые расшарены через папку
+            SELECT 1 FROM shared_items si_dir 
+            WHERE si_dir.item_type = 'directory' 
+            AND si_dir.item_id = f.directory_id 
+            AND si_dir.shared_with_user_id = ?
+        )
+        
+        ORDER BY created_at DESC
+    ";
+
+        $params = [$userId, $userId, $directoryId, $userId, $userId, $userId];
+
+        return $this->fetchAll($sql, $params);
+    }
+
+    public function getOwnFilesInDirectory(int $userId, int $directoryId): array
+    {
+        return $this->fetchAll("
             SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, f.size AS file_size, 'file' AS type,
                 0 as is_shared,
                 (SELECT COUNT(*) FROM shared_items si WHERE si.item_type = 'file' AND si.item_id = f.id AND si.shared_by_user_id = ?) as is_shared_by_owner,
                 NULL as shared_by
             FROM files f
             WHERE f.user_id = ? AND f.directory_id = ?
-            UNION
+            ORDER BY f.created_at DESC
+        ", [$userId, $userId, $directoryId]);
+    }
+
+    public function getSharedFilesInRootDirectories(int $userId): array
+    {
+        return $this->fetchAll("
             SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, f.size AS file_size, 'file' AS type,
                 1 as is_shared,
                 0 as is_shared_by_owner,
@@ -92,32 +138,46 @@ class FileRepository extends Repository
             FROM files f
             JOIN shared_items si ON si.item_type = 'file' AND si.item_id = f.id
             JOIN users u ON f.user_id = u.id
-            WHERE si.shared_with_user_id = ? AND (f.directory_id = ? OR $inCondition)
-            ORDER BY created_at DESC
-        ";
-
-        $params = [$userId, $userId, $directoryId, $userId, $directoryId];
-        if ($sharedRootIds) {
-            $params = array_merge($params, $sharedRootIds);
-        }
-
-        return $this->fetchAll($sql, $params);
+            JOIN directories d ON f.directory_id = d.id
+            WHERE si.shared_with_user_id = ? 
+            AND d.parent_id IS NULL 
+            AND f.user_id != ?
+            AND NOT EXISTS (
+                -- Исключаем файлы, которые расшарены через папку
+                SELECT 1 FROM shared_items si_dir 
+                WHERE si_dir.item_type = 'directory' 
+                AND si_dir.item_id = f.directory_id 
+                AND si_dir.shared_with_user_id = ?
+            )
+            ORDER BY f.created_at DESC
+        ", [$userId, $userId, $userId]);
     }
 
-    public function getFilesInDirectoryWithAccess(int $userId, int $directoryId, int $ownerId): array
+    public function getFilesInDirectoryWithShared(int $userId, int $directoryId): array
     {
-        return $this->fetchAll("
+        $ownFiles = $this->fetchAll("
             SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, f.size AS file_size, 'file' AS type,
-                CASE WHEN f.user_id = ? THEN 0 ELSE 1 END as is_shared,
+                0 as is_shared,
                 (SELECT COUNT(*) FROM shared_items si WHERE si.item_type = 'file' AND si.item_id = f.id AND si.shared_by_user_id = ?) as is_shared_by_owner,
-                (CASE WHEN f.user_id = ? THEN NULL ELSE u.email END) as shared_by
+                NULL as shared_by
             FROM files f
-            LEFT JOIN users u ON f.user_id = u.id
-            WHERE f.directory_id = ? AND (f.user_id = ? OR EXISTS (
-                SELECT 1 FROM shared_items si WHERE si.item_type = 'file' AND si.item_id = f.id AND si.shared_with_user_id = ?
-            ))
+            WHERE f.user_id = ? AND f.directory_id = ?
             ORDER BY f.created_at DESC
-        ", [$ownerId, $ownerId, $ownerId, $directoryId, $ownerId, $userId]);
+        ", [$userId, $userId, $directoryId]);
+
+        $sharedFiles = $this->fetchAll("
+            SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, f.size AS file_size, 'file' AS type,
+                1 as is_shared,
+                0 as is_shared_by_owner,
+                u.email as shared_by
+            FROM files f
+            JOIN shared_items si ON si.item_type = 'file' AND si.item_id = f.id
+            JOIN users u ON f.user_id = u.id
+            WHERE si.shared_with_user_id = ? AND f.directory_id = ? AND f.user_id != ?
+            ORDER BY f.created_at DESC
+        ", [$userId, $directoryId, $userId]);
+
+        return array_merge($ownFiles, $sharedFiles);
     }
 
     public function getCurrentDirectory(?int $directoryId): ?array
@@ -137,12 +197,12 @@ class FileRepository extends Repository
                 WHERE parent_id IS NULL AND user_id = ?
             ", [$userId]);
 
-            if (!$rootDir) {
+            if (! $rootDir) {
 
                 return $this->insert('directories', [
                     'name' => 'Корневая папка',
                     'parent_id' => null,
-                    'user_id' => $userId
+                    'user_id' => $userId,
                 ]);
             }
 
@@ -171,7 +231,7 @@ class FileRepository extends Repository
             'name' => $name,
             'directory_name' => $directoryName,
             'parent_id' => $parentId,
-            'user_id' => $userId
+            'user_id' => $userId,
         ]);
     }
 
@@ -190,21 +250,25 @@ class FileRepository extends Repository
         return $this->exists('shared_items', [
             'item_type' => 'file',
             'item_id' => $fileId,
-            'shared_with_user_id' => $targetUserId
+            'shared_with_user_id' => $targetUserId,
         ]);
     }
 
     public function createShare(int $fileId, int $ownerId, int $targetUserId): bool
     {
         try {
-            $this->insert('shared_items', [
+            $result = $this->insert('shared_items', [
                 'item_type' => 'file',
                 'item_id' => $fileId,
                 'shared_by_user_id' => $ownerId,
-                'shared_with_user_id' => $targetUserId
+                'shared_with_user_id' => $targetUserId,
             ]);
-            return true;
+
+            error_log("Share created: fileId=$fileId, ownerId=$ownerId, targetUserId=$targetUserId, result=$result");
+
+            return $result > 0;
         } catch (Exception $e) {
+            error_log("Error creating share: " . $e->getMessage());
             return false;
         }
     }
@@ -233,7 +297,7 @@ class FileRepository extends Repository
         return $this->exists('shared_items', [
             'item_id' => $fileId,
             'shared_with_user_id' => $userId,
-            'item_type' => 'file'
+            'item_type' => 'file',
         ]);
     }
 
@@ -279,91 +343,43 @@ class FileRepository extends Repository
 
     public function deleteFile(int $fileId, int $userId): ?array
     {
-        return $this->fetchOne("SELECT stored_name FROM files WHERE id = ? AND user_id = ?", [$fileId, $userId]);
+        $file = $this->fetchOne("
+            SELECT * FROM files 
+            WHERE id = ? AND user_id = ?
+        ", [$fileId, $userId]);
+
+        return $file;
     }
 
     public function removeFile(int $fileId, int $userId): bool
     {
-        return $this->delete('files', ['id' => $fileId, 'user_id' => $userId]);
+        $this->delete('shared_items', [
+            'item_type' => 'file',
+            'item_id' => $fileId
+        ]);
+
+        return $this->delete('files', [
+            'id' => $fileId,
+            'user_id' => $userId
+        ]);
     }
 
     public function checkSharedFileAccess(int $fileId, int $userId): bool
     {
         return $this->exists('shared_items', [
+            'item_type' => 'file',
             'item_id' => $fileId,
-            'shared_with_user_id' => $userId,
-            'item_type' => 'file'
+            'shared_with_user_id' => $userId
         ]);
     }
 
     public function removeSharedAccess(int $fileId, int $userId): bool
     {
         return $this->delete('shared_items', [
+            'item_type' => 'file',
             'item_id' => $fileId,
-            'shared_with_user_id' => $userId,
-            'item_type' => 'file'
+            'shared_with_user_id' => $userId
         ]);
-    }
-
-    public function isDirectorySharedWithUser(int $directoryId, int $userId): bool
-    {
-        $result = $this->fetchOne("
-            SELECT id FROM directories 
-            WHERE id = ? AND user_id != ? AND id IN (
-                SELECT item_id FROM shared_items WHERE item_type = 'directory' AND shared_with_user_id = ?
-            )
-        ", [$directoryId, $userId, $userId]);
-
-        return $result !== null;
-    }
-
-    public function getFilesInSharedDirectory(int $userId, int $directoryId): array
-    {
-        return $this->fetchAll("
-            SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, f.size AS file_size, 'file' AS type,
-                1 as is_shared,
-                0 as is_shared_by_owner,
-                u.email as shared_by
-            FROM files f
-            JOIN shared_items si ON si.item_type = 'file' AND si.item_id = f.id
-            JOIN users u ON f.user_id = u.id
-            WHERE si.shared_with_user_id = ? AND f.directory_id = ?
-            ORDER BY f.created_at DESC
-        ", [$userId, $directoryId]);
-    }
-
-    public function checkFileAccessForFile(int $fileId, int $userId): bool
-    {
-        return $this->checkFileAccessForRename($fileId, $userId);
-    }
-
-    public function countUserFiles(int $userId): int
-    {
-        return $this->count('files', ['user_id' => $userId]);
-    }
-
-    public function getTotalFilesSize(int $userId): int
-    {
-        $result = $this->fetchOne("
-            SELECT COALESCE(SUM(size), 0) as total_size 
-            FROM files 
-            WHERE user_id = ?
-        ", [$userId]);
-
-        return (int)($result['total_size'] ?? 0);
-    }
-
-    public function getRecentFiles(int $userId, int $limit = 10): array
-    {
-        return $this->fetchAll("
-            SELECT f.id, f.filename, f.mime_type, f.size, f.created_at,
-                   d.name as directory_name
-            FROM files f
-            LEFT JOIN directories d ON f.directory_id = d.id
-            WHERE f.user_id = ?
-            ORDER BY f.created_at DESC
-            LIMIT ?
-        ", [$userId, $limit]);
     }
 
     public function getSharedFiles(int $userId): array
@@ -381,20 +397,222 @@ class FileRepository extends Repository
         ", [$userId]);
     }
 
-    public function getFilesSharedByUser(int $userId): array
+    public function searchFiles(string $query, int $userId): array
+    {
+        $searchTerm = '%' . $query . '%';
+
+        return $this->fetchAll("
+            SELECT f.id, f.filename, f.stored_name, f.mime_type, f.created_at, 
+                   f.size as file_size, f.user_id, f.directory_id,
+                   'file' as type,
+                   CASE WHEN f.user_id = ? THEN 0 ELSE 1 END as is_shared,
+                   CASE WHEN f.user_id = ? THEN 
+                       (SELECT COUNT(*) FROM shared_items si WHERE si.item_type = 'file' AND si.item_id = f.id AND si.shared_by_user_id = ?)
+                   ELSE 0 END as is_shared_by_owner,
+                   CASE WHEN f.user_id != ? THEN 
+                       (SELECT u.email FROM users u JOIN shared_items si ON si.shared_by_user_id = u.id 
+                        WHERE si.item_id = f.id AND si.item_type = 'file' AND si.shared_with_user_id = ? LIMIT 1)
+                   ELSE NULL END as shared_by
+            FROM files f
+            WHERE f.filename LIKE ? AND (
+                f.user_id = ? OR 
+                f.id IN (
+                    SELECT item_id FROM shared_items 
+                    WHERE item_type = 'file' AND shared_with_user_id = ?
+                )
+            )
+            ORDER BY f.created_at DESC
+        ", [$userId, $userId, $userId, $userId, $userId, $searchTerm, $userId, $userId]);
+    }
+
+    public function isDirectorySharedToUser(int $directoryId, int $userId): ?array
+    {
+        $result = $this->fetchOne("
+            SELECT u.email as shared_by
+            FROM shared_items si
+            JOIN users u ON si.shared_by_user_id = u.id
+            WHERE si.item_type = 'directory' AND si.item_id = ? AND si.shared_with_user_id = ?
+        ", [$directoryId, $userId]);
+
+        return $result ?: null;
+    }
+
+    public function debugSharedFiles(int $userId): void
+    {
+        $sharedFiles = $this->fetchAll("
+            SELECT f.id, f.filename, f.directory_id, d.name as directory_name, d.parent_id
+            FROM files f
+            JOIN shared_items si ON si.item_id = f.id AND si.item_type = 'file'
+            JOIN directories d ON f.directory_id = d.id
+            WHERE si.shared_with_user_id = ?
+        ", [$userId]);
+
+        error_log("Shared files for user $userId: " . json_encode($sharedFiles));
+    }
+
+    public function bulkDeleteFiles(array $fileIds, int $userId): array
+    {
+        $results = [];
+
+        foreach ($fileIds as $fileId) {
+            try {
+                $file = $this->deleteFile($fileId, $userId);
+                if ($file) {
+
+                    $filePath = __DIR__ . '/../uploads/files/' . $file['stored_name'];
+                    if (file_exists($filePath)) {
+                        unlink($filePath);
+                    }
+
+                    $success = $this->removeFile($fileId, $userId);
+                    $results[] = [
+                        'file_id' => $fileId,
+                        'success' => $success,
+                        'message' => $success ? 'Удален' : 'Ошибка удаления'
+                    ];
+                } else {
+                    $results[] = [
+                        'file_id' => $fileId,
+                        'success' => false,
+                        'message' => 'Файл не найден'
+                    ];
+                }
+            } catch (Exception $e) {
+                $results[] = [
+                    'file_id' => $fileId,
+                    'success' => false,
+                    'message' => 'Ошибка: ' . $e->getMessage()
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    public function getFilesByDirectory(int $directoryId, int $userId): array
     {
         return $this->fetchAll("
-            SELECT f.id, f.filename, f.mime_type, f.size, f.created_at,
-                   u.email as shared_with,
-                   d.name as directory_name,
-                   COUNT(si.id) as share_count
+            SELECT f.id, f.filename, f.stored_name, f.mime_type, f.created_at, 
+                   f.size as file_size, f.user_id, f.directory_id,
+                   'file' as type,
+                   0 as is_shared,
+                   (SELECT COUNT(*) FROM shared_items si WHERE si.item_type = 'file' AND si.item_id = f.id AND si.shared_by_user_id = ?) as is_shared_by_owner,
+                   NULL as shared_by
             FROM files f
-            JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
-            JOIN users u ON si.shared_with_user_id = u.id
-            LEFT JOIN directories d ON f.directory_id = d.id
-            WHERE si.shared_by_user_id = ?
-            GROUP BY f.id, u.email
+            WHERE f.directory_id = ? AND f.user_id = ?
             ORDER BY f.created_at DESC
+        ", [$userId, $directoryId, $userId]);
+    }
+
+    public function getSharedFilesByDirectory(int $directoryId, int $userId): array
+    {
+        return $this->fetchAll("
+            SELECT f.id, f.filename, f.stored_name, f.mime_type, f.created_at, 
+                   f.size as file_size, f.user_id, f.directory_id,
+                   'file' as type,
+                   1 as is_shared,
+                   0 as is_shared_by_owner,
+                   u.email as shared_by
+            FROM files f
+            JOIN shared_items si ON si.item_id = f.id AND si.item_type = 'file'
+            JOIN users u ON si.shared_by_user_id = u.id
+            WHERE f.directory_id = ? AND si.shared_with_user_id = ? AND f.user_id != ?
+            ORDER BY f.created_at DESC
+        ", [$directoryId, $userId, $userId]);
+    }
+
+    public function getFileStats(int $userId): array
+    {
+        $stats = $this->fetchOne("
+            SELECT 
+                COUNT(*) as total_files,
+                COALESCE(SUM(size), 0) as total_size
+            FROM files 
+            WHERE user_id = ?
         ", [$userId]);
+
+        $sharedStats = $this->fetchOne("
+            SELECT COUNT(DISTINCT f.id) as shared_files_count
+            FROM files f
+            JOIN shared_items si ON si.item_id = f.id AND si.item_type = 'file'
+            WHERE si.shared_with_user_id = ?
+        ", [$userId]);
+
+        return [
+            'total_files' => (int)($stats['total_files'] ?? 0),
+            'total_size' => (int)($stats['total_size'] ?? 0),
+            'shared_files_count' => (int)($sharedStats['shared_files_count'] ?? 0)
+        ];
+    }
+
+    public function getRecentFiles(int $userId, int $limit = 10): array
+    {
+        return $this->fetchAll("
+            SELECT f.id, f.filename, f.stored_name, f.mime_type, f.created_at, 
+                   f.size as file_size, f.user_id, f.directory_id,
+                   'file' as type,
+                   CASE WHEN f.user_id = ? THEN 0 ELSE 1 END as is_shared,
+                   CASE WHEN f.user_id = ? THEN 
+                       (SELECT COUNT(*) FROM shared_items si WHERE si.item_type = 'file' AND si.item_id = f.id AND si.shared_by_user_id = ?)
+                   ELSE 0 END as is_shared_by_owner,
+                   CASE WHEN f.user_id != ? THEN 
+                       (SELECT u.email FROM users u JOIN shared_items si ON si.shared_by_user_id = u.id 
+                        WHERE si.item_id = f.id AND si.item_type = 'file' AND si.shared_with_user_id = ? LIMIT 1)
+                   ELSE NULL END as shared_by
+            FROM files f
+            WHERE f.user_id = ? OR f.id IN (
+                SELECT item_id FROM shared_items 
+                WHERE item_type = 'file' AND shared_with_user_id = ?
+            )
+            ORDER BY f.created_at DESC
+            LIMIT ?
+        ", [$userId, $userId, $userId, $userId, $userId, $userId, $userId, $limit]);
+    }
+
+    public function getFilesByType(int $userId, string $mimeTypePattern): array
+    {
+        return $this->fetchAll("
+            SELECT f.id, f.filename, f.stored_name, f.mime_type, f.created_at, 
+                   f.size as file_size, f.user_id, f.directory_id,
+                   'file' as type,
+                   CASE WHEN f.user_id = ? THEN 0 ELSE 1 END as is_shared,
+                   CASE WHEN f.user_id = ? THEN 
+                       (SELECT COUNT(*) FROM shared_items si WHERE si.item_type = 'file' AND si.item_id = f.id AND si.shared_by_user_id = ?)
+                   ELSE 0 END as is_shared_by_owner,
+                   CASE WHEN f.user_id != ? THEN 
+                       (SELECT u.email FROM users u JOIN shared_items si ON si.shared_by_user_id = u.id 
+                        WHERE si.item_id = f.id AND si.item_type = 'file' AND si.shared_with_user_id = ? LIMIT 1)
+                   ELSE NULL END as shared_by
+            FROM files f
+            WHERE f.mime_type LIKE ? AND (
+                f.user_id = ? OR f.id IN (
+                    SELECT item_id FROM shared_items 
+                    WHERE item_type = 'file' AND shared_with_user_id = ?
+                )
+            )
+            ORDER BY f.created_at DESC
+        ", [$userId, $userId, $userId, $userId, $userId, $mimeTypePattern, $userId, $userId]);
+    }
+
+    public function cleanupOrphanedFiles(): int
+    {
+        $files = $this->fetchAll("SELECT id, stored_name FROM files");
+        $deletedCount = 0;
+
+        foreach ($files as $file) {
+            $filePath = __DIR__ . '/../uploads/files/' . $file['stored_name'];
+            if (!file_exists($filePath)) {
+
+                $this->delete('shared_items', [
+                    'item_type' => 'file',
+                    'item_id' => $file['id']
+                ]);
+
+                $this->delete('files', ['id' => $file['id']]);
+                $deletedCount++;
+            }
+        }
+
+        return $deletedCount;
     }
 }

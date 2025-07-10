@@ -20,6 +20,12 @@ async function refreshLists() {
     }
 }
 
+function openFolder(folderId) {
+    currentDirectoryId = folderId;
+    localStorage.setItem("currentDirectoryId", currentDirectoryId);
+    loadFolders();
+}
+
 function addRefreshButton() {
     if (document.getElementById('refreshListsBtn')) {
         return;
@@ -60,21 +66,23 @@ function handleDragLeave(event) {
     }
 }
 
-
-
 function renderFoldersList(folders, currentDirectory) {
     const foldersList = document.getElementById('foldersList');
     foldersList.innerHTML = '';
     foldersList.className = 'list-group mb-3';
 
     let hasBack = false;
-    if (currentDirectory && currentDirectory.parent_id !== null) {
-        const backLi = document.createElement('li');
-        backLi.className = 'list-group-item d-flex align-items-center';
-        backLi.innerHTML = `<span style="cursor:pointer" onclick="goBack()">⬅️ Назад</span>
-            <span class="fw-bold ms-3">${currentDirectory.name}</span>`;
-        foldersList.appendChild(backLi);
-        hasBack = true;
+    if (currentDirectory) {
+        const parentId = currentDirectory.real_parent_id ?? currentDirectory.parent_id;
+
+        if (parentId !== null && parentId !== undefined) {
+            const backLi = document.createElement('li');
+            backLi.className = 'list-group-item d-flex align-items-center';
+            backLi.innerHTML = `<span style="cursor:pointer" onclick="goBack()">⬅️ Назад</span>
+                <span class="fw-bold ms-3">${currentDirectory.name}</span>`;
+            foldersList.appendChild(backLi);
+            hasBack = true;
+        }
     }
 
     if (folders.length > 0) {
@@ -146,30 +154,33 @@ function renderFoldersList(folders, currentDirectory) {
     }
 }
 
-
 function renderFoldersGrid(folders, currentDirectory) {
     const foldersList = document.getElementById('foldersList');
     foldersList.innerHTML = '';
     foldersList.className = 'd-flex flex-wrap gap-3 mb-3';
 
     let hasBack = false;
-    if (currentDirectory && currentDirectory.parent_id !== null) {
-        const backCard = document.createElement('div');
-        backCard.className = 'card position-relative p-2 text-center';
-        backCard.style.width = '180px';
-        backCard.style.cursor = 'pointer';
-        backCard.onclick = () => goBack();
-        backCard.innerHTML = `
-            <div class="img-container" style="height: 120px; display: flex; align-items: center; justify-content: center;">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>
-            <div class="fw-bold text-truncate mt-2">Назад</div>
-            <div class="text-muted text-truncate" title="${currentDirectory.name}">${currentDirectory.name}</div>
-        `;
-        foldersList.appendChild(backCard);
-        hasBack = true;
+    if (currentDirectory) {
+        const parentId = currentDirectory.real_parent_id ?? currentDirectory.parent_id;
+
+        if (parentId !== null && parentId !== undefined) {
+            const backCard = document.createElement('div');
+            backCard.className = 'card position-relative p-2 text-center';
+            backCard.style.width = '180px';
+            backCard.style.cursor = 'pointer';
+            backCard.onclick = () => goBack();
+            backCard.innerHTML = `
+                <div class="img-container" style="height: 120px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="fw-bold text-truncate mt-2">Назад</div>
+                <div class="text-muted text-truncate" title="${currentDirectory.name}">${currentDirectory.name}</div>
+            `;
+            foldersList.appendChild(backCard);
+            hasBack = true;
+        }
     }
 
     if (folders && folders.length > 0) {
@@ -248,7 +259,6 @@ function renderFoldersGrid(folders, currentDirectory) {
     }
 }
 
-
 function handleDragStart(event) {
     const element = event.currentTarget;
     const itemType = element.dataset.type;
@@ -267,7 +277,6 @@ function handleDragStart(event) {
     element.style.opacity = '0.5';
 }
 
-
 async function handleDrop(event) {
     event.preventDefault();
     event.currentTarget.classList.remove('drag-over');
@@ -278,12 +287,12 @@ async function handleDrop(event) {
 
     if (!draggedId || !targetFolderId || !draggedType) {
         console.error('Недостаточно данных для перемещения:', { draggedType, draggedId, targetFolderId });
-        showMessage('Недостаточно данных для перемещения', 'error');
+        showMessage('Недостаточно данных для перемещения', 'danger');
         return;
     }
 
     if (draggedType === 'directory' && draggedId === targetFolderId) {
-        showMessage('Нельзя переместить папку саму в себя', 'error');
+        showMessage('Нельзя переместить папку саму в себя', 'danger');
         return;
     }
 
@@ -300,12 +309,11 @@ async function handleDrop(event) {
             url = '/CloudStorageApp/public/files/move';
             body = {
                 file_id: parseInt(draggedId),
-                target_directory_id: targetFolderId === 'root' ? 'root' : parseInt(targetFolderId)
+                directory_id: targetFolderId === 'root' ? 'root' : parseInt(targetFolderId)
             };
         } else {
             throw new Error('Неизвестный тип элемента: ' + draggedType);
         }
-
 
         const response = await fetch(url, {
             method: 'PUT',
@@ -316,41 +324,41 @@ async function handleDrop(event) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const responseText = await response.text();
-
-        if (!response.ok) {
-
+            const errorText = await response.text();
             try {
-                const errorData = JSON.parse(responseText);
+                const errorData = JSON.parse(errorText);
                 console.error('Server error:', errorData);
-                throw new Error(`Server error: ${errorData.error || 'Unknown error'}`);
-            } catch (parseError) {
-                console.error('Could not parse error response:', responseText);
-                throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
+                
+                if (errorData.error && errorData.error.includes('Нет прав доступа к папке')) {
+                    showMessage('Ошибка при обработке перемещения: Нет прав владельца', 'danger');
+                } else {
+                    showMessage(errorData.error || `Ошибка сервера: ${response.status}`, 'danger');
+                }
+                return;
+            } catch {
+                console.error('Could not parse error response:', errorText);
+                showMessage(`Ошибка сервера: ${response.status}`, 'danger');
+                return;
             }
         }
 
-        let result;
-        try {
-            result = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('JSON parse error:', parseError);
-            throw new Error('Сервер вернул некорректный ответ: ' + responseText.substring(0, 100));
-        }
+        const result = await response.json();
 
         if (result.success) {
             showMessage(result.message || 'Элемент успешно перемещен', 'success');
             await loadFolders();
         } else {
-            showMessage(result.error || 'Ошибка при перемещении', 'error');
+            const errorMsg = result.error || 'Ошибка при перемещении';
+            if (errorMsg.toLowerCase().includes('прав')) {
+                showMessage('Ошибка при обработке перемещения: Нет прав владельца', 'danger');
+            } else {
+                showMessage(errorMsg, 'danger');
+            }
         }
 
     } catch (error) {
         console.error('Ошибка при обработке перемещения:', error);
-        showMessage('Ошибка при перемещении: ' + error.message, 'error');
+        showMessage('Ошибка при перемещении: ' + error.message, 'danger');
     }
 }
 
@@ -359,7 +367,6 @@ function handleDragEnd(event) {
     event.currentTarget.style.opacity = '1';
     event.currentTarget.classList.remove('dragging');
 }
-
 
 async function isDescendantFolder(sourceId, targetId) {
     try {
@@ -422,13 +429,17 @@ async function loadUserInfo() {
         document.getElementById('userGreeting').textContent = 'Добро пожаловать!';
     }
 }
+
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         await loadUserInfo();
         await loadFolders();
         addRefreshButton();
     } catch (error) {
-        // ...
+        console.error('Ошибка при инициализации приложения:', error);
+        showMessage('Ошибка при загрузке приложения', 'danger');
+        
     }
 
     document.getElementById("fileInput").addEventListener("change", handleFileSelection);
@@ -818,16 +829,20 @@ function renderFilesGrid(files) {
             `;
 
             if (file.mime_type === 'application/pdf') {
-                card.querySelector('.img-container').innerHTML = '<div class="text-muted">Загрузка превью...</div>';
+                const imgContainer = card.querySelector('.img-container');
+                imgContainer.innerHTML = '<div class="text-muted">Загрузка превью...</div>';
 
                 if (typeof pdfjsLib !== 'undefined') {
-                    getPdfPreviewImageUrl(file.id).then(imgUrl => {
-                        card.querySelector('.img-container').innerHTML = `<img src="${imgUrl}" style="max-width:100%;max-height:100%;">`;
-                    }).catch(() => {
-                        card.querySelector('.img-container').innerHTML = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
-                    });
+                    getPdfPreviewImageUrl(file.id)
+                        .then(imgUrl => {
+                            imgContainer.innerHTML = `<img src="${imgUrl}" alt="${file.name}" style="max-width: 100%; max-height: 100%; border-radius: 4px;">`;
+                        })
+                        .catch(() => {
+                            imgContainer.innerHTML = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
+                        });
                 } else {
-                    card.querySelector('.img-container').innerHTML = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
+                    console.warn('pdfjsLib is not loaded');
+                    imgContainer.innerHTML = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
                 }
             }
 
@@ -851,15 +866,33 @@ function renderFilesGrid(files) {
 
 async function getPdfPreviewImageUrl(fileId) {
     const url = `/CloudStorageApp/public/files/download/${fileId}?inline=1`;
-    const pdf = await pdfjsLib.getDocument(url).promise;
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 1 });
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    return canvas.toDataURL();
+    try {
+        const loadingTask = pdfjsLib.getDocument(url);
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+
+        const viewport = page.getViewport({ scale: 1 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+
+        const scale = 150 / viewport.width;
+        const scaledViewport = page.getViewport({ scale });
+
+        canvas.width = scaledViewport.width;
+        canvas.height = scaledViewport.height;
+
+        await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
+
+        const dataUrl = canvas.toDataURL();
+        return dataUrl;
+    } catch (error) {
+        console.error(`Error generating PDF preview for fileId ${fileId}:`, error);
+        throw error;
+    }
 }
+
+
+let sharedRootId = null;
 
 async function loadFolders() {
     try {
@@ -881,7 +914,6 @@ async function loadFolders() {
         });
 
         if (!res.ok) {
-            console.warn(`Directory ${directoryIdToLoad} inaccessible, falling back to root.`);
             directoryIdToLoad = 'root';
             currentDirectoryId = 'root';
             localStorage.setItem("currentDirectoryId", currentDirectoryId);
@@ -889,10 +921,15 @@ async function loadFolders() {
 
         const data = await res.json();
 
-        if (!data.success) {
-            console.error('Ошибка в ответе сервера при загрузке папок:', data.error);
-            showMessage(data.error || 'Ошибка загрузки папок', 'danger');
-            return;
+        if (data.directory && data.directory.is_shared && Number(data.directory.user_id) !== Number(currentUserId)) {
+            
+            if (!sharedRootId || directoryIdToLoad === 'root') {
+                sharedRootId = data.directory.shared_root_id || data.directory.id;
+            }
+        }
+       
+        if (!data.directory || directoryIdToLoad === 'root' || Number(data.directory.user_id) === Number(currentUserId)) {
+            sharedRootId = null;
         }
 
         const allDirectories = [];
@@ -997,17 +1034,13 @@ async function createSubfolderPrompt(parentFolderId) {
     }
 }
 
-function openFolder(folderId) {
-    if (!folderId) return;
-    currentDirectoryId = folderId.toString();
-    localStorage.setItem("currentDirectoryId", currentDirectoryId);
-    loadFolders();
-}
-
 async function goBack() {
     try {
         if (currentDirectoryId === 'root' || !currentDirectoryId) {
             currentDirectoryId = 'root';
+            localStorage.setItem("currentDirectoryId", currentDirectoryId);
+            await loadFolders();
+            return;
         }
 
         const res = await fetch(`/CloudStorageApp/public/directories/get/${currentDirectoryId}`, {
@@ -1017,6 +1050,7 @@ async function goBack() {
                 'Pragma': 'no-cache'
             }
         });
+
         if (!res.ok) {
             currentDirectoryId = 'root';
             localStorage.setItem("currentDirectoryId", currentDirectoryId);
@@ -1033,32 +1067,19 @@ async function goBack() {
             return;
         }
 
-        const parentId = data.directory.parent_id;
-        const ownerId = data.directory.user_id;
+        const directory = data.directory;
 
-        if (ownerId !== currentUserId && data.directory.is_shared) {
+        if (directory.is_shared_root) {
+            
             currentDirectoryId = 'root';
             localStorage.setItem("currentDirectoryId", currentDirectoryId);
             await loadFolders();
             return;
         }
 
-        if (!parentId || parentId === null || parentId === undefined || parentId === 1) {
-            currentDirectoryId = 'root';
-            localStorage.setItem("currentDirectoryId", currentDirectoryId);
-            await loadFolders();
-            return;
-        }
+        const parentId = directory.real_parent_id ?? directory.parent_id;
 
-        const parentRes = await fetch(`/CloudStorageApp/public/directories/get/${parentId}`, {
-            credentials: 'include',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-        });
-
-        if (!parentRes.ok) {
+        if (!parentId) {
             currentDirectoryId = 'root';
             localStorage.setItem("currentDirectoryId", currentDirectoryId);
             await loadFolders();
@@ -1083,15 +1104,20 @@ async function renameFile(fileId, currentName) {
     try {
         const res = await fetch('/CloudStorageApp/public/files/rename', {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                file_id: fileId,
+                file_id: Number(fileId),
                 new_name: newName.trim()
             }),
             credentials: 'include'
         });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.error('Ошибка HTTP при переименовании файла:', res.status, errorText);
+            showMessage('Ошибка при переименовании файла', 'danger');
+            return;
+        }
 
         const data = await res.json();
 
@@ -1170,6 +1196,7 @@ async function shareFile(fileId, fileName) {
         showMessage('Произошла ошибка при предоставлении доступа', 'danger');
     }
 }
+
 
 window.shareFile = shareFile;
 
@@ -1277,6 +1304,7 @@ async function deleteFile(fileId) {
     }
 }
 
+
 document.getElementById('uploadFilesBtn').addEventListener('click', async (e) => {
     e.preventDefault();
 
@@ -1371,6 +1399,7 @@ async function unshareFile(fileId) {
     }
 }
 
+
 let currentUserId = null;
 
 async function showFileInfo(fileId) {
@@ -1392,105 +1421,92 @@ async function showFileInfo(fileId) {
 
         const file = data.file;
         const modalEl = document.getElementById('filePreviewModal');
-        if (!modalEl) {
-            alert('Модальное окно предпросмотра не найдено!');
-            return;
-        }
         const modalTitle = modalEl.querySelector('.modal-title');
-        if (!modalTitle) {
-            alert('Заголовок модального окна не найден!');
-            return;
-        }
-        modalTitle.textContent = file.filename || file.name || '';
-
         const fileInfoDiv = modalEl.querySelector('#fileInfo');
         const filePreviewDiv = modalEl.querySelector('#filePreview');
         const downloadBtn = document.getElementById('downloadBtn');
         const shareBtn = document.getElementById('shareInModalBtn');
         const deleteBtn = document.getElementById('deleteInModalBtn');
 
-        if (fileInfoDiv) fileInfoDiv.innerHTML = `
+        modalTitle.textContent = file.filename || file.name || '';
+
+        fileInfoDiv.innerHTML = `
             <p><strong>Имя файла:</strong> ${file.filename || file.name || ''}</p>
             <p><strong>Тип файла:</strong> ${file.mime_type || 'неизвестно'}</p>
-            <p><strong>Размер:</strong> ${formatFileSize(file.file_size || file.size)}</p>
+            <p><strong>Размер:</strong> ${file.file_size_formatted || 'неизвестно'}</p>
         `;
-        if (filePreviewDiv) {
-            if (file.mime_type && file.mime_type.startsWith('image/')) {
-                filePreviewDiv.innerHTML = `<img src="/CloudStorageApp/public/files/download/${file.id}?inline=1" 
-                      alt="${file.name}" 
-                      style="max-width: 100%;">`;
-            } else if (file.mime_type === 'application/pdf') {
-                filePreviewDiv.innerHTML = `<iframe src="/CloudStorageApp/public/files/download/${file.id}?inline=1" width="100%" height="600px" style="border:none"></iframe>`;
-            } else if (
-                file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-                file.mime_type === 'application/msword'
-            ) {
-                filePreviewDiv.innerHTML = `
-                    <div class="alert alert-warning mb-2">
-                        Предпросмотр docx доступен только для публичных файлов.<br>
-                        <a href="/CloudStorageApp/public/files/download/${file.id}" class="btn btn-primary mt-2" download>Скачать файл</a>
-                    </div>
-                `;
-            } else {
-                filePreviewDiv.innerHTML = '<div class="text-center text-muted">Нет предпросмотра для этого типа файла</div>';
-            }
+
+        if (file.mime_type && file.mime_type.startsWith('image/')) {
+            filePreviewDiv.innerHTML = `<img src="/CloudStorageApp/public/files/download/${file.id}?inline=1" alt="${file.name}" style="max-width: 100%;">`;
+        } else if (file.mime_type === 'application/pdf') {
+          
+            filePreviewDiv.innerHTML = `<iframe src="/CloudStorageApp/public/files/preview/${file.id}" width="100%" height="600px" style="border:none"></iframe>`;
+        } else if (
+            file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            file.mime_type === 'application/msword'
+        ) {
+            filePreviewDiv.innerHTML = `
+                <div class="alert alert-warning mb-2">
+                    Предпросмотр docx доступен только для публичных файлов.<br>
+                    <a href="/CloudStorageApp/public/files/download/${file.id}" class="btn btn-primary mt-2" download>Скачать файл</a>
+                </div>
+            `;
+        } else {
+            filePreviewDiv.innerHTML = '<div class="text-center text-muted">Нет предпросмотра для этого типа файла</div>';
         }
-        if (downloadBtn) {
-            downloadBtn.href = `/CloudStorageApp/public/files/download/${fileId}`;
-            downloadBtn.download = file.name;
-        }
-        if (shareBtn) {
-            shareBtn.dataset.fileId = fileId;
-            shareBtn.dataset.fileName = file.name || file.filename || '';
-        }
+
+        downloadBtn.href = `/CloudStorageApp/public/files/download/${file.id}`;
+        downloadBtn.download = file.name;
+
+        shareBtn.dataset.fileId = file.id;
+        shareBtn.dataset.fileName = file.name || file.filename || '';
+
         const isOwner = file.user_id === currentUserId;
 
-        if (deleteBtn) {
-            if (isOwner) {
-                deleteBtn.textContent = 'Удалить';
-                deleteBtn.onclick = async () => {
-                    if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
-                    try {
-                        const res = await fetch(`/CloudStorageApp/public/files/remove/${fileId}`, {
-                            method: 'DELETE',
-                            credentials: 'include'
-                        });
-                        const result = await res.json();
-                        if (result.success) {
-                            window.filePreviewModalInstance.hide();
-                            showMessage('Файл успешно удалён', 'success');
-                            await loadFiles();
-                        } else {
-                            alert(result.error || 'Ошибка при удалении файла');
-                        }
-                    } catch (e) {
-                        alert('Произошла ошибка при удалении файла');
+        if (isOwner) {
+            deleteBtn.textContent = 'Удалить';
+            deleteBtn.onclick = async () => {
+                if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
+                try {
+                    const res = await fetch(`/CloudStorageApp/public/files/remove/${file.id}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        window.filePreviewModalInstance.hide();
+                        showMessage('Файл успешно удалён', 'success');
+                        await loadFiles();
+                    } else {
+                        alert(result.error || 'Ошибка при удалении файла');
                     }
-                };
-            } else {
-                deleteBtn.textContent = 'Отказаться от доступа';
-                deleteBtn.onclick = async () => {
-                    if (!confirm('Вы уверены, что хотите отказаться от доступа к этому файлу?')) return;
-                    try {
-                        const res = await fetch('/CloudStorageApp/public/files/unshare', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ file_id: fileId }),
-                            credentials: 'include'
-                        });
-                        const result = await res.json();
-                        if (result.success) {
-                            window.filePreviewModalInstance.hide();
-                            showMessage('Доступ к файлу успешно отозван', 'success');
-                            await loadFiles();
-                        } else {
-                            alert(result.error || 'Ошибка при отзыве доступа');
-                        }
-                    } catch (e) {
-                        alert('Произошла ошибка при отзыве доступа');
+                } catch (e) {
+                    alert('Произошла ошибка при удалении файла');
+                }
+            };
+        } else {
+            deleteBtn.textContent = 'Отказаться от доступа';
+            deleteBtn.onclick = async () => {
+                if (!confirm('Вы уверены, что хотите отказаться от доступа к этому файлу?')) return;
+                try {
+                    const res = await fetch('/CloudStorageApp/public/files/unshare', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ file_id: file.id }),
+                        credentials: 'include'
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        window.filePreviewModalInstance.hide();
+                        showMessage('Доступ к файлу успешно отозван', 'success');
+                        await loadFiles();
+                    } else {
+                        alert(result.error || 'Ошибка при отзыве доступа');
                     }
-                };
-            }
+                } catch (e) {
+                    alert('Произошла ошибка при отзыве доступа');
+                }
+            };
         }
 
         window.filePreviewModalInstance.show();
@@ -1500,6 +1516,7 @@ async function showFileInfo(fileId) {
         alert('Произошла ошибка при получении информации о файле');
     }
 }
+
 
 document.getElementById('filePreviewModal').addEventListener('hidden.bs.modal', () => {
     const safeElement = document.getElementById('userGreeting') || document.body;

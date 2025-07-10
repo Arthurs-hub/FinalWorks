@@ -16,13 +16,14 @@ class Logger
         if (self::$instance === null) {
             self::$instance = new self();
         }
+
         return self::$instance;
     }
 
     public static function info(string $message, array $context = []): void
     {
         $logMessage = "[INFO] " . date("Y-m-d H:i:s") . " - " . $message;
-        if (!empty($context)) {
+        if (! empty($context)) {
             $logMessage .= " Context: " . json_encode($context);
         }
 
@@ -32,7 +33,7 @@ class Logger
     public static function error(string $message, array $context = []): void
     {
         $logMessage = "[ERROR] " . date("Y-m-d H:i:s") . " - " . $message;
-        if (!empty($context)) {
+        if (! empty($context)) {
             $logMessage .= " Context: " . json_encode($context);
         }
         file_put_contents("php://stderr", $logMessage . PHP_EOL, FILE_APPEND);

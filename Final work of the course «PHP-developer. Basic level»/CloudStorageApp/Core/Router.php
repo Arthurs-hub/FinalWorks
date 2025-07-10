@@ -22,7 +22,7 @@ class Router
 
         '/files/list' => [
             'GET' => ['App\Controllers\FileController', 'list'],
-            'POST' => ['App\Controllers\FileController', 'list']
+            'POST' => ['App\Controllers\FileController', 'list'],
         ],
         '/files/get/{id}' => ['GET' => ['App\Controllers\FileController', 'get']],
         '/files/add' => ['POST' => ['App\Controllers\FileController', 'add']],
@@ -32,10 +32,12 @@ class Router
         '/files/upload' => ['POST' => ['App\Controllers\FileController', 'upload']],
         '/files/info/{id}' => ['GET' => ['App\Controllers\FileController', 'getFileInfo']],
         '/files/preview' => ['GET' => ['App\Controllers\FileController', 'preview']],
+        '/files/preview/{id}' => ['GET' => ['App\Controllers\FileController', 'preview']],
         '/files/download/{id}' => ['GET' => ['App\Controllers\FileController', 'download']],
         '/files/unshare' => ['POST' => ['App\Controllers\FileController', 'unshare']],
         '/files/move' => ['PUT' => ['App\Controllers\FileController', 'move']],
         '/files/{id}' => ['GET' => ['App\Controllers\FileController', 'getFileInfo']],
+
 
         '/directories/share' => ['POST' => ['App\Controllers\DirectoryController', 'share']],
         '/directories/unshare' => ['POST' => ['App\Controllers\DirectoryController', 'unshare']],
@@ -76,9 +78,11 @@ class Router
 
                 [$controller, $action] = $methods[$method];
                 $ctrl = new $controller();
+
                 return $ctrl->$action($request);
             }
         }
+
         return new Response(['error' => 'Not found'], 404);
     }
 }

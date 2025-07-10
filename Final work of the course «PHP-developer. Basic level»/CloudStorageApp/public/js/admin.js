@@ -1,24 +1,6 @@
 let currentUserId = null;
 let currentFiles = [];
 
-function debugElements() {
-    const elements = [
-        'totalUsers', 'totalAdmins',
-        'totalFiles', 'totalSize', 'totalDirectories', 'totalShares',
-
-    ];
-
-    console.log('Checking elements:');
-    elements.forEach(id => {
-        const element = document.getElementById(id);
-        console.log(`${id}:`, element ? 'found' : 'NOT FOUND');
-    });
-}
-
-document.addEventListener('DOMContentLoaded', async function () {
-    console.log('Admin panel loaded');
-    debugElements();
-});
 
 async function checkAuth() {
     try {
@@ -34,7 +16,14 @@ async function checkAuth() {
             throw new Error('Не авторизован');
         }
 
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            showMessage('danger', 'Ошибка при обработке ответа сервера');
+            return;
+        }
 
         if (!data.success || !data.user) {
             throw new Error('Пользователь не найден');
@@ -56,7 +45,6 @@ async function checkAuth() {
     }
 }
 
-
 function loadCurrentAdminName() {
     if (!currentUser) return;
 
@@ -75,7 +63,7 @@ let usersLoaded = false;
 let filesLoaded = false;
 let logsLoaded = false;
 
-document.addEventListener('DOMContentLoaded', async function () {
+document.addEventListener('DOMContentLoaded', async () => {
     try {
         await checkAuth();
         loadCurrentAdminName();
@@ -83,15 +71,17 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         setupEventListeners();
 
-
         handleHashChange();
 
+        const currentHash = window.location.hash;
+        if (!currentHash || currentHash === '' || currentHash === '#dashboard' || currentHash === '#system') {
+            await refreshSystemHealth();
+        }
     } catch (error) {
         console.error('Ошибка инициализации:', error);
-        showMessage('Ошибка при инициализации панели администратора', 'danger');
+        showMessage('danger', 'Ошибка при инициализации панели администратора');
     }
 });
-
 
 function showSection(name) {
     const sections = {
@@ -155,8 +145,10 @@ function showSection(name) {
         loadLogs();
         logsLoaded = true;
     }
-    if (name === 'system') {
+  
+    if (name === 'dashboard' || name === 'system') {
         if (typeof refreshSystemHealth === 'function') {
+            console.log('refreshSystemHealth called for section:', name);
             refreshSystemHealth();
         }
     }
@@ -167,7 +159,6 @@ function showSection(name) {
     }
 }
 
-
 function handleHashChange() {
     let hash = window.location.hash.substring(1);
     const validSections = ['dashboard', 'users', 'files', 'logs', 'system', 'security'];
@@ -176,6 +167,7 @@ function handleHashChange() {
     }
     showSection(hash);
 }
+
 
 window.addEventListener('hashchange', handleHashChange);
 
@@ -188,6 +180,8 @@ let currentUsers = [];
 
 function showMessage(type, text) {
     const container = document.getElementById('messageContainer');
+    if (!container) return;
+
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
     alertDiv.role = 'alert';
@@ -204,7 +198,6 @@ function showMessage(type, text) {
     }, 5000);
 }
 
-
 function formatFileSize(bytes) {
     if (bytes === 0 || bytes === '0') return '0 B';
 
@@ -219,7 +212,6 @@ function formatFileSize(bytes) {
 function getCurrentUserId() {
     return window.currentUserId || null;
 }
-
 
 function loadCurrentAdminName() {
     if (!currentUser) return;
@@ -247,6 +239,7 @@ function updateStatsDisplay(stats) {
         'systemLoad': (stats.system?.memory_usage_percent !== undefined && stats.system.memory_usage_percent !== null)
             ? `${stats.system.memory_usage_percent}%`
             : stats.system?.memory_usage_formatted || 'Н/Д',
+
     };
 
     Object.entries(elements).forEach(([id, value]) => {
@@ -259,14 +252,15 @@ function updateStatsDisplay(stats) {
             console.warn(`Element with id="${id}" not found in DOM`);
         }
     });
-}
 
+}
 
 function showStatsError() {
     const elements = [
         'totalUsers', 'totalAdmins', 'activeUsers30', 'activeUsers7',
         'totalFiles', 'totalSize', 'totalDirectories', 'totalShares',
-        'phpVersion', 'memoryUsage', 'diskUsage'
+        'phpVersion', 'systemLoad'
+        
     ];
 
     elements.forEach(id => {
@@ -291,14 +285,14 @@ async function loadUsers() {
             currentUsers = data.users;
             displayUsers(currentUsers);
         } else {
-            throw new Error(data.error || 'Unknown error');
+            const errors = data.errors || [data.error] || ['Неизвестная ошибка'];
+            showMessage('danger', errors.join(', '));
         }
     } catch (err) {
         console.error('Failed to load users:', err);
-        showMessage('Ошибка загрузки пользователей: ' + err.message, 'danger');
+        showMessage('danger', 'Ошибка загрузки пользователей: ' + err.message);
     }
 }
-
 
 function displayUsers(users) {
     const tbody = document.querySelector('#usersTable tbody');
@@ -351,7 +345,6 @@ function displayUsers(users) {
     });
 }
 
-
 async function refreshData() {
     const refreshBtn = document.getElementById('refreshBtn');
     if (!refreshBtn) return;
@@ -391,17 +384,16 @@ async function refreshData() {
                 break;
         }
 
-        showMessage('Данные обновлены', 'success');
+        showMessage('success', 'Данные обновлены');
 
     } catch (error) {
         console.error('Ошибка обновления:', error);
-        showMessage('Ошибка при обновлении данных', 'danger');
+        showMessage('danger', 'Ошибка при обновлении данных');
     } finally {
         refreshBtn.innerHTML = originalContent;
         refreshBtn.disabled = false;
     }
 }
-
 
 function showCreateUserModal() {
 
@@ -430,54 +422,27 @@ function showCreateUserModal() {
     }
 }
 
-
 async function createUser() {
     try {
-        const email = document.getElementById('createUserEmail').value.trim();
-        const firstName = document.getElementById('createUserFirstName').value.trim();
-        const lastName = document.getElementById('createUserLastName').value.trim();
-        const middleName = document.getElementById('createUserMiddleName').value.trim();
+
         const password = document.getElementById('createUserPassword').value;
         const confirmPassword = document.getElementById('createUserConfirmPassword').value;
-        const age = document.getElementById('createUserAge').value;
-        const gender = document.getElementById('createUserGender').value;
-        const isAdmin = document.getElementById('createUserIsAdmin').checked;
-
-
-        if (!email || !firstName || !lastName || !password) {
-            showMessage('Заполните все обязательные поля', 'warning');
-            return;
-        }
 
         if (password !== confirmPassword) {
-            showMessage('Пароли не совпадают', 'warning');
-            return;
-        }
-
-        if (password.length < 6) {
-            showMessage('Пароль должен содержать минимум 6 символов', 'warning');
-            return;
-        }
-
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            showMessage('Введите корректный email', 'warning');
+            showMessage('danger', 'Пароли не совпадают');
             return;
         }
 
         const userData = {
-            email: email,
-            first_name: firstName,
-            last_name: lastName,
+            email: document.getElementById('createUserEmail').value.trim(),
+            first_name: document.getElementById('createUserFirstName').value.trim(),
+            last_name: document.getElementById('createUserLastName').value.trim(),
+            middle_name: document.getElementById('createUserMiddleName').value.trim(),
             password: password,
-            is_admin: isAdmin ? 1 : 0
+            age: document.getElementById('createUserAge').value,
+            gender: document.getElementById('createUserGender').value,
+            is_admin: document.getElementById('createUserIsAdmin').checked ? 1 : 0,
         };
-
-
-        if (middleName) userData.middle_name = middleName;
-        if (age) userData.age = parseInt(age);
-        if (gender) userData.gender = gender;
 
         const response = await fetch('/CloudStorageApp/public/admin/users/create', {
             method: 'POST',
@@ -492,8 +457,7 @@ async function createUser() {
         const data = await response.json();
 
         if (data.success) {
-            showMessage('Пользователь успешно создан', 'success');
-
+            showMessage('success', data.message || 'Пользователь успешно создан');
 
             const modalElement = document.getElementById('createUserModal');
             const modal = bootstrap.Modal.getInstance(modalElement);
@@ -504,22 +468,22 @@ async function createUser() {
             await loadUsers();
             await loadStats();
         } else {
-            showMessage('Ошибка при создании пользователя: ' + (data.error || 'Неизвестная ошибка'), 'danger');
-        }
 
+            const errors = data.errors || [data.error] || ['Неизвестная ошибка'];
+            showMessage('danger', errors.join(', '));
+        }
     } catch (error) {
         console.error('Ошибка при создании пользователя:', error);
-        showMessage('Ошибка при создании пользователя', 'danger');
+        showMessage('danger', 'Ошибка при создании пользователя');
     }
 }
-
 
 async function editUser(userId) {
     try {
 
         const user = currentUsers.find(u => u.id === userId);
         if (!user) {
-            showMessage('Пользователь не найден', 'danger');
+            showMessage('danger', 'Пользователь не найден');
             return;
         }
 
@@ -552,23 +516,35 @@ async function editUser(userId) {
 
     } catch (error) {
         console.error('Ошибка при открытии формы редактирования:', error);
-        showMessage('Ошибка при открытии формы редактирования', 'danger');
+        showMessage('danger', 'Ошибка при открытии формы редактирования');
     }
 }
-
 
 async function saveUserChanges() {
     try {
         const userId = document.getElementById('editUserId').value;
-        const email = document.getElementById('editUserEmail').value;
-        const firstName = document.getElementById('editUserFirstName').value;
-        const lastName = document.getElementById('editUserLastName').value;
+        const email = document.getElementById('editUserEmail').value.trim();
+        const firstName = document.getElementById('editUserFirstName').value.trim();
+        const lastName = document.getElementById('editUserLastName').value.trim();
         const isAdmin = document.getElementById('editUserIsAdmin').checked;
         const isBanned = document.getElementById('editUserIsBanned').checked;
+        const password = document.getElementById('editUserPassword').value;
 
         if (!email || !firstName || !lastName) {
-            showMessage('Заполните все обязательные поля', 'warning');
+            showMessage('warning', 'Заполните все обязательные поля');
             return;
+        }
+
+        const updateData = {
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            is_admin: isAdmin ? 1 : 0,
+            is_banned: isBanned ? 1 : 0
+        };
+
+        if (password && password.trim() !== '') {
+            updateData.password = password.trim();
         }
 
         const response = await fetch(`/CloudStorageApp/public/admin/users/${userId}`, {
@@ -578,20 +554,13 @@ async function saveUserChanges() {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                email: email,
-                first_name: firstName,
-                last_name: lastName,
-                is_admin: isAdmin ? 1 : 0,
-                is_banned: isBanned ? 1 : 0
-            })
+            body: JSON.stringify(updateData)
         });
 
         const data = await response.json();
 
         if (data.success) {
-            showMessage('Пользователь успешно обновлен', 'success');
-
+            showMessage('success', 'Данные успешно обновлены');
 
             const modalElement = document.getElementById('editUserModal');
             const modal = bootstrap.Modal.getInstance(modalElement);
@@ -601,22 +570,22 @@ async function saveUserChanges() {
 
             await loadUsers();
         } else {
-            showMessage('Ошибка при обновлении: ' + (data.error || 'Неизвестная ошибка'), 'danger');
-        }
 
+            const errorMsg = data.error || 'Ошибка при обновлении пользователя';
+            showMessage('danger', errorMsg);
+        }
     } catch (error) {
         console.error('Ошибка при сохранении изменений:', error);
-        showMessage('Ошибка при сохранении изменений', 'danger');
+        showMessage('danger', 'Ошибка при сохранении изменений');
     }
 }
-
 
 async function viewUser(userId) {
     try {
 
         const user = currentUsers.find(u => u.id === userId);
         if (!user) {
-            showMessage('Пользователь не найден', 'danger');
+            showMessage('danger', 'Пользователь не найден');
             return;
         }
 
@@ -719,10 +688,9 @@ async function viewUser(userId) {
 
     } catch (error) {
         console.error('Ошибка при просмотри пользователя:', error);
-        showMessage('Ошибка при просмотри пользователя', 'danger');
+        showMessage('danger', 'Ошибка при просмотри пользователя');
     }
 }
-
 
 function formatGender(gender) {
     switch (gender) {
@@ -735,7 +703,6 @@ function formatGender(gender) {
     }
 }
 
-
 async function deleteUser(userId) {
     if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) {
         return;
@@ -746,25 +713,37 @@ async function deleteUser(userId) {
             method: 'DELETE',
             credentials: 'include',
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Accept': 'application/json'
             }
         });
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Delete user error response:', text);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
 
         if (data.success) {
-            showMessage('Пользователь успешно удален', 'success');
+            console.log("User deleted by admin", {
+                'deleted_user_id': userId,
+            });
+            showMessage('success', data.message || 'Пользователь успешно удален');
             await loadUsers();
         } else {
-            showMessage('Ошибка при удалении: ' + (data.error || 'Неизвестная ошибка'), 'danger');
+            console.error("AdminRepository::deleteUserById error", {
+                'user_id': userId,
+                'error': data.error || 'Unknown error',
+            });
+
+            const errorMsg = data.error || 'Ошибка при удалении пользователя';
+            showMessage('danger', errorMsg);
         }
     } catch (error) {
         console.error('Ошибка удаления пользователя:', error);
-        showMessage('Ошибка при удалении пользователя', 'danger');
+        showMessage('danger', 'Ошибка при удалении пользователя');
     }
 }
-
 
 async function clearLogs() {
     try {
@@ -783,17 +762,16 @@ async function clearLogs() {
         const data = await response.json();
 
         if (data.success) {
-            showMessage('Логи успешно очищены', 'success');
+            showMessage('success', data.message || 'Логи успешно очищены');
             await loadLogs();
         } else {
-            showMessage('Ошибка при очистке логов: ' + (data.error || 'Неизвестная ошибка'), 'danger');
+            showMessage('danger', 'Ошибка при очистке логов: ' + (data.error || 'Неизвестная ошибка'));
         }
     } catch (error) {
         console.error('Ошибка очистки логов:', error);
-        showMessage('Ошибка при очистке логов', 'danger');
+        showMessage('danger', 'Ошибка при очистке логов');
     }
 }
-
 
 async function exportUsers() {
     try {
@@ -803,13 +781,22 @@ async function exportUsers() {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    errorMsg = errorData.error;
+                }
+            } catch {
+                
+            }
+            throw new Error(errorMsg);
         }
 
         const contentType = response.headers.get('Content-Type');
         if (contentType && contentType.includes('application/json')) {
             const errorData = await response.json();
-            showMessage('Ошибка при экспорте: ' + (errorData.error || 'Неизвестная ошибка'), 'danger');
+            showMessage('danger', 'Ошибка при экспорте: ' + (errorData.error || 'Неизвестная ошибка'));
             return;
         }
 
@@ -833,13 +820,12 @@ async function exportUsers() {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
 
-        showMessage('Экспорт пользователей завершен', 'success');
+        showMessage('success', 'Экспорт пользователей завершен');
     } catch (error) {
         console.error('Ошибка экспорта:', error);
-        showMessage('Ошибка при экспорте пользователей', 'danger');
+        showMessage('danger', 'Ошибка при экспорте пользователей: ' + error.message);
     }
 }
-
 
 function searchUsers() {
     const searchInput = document.getElementById('searchInput');
@@ -862,7 +848,6 @@ function searchUsers() {
     displayUsers(filteredUsers);
 }
 
-
 function filterByRole(role) {
     let filteredUsers;
 
@@ -880,7 +865,6 @@ function filterByRole(role) {
 
     displayUsers(filteredUsers);
 }
-
 
 function setupEventListeners() {
 
@@ -987,7 +971,6 @@ function setupEventListeners() {
     });
 }
 
-
 function generatePassword() {
     const length = 12;
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -1001,9 +984,8 @@ function generatePassword() {
     document.getElementById('createUserConfirmPassword').value = password;
 
 
-    showMessage(`Сгенерированный пароль: ${password}`, 'info');
+    showMessage('info', `Сгенерированный пароль: ${password}`);
 }
-
 
 function cleanupModals() {
 
@@ -1030,7 +1012,6 @@ function cleanupModals() {
     document.body.style.paddingRight = '';
 }
 
-
 async function logout(event) {
     event.preventDefault();
     try {
@@ -1044,11 +1025,11 @@ async function logout(event) {
         if (response.ok) {
             window.location.href = '/CloudStorageApp/public/login.html';
         } else {
-            showMessage('Ошибка при выходе из системы', 'danger');
+            showMessage('danger', 'Ошибка при выходе из системы');
         }
     } catch (error) {
         console.error('Ошибка при выходе:', error);
-        showMessage('Ошибка при выходе из системы', 'danger');
+        showMessage('danger', 'Ошибка при выходе из системы');
     }
 }
 
@@ -1161,7 +1142,6 @@ async function loadLogs() {
     }
 }
 
-
 async function loadFiles() {
     try {
         const response = await fetch('/CloudStorageApp/public/admin/files', {
@@ -1183,7 +1163,6 @@ async function loadFiles() {
     }
 }
 
-
 function displayFiles(files) {
     const tbody = document.querySelector('#filesTable tbody');
     if (!tbody) return;
@@ -1193,14 +1172,17 @@ function displayFiles(files) {
         return;
     }
     files.forEach(file => {
+        const fileName = file.name || file.filename || 'Неизвестно';
+        const fileType = file.type || file.mime_type || 'Неизвестно';
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${file.id}</td>
-            <td>${file.filename}</td>
-            <td>${file.owner_email || 'Неизвестно'}</td>
-            <td>${formatFileSize(file.size)}</td>
-            <td>${file.mime_type}</td>
-            <td>${new Date(file.created_at).toLocaleString('ru-RU')}</td>
+            <td class="text-truncate-custom" title="${fileName}">${fileName}</td>
+            <td class="text-truncate-custom" title="${file.owner_email}">${file.owner_email}</td>
+            <td>${file.size_formatted || formatFileSize(file.size)}</td>
+            <td class="text-truncate-custom" title="${fileType}">${fileType}</td>
+            <td>${file.created_at ? new Date(file.created_at).toLocaleString('ru-RU') : 'Неизвестно'}</td>
             <td>
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-primary" onclick="viewFile(${file.id})" title="Просмотр">
@@ -1215,7 +1197,6 @@ function displayFiles(files) {
         tbody.appendChild(row);
     });
 }
-
 
 function displayLogs(logs) {
     const container = document.getElementById('logsContainer');
@@ -1270,7 +1251,6 @@ function renderFilesTable(files) {
                 </button>
             </td>
         `;
-
         tbody.appendChild(tr);
     });
 }
@@ -1338,7 +1318,7 @@ function showFileModal(file) {
                             </div>
                         </div>
                         <div class="mt-2 d-flex justify-content-center">
-                            <button class="btn btn-outline-primary btn-sm" onclick="openPdfInNewTab(${file.id})">
+                            <button class="btn btn-outline-primary btn-sm" onclick="openPdfInNewTab(${fileId})">
                                 <i class="bi bi-box-arrow-up-right"></i> Открыть в новой вкладке
                             </button>
                         </div>
@@ -1441,7 +1421,6 @@ function showFileModal(file) {
     }
 }
 
-
 async function loadPdfPreview(fileId) {
     try {
         const response = await fetch(`/CloudStorageApp/public/files/download/${fileId}`, {
@@ -1484,7 +1463,6 @@ async function loadPdfPreview(fileId) {
     }
 }
 
-
 async function openPdfInNewTab(fileId) {
     try {
 
@@ -1524,8 +1502,6 @@ async function openPdfInNewTab(fileId) {
     }
 }
 
-
-
 function getFileExtension(filename) {
     if (!filename) return 'Неизвестно';
     const parts = filename.split('.');
@@ -1554,7 +1530,6 @@ function deleteFileFromModal() {
     }
 }
 
-
 function downloadFile(fileId) {
 
     const url = `/CloudStorageApp/public/files/download/${fileId}`;
@@ -1578,8 +1553,8 @@ async function deleteFile(fileId) {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Delete file error response:', errorText);
+            const text = await response.text();
+            console.error('Delete file error response:', text);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -1589,7 +1564,7 @@ async function deleteFile(fileId) {
             showMessage('success', result.message || 'Файл успешно удален');
             await loadFiles();
         } else {
-            showMessage('danger', result.error || 'Ошибка при удалении файла');
+            showMessage('danger', 'Ошибка при удалении файла: ' + (result.error || 'Неизвестная ошибка'));
         }
     } catch (error) {
         console.error('Ошибка при удалении файла:', error);
@@ -1604,7 +1579,6 @@ async function loadStats() {
             credentials: 'include',
             headers: {
                 'Accept': 'application/json',
-                'Content-Type': 'application/json'
             }
         });
 
@@ -1615,46 +1589,7 @@ async function loadStats() {
         const data = await response.json();
 
         if (data.success && data.stats) {
-            const stats = data.stats;
-
-            const totalUsers = stats.users?.total ?? 0;
-            const totalAdmins = stats.users?.admins ?? 0;
-            const activeUsers30 = stats.users?.active_30_days ?? 0;
-            const activeUsers7 = stats.users?.active_7_days ?? 0;
-
-            const totalFiles = stats.files?.total_count ?? 0;
-            const totalSize = stats.files?.total_size_formatted ?? '0 B';
-            const totalDirectories = stats.files?.total_directories ?? 0;
-            const totalShares = stats.files?.total_shares ?? 0;
-
-            const phpVersion = stats.system?.php_version ?? 'N/A';
-            const memoryUsageFormatted = stats.system?.memory_usage_formatted ?? 'N/A';
-            const memoryUsagePercent = stats.system?.memory_usage_percent;
-            const diskFreeSpace = stats.system?.disk_free_space_formatted ?? 'N/A';
-            const logFileSize = stats.system?.log_file_size ?? 'N/A';
-
-            const systemLoadDisplay = (memoryUsagePercent !== null && memoryUsagePercent !== undefined)
-                ? `${memoryUsagePercent}%`
-                : memoryUsageFormatted;
-
-            const setText = (id, value) => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = value;
-            };
-
-            setText('totalUsers', totalUsers);
-            setText('totalAdmins', totalAdmins);
-            setText('activeUsers30', activeUsers30);
-            setText('activeUsers7', activeUsers7);
-            setText('totalFiles', totalFiles);
-            setText('totalSize', totalSize);
-            setText('totalDirectories', totalDirectories);
-            setText('totalShares', totalShares);
-            setText('phpVersion', phpVersion);
-            setText('systemLoad', systemLoadDisplay);
-            setText('diskFreeSpace', diskFreeSpace);
-            setText('logFileSize', logFileSize);
-
+            updateStatsDisplay(data.stats);
         } else {
             throw new Error('Некорректные данные статистики');
         }
@@ -1664,7 +1599,90 @@ async function loadStats() {
     }
 }
 
+async function refreshSystemHealth() {
+    const statusElem = document.getElementById('systemHealthStatus');
+    const detailsElem = document.getElementById('systemHealthDetails');
 
+    if (!statusElem || !detailsElem) return;
+
+    statusElem.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Загрузка...
+    `;
+    detailsElem.textContent = 'Загрузка...';
+
+    try {
+        const response = await fetch('/CloudStorageApp/public/admin/system/health', {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.error || 'Ошибка при получении состояния системы');
+
+        const health = data.health;
+
+        let overallStatus = 'Здоровая';
+        let statusColor = '#198754'; 
+
+        if (health.status === 'unhealthy' || health.status === 'error') {
+            overallStatus = 'Проблемы';
+            statusColor = '#dc3545'; 
+        } else if (health.status === 'warning') {
+            overallStatus = 'Предупреждение';
+            statusColor = '#ffc107'; 
+        }
+
+        statusElem.innerHTML = '';
+
+        const square = document.createElement('span');
+        square.style.display = 'inline-block';
+        square.style.width = '12px';
+        square.style.height = '12px';
+        square.style.marginRight = '8px';
+        square.style.backgroundColor = statusColor;
+        square.style.borderRadius = '2px';
+        square.style.verticalAlign = 'middle';
+
+        statusElem.appendChild(square);
+        statusElem.appendChild(document.createTextNode(overallStatus));
+
+        let detailsHtml = '';
+        if (health.checks) {
+            for (const [key, check] of Object.entries(health.checks)) {
+                detailsHtml += `<strong>${key}:</strong> ${check.status.toUpperCase()} - ${check.message}<br>`;
+                if (check.free_space_formatted) {
+                    detailsHtml += `Свободное место: ${check.free_space_formatted}<br>`;
+                }
+                if (check.usage) {
+                    detailsHtml += `Использование памяти: ${check.usage} / ${check.limit}<br>`;
+                }
+                detailsHtml += '<br>';
+            }
+        } else if (health.message) {
+            detailsHtml = health.message.replace(/\n/g, '<br>');
+        }
+
+        detailsElem.innerHTML = detailsHtml.trim();
+
+    } catch (error) {
+        statusElem.textContent = 'Ошибка';
+        statusElem.style.color = '#dc3545';
+        detailsElem.textContent = error.message;
+        console.error('Ошибка загрузки состояния системы:', error);
+    }
+}
+
+
+window.addEventListener('hashchange', () => {
+    if (window.location.hash === '#dashboard' || window.location.hash === '#system') {
+        refreshSystemHealth();
+    }
+});
 
 async function cleanupFiles() {
     if (!confirm('Вы уверены, что хотите очистить все файлы? Это действие необратимо.')) {
@@ -1689,13 +1707,13 @@ async function cleanupFiles() {
         const data = await response.json();
 
         if (data.success) {
-            showMessage('Очистка файлов завершена', 'success');
+            showMessage('success', 'Очистка файлов завершена');
             await loadFiles();
         } else {
-            showMessage('Ошибка при очистке файлов: ' + (data.error || 'Неизвестная ошибка'), 'danger');
+            showMessage('danger', 'Ошибка при очистке файлов: ' + (data.error || 'Неизвестная ошибка'));
         }
     } catch (error) {
         console.error('Ошибка очистки файлов:', error);
-        showMessage('Ошибка при очистке файлов', 'danger');
+        showMessage('danger', 'Ошибка при очистке файлов');
     }
 }

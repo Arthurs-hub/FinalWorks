@@ -23,7 +23,7 @@ class DirectoryValidator
             return ['valid' => false, 'message' => 'ID папки обязателен'];
         }
 
-        if (empty($data['name'])) {
+        if (empty($data['new_name'])) {
             return ['valid' => false, 'message' => 'Новое имя папки обязательно'];
         }
 

@@ -1,6 +1,8 @@
 <?php
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
@@ -11,7 +13,6 @@ if (session_status() === PHP_SESSION_NONE) {
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
-    session_start();
 }
 
 
@@ -25,17 +26,18 @@ spl_autoload_register(function ($class) {
     }
 });
 
+use App\Core\AuthMiddleware;
 use App\Core\Logger;
 use App\Core\Request;
 use App\Core\Response;
-use App\Core\AuthMiddleware;
 
 Logger::info("Request started", [
     'method' => $_SERVER['REQUEST_METHOD'],
     'uri' => $_SERVER['REQUEST_URI'],
-    'user_id' => $_SESSION['user_id'] ?? null
+    'user_id' => $_SESSION['user_id'] ?? null,
 ]);
 
+error_log("Incoming request URI: " . $_SERVER['REQUEST_URI']);
 error_log("Session user_id: " . ($_SESSION['user_id'] ?? 'none'));
 
 header('X-XSS-Protection: 1; mode=block');
@@ -68,11 +70,12 @@ $isPublicRoute = false;
 foreach ($publicRoutes as $route) {
     if ($currentPath === $route || substr($currentPath, -strlen($route)) === $route) {
         $isPublicRoute = true;
+
         break;
     }
 }
 
-if (!$isPublicRoute) {
+if (! $isPublicRoute) {
     $authMiddleware->requireAuth();
 }
 
@@ -82,17 +85,21 @@ if (strpos($currentPath, '/admin') === 0) {
 
 function isAdmin(?int $userId): bool
 {
-    if (!$userId) {
+    if (! $userId) {
         return false;
     }
+
     try {
         $userService = new \App\Services\UserService();
+
         return $userService->isAdmin($userId);
     } catch (\Exception $e) {
         Logger::error("Error checking admin status", ['user_id' => $userId, 'error' => $e->getMessage()]);
+
         return false;
     }
 }
+
 
 $urlList = [
 
@@ -114,14 +121,14 @@ $urlList = [
     '/admin/stats' => ['GET' => ['App\Controllers\AdminController', 'getStats']],
     '/admin/users' => [
         'GET' => ['App\Controllers\AdminController', 'getUsers'],
-        'POST' => ['App\Controllers\AdminController', 'createUser']
+        'POST' => ['App\Controllers\AdminController', 'createUser'],
     ],
     '/admin/users/export' => ['GET' => ['App\Controllers\AdminController', 'exportUsers']],
     '/admin/users/create' => ['POST' => ['App\Controllers\AdminController', 'createUser']],
     '/admin/users/{id}' => [
         'GET' => ['App\Controllers\AdminController', 'getUserById'],
         'PUT' => ['App\Controllers\AdminController', 'updateUser'],
-        'DELETE' => ['App\Controllers\AdminController', 'deleteUser']
+        'DELETE' => ['App\Controllers\AdminController', 'deleteUser'],
     ],
 
     '/admin/users/{id}/ban' => ['POST' => ['App\Controllers\AdminController', 'banUser']],
@@ -141,19 +148,20 @@ $urlList = [
 
     '/files/list' => [
         'GET' => ['App\Controllers\FileController', 'list'],
-        'POST' => ['App\Controllers\FileController', 'list']
+        'POST' => ['App\Controllers\FileController', 'list'],
     ],
-    '/files/get/{id}' => ['GET' => ['App\Controllers\FileController', 'get']],
-    '/files/add' => ['POST' => ['App\Controllers\FileController', 'add']],
+    '/files/upload' => ['POST' => ['App\Controllers\FileController', 'upload']],
+    '/files/share' => ['POST' => ['App\Controllers\FileController', 'share']],
     '/files/rename' => ['PUT' => ['App\Controllers\FileController', 'rename']],
     '/files/remove/{id}' => ['DELETE' => ['App\Controllers\FileController', 'remove']],
-    '/files/share' => ['POST' => ['App\Controllers\FileController', 'share']],
-    '/files/move' => ['PUT' => ['App\Controllers\FileController', 'move']],
     '/files/download/{id}' => ['GET' => ['App\Controllers\FileController', 'download']],
-    '/files/info/{id}' => ['GET' => ['App\Controllers\FileController', 'getFileInfo']],
     '/files/unshare' => ['POST' => ['App\Controllers\FileController', 'unshare']],
-    '/files/upload' => ['POST' => ['App\Controllers\FileController', 'upload']],
-
+    '/files/info/{id}' => ['GET' => ['App\Controllers\FileController', 'getFileInfo']],
+    '/files/get/{id}' => ['GET' => ['App\Controllers\FileController', 'get']],
+    '/files/add' => ['POST' => ['App\Controllers\FileController', 'add']],
+    '/files/move' => ['PUT' => ['App\Controllers\FileController', 'move']],
+    '/files/preview/{id}' => ['GET' => ['App\Controllers\FileController', 'preview']],
+   
 
     '/directories/get/{id}' => ['GET' => ['App\Controllers\DirectoryController', 'get']],
     '/directories/share' => ['POST' => ['App\Controllers\DirectoryController', 'share']],
@@ -163,7 +171,10 @@ $urlList = [
     '/directories/upload' => ['POST' => ['App\Controllers\DirectoryController', 'upload']],
     '/directories/unshare' => ['POST' => ['App\Controllers\DirectoryController', 'unshare']],
     '/directories/delete/{id}' => ['DELETE' => ['App\Controllers\DirectoryController', 'delete']],
+    '/directories/download/{id}' => ['GET' => ['App\Controllers\DirectoryController', 'download']],
+    '/directories/list' => ['GET' => ['App\Controllers\DirectoryController', 'list']],
 ];
+
 
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $scriptName = dirname($_SERVER['SCRIPT_NAME']);
@@ -192,12 +203,15 @@ function matchRoute($route, $urlList, &$params): array
                     $params[$key] = $value;
                 }
             }
+
             return [$pattern, $methods];
         }
     }
     error_log("No matching route found for: $route");
+
     return [null, null];
 }
+
 
 $params = [];
 list($matchedPattern, $methods) = matchRoute($route, $urlList, $params);
@@ -210,7 +224,7 @@ if ($matchedPattern && isset($methods[$method])) {
         exit;
     }
 
-    if (!is_array($handler) || count($handler) !== 2) {
+    if (! is_array($handler) || count($handler) !== 2) {
         http_response_code(500);
         echo json_encode(["error" => "Invalid handler configuration"]);
         exit;
@@ -218,12 +232,12 @@ if ($matchedPattern && isset($methods[$method])) {
 
     [$class, $action] = $handler;
 
-    if (!class_exists($class)) {
+    if (! class_exists($class)) {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => "Class $class not found"]);
         exit;
     }
-    if (!method_exists($class, $action)) {
+    if (! method_exists($class, $action)) {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => "Method $action not found in $class"]);
         exit;
@@ -252,7 +266,7 @@ if ($matchedPattern && isset($methods[$method])) {
         Logger::error("Unhandled exception in controller", [
             'class' => $class,
             'action' => $action,
-            'error' => $e->getMessage()
+            'error' => $e->getMessage(),
         ]);
 
         http_response_code(500);

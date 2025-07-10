@@ -416,6 +416,30 @@ body {
     outline: none;
 }
 
+.system-health-card {
+    height: 220px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    background-color: #f8f9fa;
+    border: 1px solid var(--border-color);
+    transition: box-shadow 0.3s ease;
+}
+
+.system-health-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+#systemHealthDetails {
+    max-height: 60px; 
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-family: monospace;
+    margin-top: 0.5rem;
+}
+
 @media (max-width: 1400px) {
     .action-buttons .btn-sm-modern span {
         display: none !important;
@@ -925,6 +949,15 @@ body {
     display: flex;
     gap: 0.5rem;
     margin-left: auto;
+}
+
+#usersTable th,
+#usersTable td {
+    padding: 6px 8px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .filter-btn {

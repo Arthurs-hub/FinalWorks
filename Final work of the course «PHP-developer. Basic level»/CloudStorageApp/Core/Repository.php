@@ -20,13 +20,15 @@ abstract class Repository
             $stmt = $conn->prepare($sql);
             $stmt->execute($params);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
             return $result ?: null;
         } catch (\Exception $e) {
             Logger::error("Repository fetchOne error", [
                 'sql' => $sql,
                 'params' => $params,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -37,13 +39,15 @@ abstract class Repository
             $conn = $this->db->getConnection();
             $stmt = $conn->prepare($sql);
             $stmt->execute($params);
+
             return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         } catch (\Exception $e) {
             Logger::error("Repository fetchAll error", [
                 'sql' => $sql,
                 'params' => $params,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -51,6 +55,7 @@ abstract class Repository
     protected function execute(string $sql, array $params = []): bool
     {
         $stmt = $this->db->getConnection()->prepare($sql);
+
         return $stmt->execute($params);
     }
 
@@ -70,8 +75,9 @@ abstract class Repository
             Logger::error("Repository insert error", [
                 'table' => $table,
                 'data' => $data,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -81,8 +87,8 @@ abstract class Repository
         try {
             $conn = $this->db->getConnection();
 
-            $setClause = implode(', ', array_map(fn($key) => "{$key} = :{$key}", array_keys($data)));
-            $whereClause = implode(' AND ', array_map(fn($key) => "{$key} = :where_{$key}", array_keys($where)));
+            $setClause = implode(', ', array_map(fn ($key) => "{$key} = :{$key}", array_keys($data)));
+            $whereClause = implode(' AND ', array_map(fn ($key) => "{$key} = :where_{$key}", array_keys($where)));
 
             $sql = "UPDATE {$table} SET {$setClause} WHERE {$whereClause}";
 
@@ -92,14 +98,16 @@ abstract class Repository
             }
 
             $stmt = $conn->prepare($sql);
+
             return $stmt->execute($params);
         } catch (\Exception $e) {
             Logger::error("Repository update error", [
                 'table' => $table,
                 'data' => $data,
                 'where' => $where,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -109,17 +117,19 @@ abstract class Repository
         try {
             $conn = $this->db->getConnection();
 
-            $whereClause = implode(' AND ', array_map(fn($key) => "{$key} = :{$key}", array_keys($where)));
+            $whereClause = implode(' AND ', array_map(fn ($key) => "{$key} = :{$key}", array_keys($where)));
             $sql = "DELETE FROM {$table} WHERE {$whereClause}";
 
             $stmt = $conn->prepare($sql);
+
             return $stmt->execute($where);
         } catch (\Exception $e) {
             Logger::error("Repository delete error", [
                 'table' => $table,
                 'where' => $where,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -129,7 +139,7 @@ abstract class Repository
         try {
             $conn = $this->db->getConnection();
 
-            $whereClause = implode(' AND ', array_map(fn($key) => "{$key} = :{$key}", array_keys($where)));
+            $whereClause = implode(' AND ', array_map(fn ($key) => "{$key} = :{$key}", array_keys($where)));
             $sql = "SELECT 1 FROM {$table} WHERE {$whereClause} LIMIT 1";
 
             $stmt = $conn->prepare($sql);
@@ -140,8 +150,9 @@ abstract class Repository
             Logger::error("Repository exists error", [
                 'table' => $table,
                 'where' => $where,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -154,8 +165,8 @@ abstract class Repository
             $sql = "SELECT COUNT(*) as count FROM {$table}";
             $params = [];
 
-            if (!empty($where)) {
-                $whereClause = implode(' AND ', array_map(fn($key) => "{$key} = :{$key}", array_keys($where)));
+            if (! empty($where)) {
+                $whereClause = implode(' AND ', array_map(fn ($key) => "{$key} = :{$key}", array_keys($where)));
                 $sql .= " WHERE {$whereClause}";
                 $params = $where;
             }
@@ -169,8 +180,9 @@ abstract class Repository
             Logger::error("Repository count error", [
                 'table' => $table,
                 'where' => $where,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
