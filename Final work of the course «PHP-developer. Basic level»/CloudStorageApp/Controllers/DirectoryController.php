@@ -5,8 +5,7 @@ namespace App\Controllers;
 use App\Core\Request;
 use App\Core\Response;
 use App\Services\DirectoryService;
-use Exception;
-use App\Core\Logger;
+
 
 class DirectoryController extends BaseController
 {
