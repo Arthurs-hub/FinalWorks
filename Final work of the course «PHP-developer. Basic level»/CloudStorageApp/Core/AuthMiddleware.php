@@ -15,6 +15,18 @@ class AuthMiddleware
         }
     }
 
+    public function handle(): array
+    {
+        if (!self::isAuthenticated()) {
+            return [
+                'success' => false,
+                'error' => 'Пользователь не авторизован'
+            ];
+        }
+
+        return ['success' => true];
+    }
+
     public static function getCurrentUserId(): ?int
     {
         return $_SESSION['user_id'] ?? null;

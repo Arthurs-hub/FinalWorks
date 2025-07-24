@@ -4,12 +4,14 @@ namespace App\Repositories;
 
 use App\Core\Repository;
 use Exception;
+use PDO;
+use App\Core\Logger;
 
 class FileRepository extends Repository
 {
     public function getConnection()
     {
-        return $this->db->getConnection();
+        return $this->db->getInstance();
     }
 
     public function getRootDirectoryId(int $userId): int
@@ -75,7 +77,7 @@ class FileRepository extends Repository
     public function getFilesInRootDirectory(int $userId, int $directoryId, array $sharedRootIds): array
     {
         $sql = "
-        -- Собственные файлы пользователя в его корневой директории
+
         SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, 
                f.size AS file_size, 'file' AS type,
             0 as is_shared,
@@ -85,8 +87,7 @@ class FileRepository extends Repository
         WHERE f.user_id = ? AND f.directory_id = ?
         
         UNION
-        
-        -- ТОЛЬКО файлы, расшаренные напрямую (не через папку), которые находятся в корневых директориях других пользователей
+
         SELECT f.id, f.filename AS name, f.stored_name, f.mime_type, f.created_at, f.directory_id, f.user_id, 
                f.size AS file_size, 'file' AS type,
             1 as is_shared,
@@ -100,7 +101,7 @@ class FileRepository extends Repository
         AND d.parent_id IS NULL 
         AND d.user_id != ?
         AND NOT EXISTS (
-            -- Исключаем файлы, которые расшарены через папку
+            
             SELECT 1 FROM shared_items si_dir 
             WHERE si_dir.item_type = 'directory' 
             AND si_dir.item_id = f.directory_id 
@@ -143,7 +144,7 @@ class FileRepository extends Repository
             AND d.parent_id IS NULL 
             AND f.user_id != ?
             AND NOT EXISTS (
-                -- Исключаем файлы, которые расшарены через папку
+                
                 SELECT 1 FROM shared_items si_dir 
                 WHERE si_dir.item_type = 'directory' 
                 AND si_dir.item_id = f.directory_id 
@@ -614,5 +615,64 @@ class FileRepository extends Repository
         }
 
         return $deletedCount;
+    }
+
+    public function getFileSharesList(int $fileId): array
+    {
+        try {
+            $conn = $this->db->getInstance();
+
+            $debugStmt = $conn->prepare("SELECT * FROM shared_items WHERE item_id = ? AND item_type = 'file'");
+            $debugStmt->execute([$fileId]);
+            $debugResult = $debugStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $stmt = $conn->prepare("
+                SELECT 
+                    si.id as share_id,
+                    si.shared_with_user_id,
+                    si.created_at as shared_at,
+                    si.shared_by_user_id,
+                    u.email,
+                    u.first_name,
+                    u.last_name,
+                    CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) as full_name
+                FROM shared_items si
+                JOIN users u ON si.shared_with_user_id = u.id
+                WHERE si.item_id = ? AND si.item_type = 'file'
+                ORDER BY si.created_at DESC
+            ");
+
+            $stmt->execute([$fileId]);
+            $shares = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($shares as &$share) {
+                $share['shared_at_formatted'] = date('d.m.Y H:i', strtotime($share['shared_at']));
+            }
+            unset($share);
+
+            return $shares;
+        } catch (Exception $e) {
+            Logger::error("FileRepository::getFileSharesList error", [
+                'error' => $e->getMessage(),
+                'file_id' => $fileId,
+            ]);
+            return [];
+        }
+    }
+
+    public function getFileById(int $fileId): ?array
+    {
+        try {
+            $conn = $this->db->getInstance();
+            $stmt = $conn->prepare("SELECT * FROM files WHERE id = ?");
+            $stmt->execute([$fileId]);
+            return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        } catch (Exception $e) {
+            Logger::error("FileRepository::getFileById error", [
+                'error' => $e->getMessage(),
+                'file_id' => $fileId,
+            ]);
+            return null;
+        }
     }
 }

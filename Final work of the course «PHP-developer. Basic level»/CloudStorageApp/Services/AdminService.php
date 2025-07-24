@@ -17,6 +17,7 @@ class AdminService
     private AdminRepository $adminRepository;
     private UserService $userService;
     private Db $db;
+    private array $config;
 
     public function __construct()
     {
@@ -24,6 +25,7 @@ class AdminService
         $this->adminRepository = new AdminRepository();
         $this->db = new Db();
         $this->userService = new UserService();
+        $this->config = require __DIR__ . '/../config/config.php';
     }
 
     public function getAdminStats(): array
@@ -192,7 +194,7 @@ class AdminService
     private function getDiskUsageInfo(): array
     {
         try {
-            $uploadsDir = __DIR__ . '/../uploads/';
+            $uploadsDir = $this->config['app']['upload_path'];
             $totalSize = 0;
             $fileCount = 0;
 
@@ -267,7 +269,7 @@ class AdminService
                 ];
             }
 
-            $uploadsDir = __DIR__ . '/../uploads/';
+            $uploadsDir = $this->config['app']['upload_path'];
             if (is_dir($uploadsDir) && is_writable($uploadsDir)) {
                 $health['checks']['uploads_directory'] = [
                     'status' => 'ok',
@@ -400,6 +402,12 @@ class AdminService
             Logger::error("AdminService::getUser error", ['error' => $e->getMessage()]);
             return ['success' => false, 'error' => 'Ошибка при загрузке пользователя'];
         }
+    }
+
+    public function getCurrentUser(): array
+    {
+        $currentUser = $this->adminRepository->fetchCurrentUser();
+        return ['success' => true, 'user' => $currentUser];
     }
 
     public function getSystemStats(): array
@@ -576,7 +584,7 @@ class AdminService
 
             if (is_dir($logsDir)) {
                 $files = glob($logsDir . '*.log');
-                $cutoffTime = time() - (30 * 24 * 60 * 60); // 30 дней назад
+                $cutoffTime = time() - (30 * 24 * 60 * 60);
 
                 foreach ($files as $file) {
                     if (filemtime($file) < $cutoffTime) {
@@ -613,16 +621,12 @@ class AdminService
     public function backupDatabase(): array
     {
         try {
-            $config = require __DIR__ . '/../config/config.php';
+            $dbConfig = $this->config['database'];
 
-            $dsn = $config['db_dsn'];
-            preg_match('/host=([^;]+)/', $dsn, $hostMatch);
-            preg_match('/dbname=([^;]+)/', $dsn, $dbMatch);
-
-            $host = $hostMatch[1] ?? 'localhost';
-            $dbname = $dbMatch[1] ?? 'cloud_storage';
-            $username = $config['db_user'];
-            $password = $config['db_pass'];
+            $host = $dbConfig['host'];
+            $dbname = $dbConfig['dbname'];
+            $username = $dbConfig['username'];
+            $password = $dbConfig['password'];
 
             $backupDir = __DIR__ . '/../backups/';
             if (! is_dir($backupDir)) {
@@ -790,6 +794,11 @@ class AdminService
         }
 
         try {
+            $user = $this->userService->findUserById($userId);
+            if (!$user || !$user['is_admin']) {
+                return ['success' => false, 'error' => 'Пользователь не является администратором'];
+            }
+
             $success = $this->userService->removeAdmin((int)$userId);
             if ($success) {
                 Logger::info("Admin rights removed", ['demoted_user_id' => $userId, 'admin_id' => $currentUserId]);
@@ -835,19 +844,20 @@ class AdminService
     public function clearFiles(?int $currentUserId): array
     {
         try {
-            $result = $this->cleanupOrphanedFiles();
-            Logger::info("Files cleanup performed by admin", [
-                'deleted_count' => $result['deleted_count'] ?? 0,
+            $deletedCount = $this->adminRepository->deleteAllFiles();
+
+            Logger::info("All files deleted by admin", [
+                'deleted_count' => $deletedCount,
                 'admin_id' => $currentUserId,
             ]);
+
             return [
                 'success' => true,
-                'message' => 'Очистка файлов завершена',
-                'deleted_count' => $result['deleted_count'] ?? 0,
+                'message' => "Удалено файлов: $deletedCount",
             ];
         } catch (Exception $e) {
             Logger::error("AdminService::clearFiles error", ['error' => $e->getMessage()]);
-            return ['success' => false, 'error' => 'Ошибка при очистке файлов: ' . $e->getMessage()];
+            return ['success' => false, 'error' => 'Ошибка при удалении файлов: ' . $e->getMessage()];
         }
     }
 

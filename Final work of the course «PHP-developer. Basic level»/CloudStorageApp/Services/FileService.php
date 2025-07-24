@@ -333,21 +333,25 @@ class FileService
         }
     }
 
-    public function unshareFile(?int $fileId, int $userId): array
+    public function unshareFile(?int $fileId, int $targetUserId): array
     {
         if (!$fileId) {
             return ['success' => false, 'error' => 'ID файла не указан'];
         }
 
+        if (!$targetUserId) {
+            return ['success' => false, 'error' => 'ID пользователя не указан'];
+        }
+
         try {
-            if (!$this->fileRepository->checkSharedFileAccess($fileId, $userId)) {
-                return ['success' => false, 'error' => 'Файл не найден или не расшарен с вами'];
+            if (!$this->fileRepository->checkSharedFileAccess($fileId, $targetUserId)) {
+                return ['success' => false, 'error' => 'Файл не найден или не расшарен с этим пользователем'];
             }
 
-            if ($this->fileRepository->removeSharedAccess($fileId, $userId)) {
+            if ($this->fileRepository->removeSharedAccess($fileId, $targetUserId)) {
                 Logger::info("File unshared successfully", [
                     'file_id' => $fileId,
-                    'user_id' => $userId,
+                    'user_id' => $targetUserId,
                 ]);
                 return ['success' => true, 'message' => 'Доступ к файлу успешно отозван'];
             }
@@ -357,7 +361,7 @@ class FileService
             Logger::error("FileService::unshareFile error", [
                 'error' => $e->getMessage(),
                 'file_id' => $fileId,
-                'user_id' => $userId,
+                'user_id' => $targetUserId,
             ]);
             return ['success' => false, 'error' => 'Ошибка при отзыве доступа'];
         }
@@ -510,8 +514,24 @@ class FileService
             $directoryId = $postData['directory_id'] ?? 'root';
             $paths = json_decode($postData['paths'] ?? '[]', true);
 
+            if (!is_array($filesArray['name'])) {
+                $filesArray = [
+                    'name' => [$filesArray['name']],
+                    'type' => [$filesArray['type']],
+                    'tmp_name' => [$filesArray['tmp_name']],
+                    'error' => [$filesArray['error']],
+                    'size' => [$filesArray['size']],
+                ];
+            }
+
+            if (!is_array($paths)) {
+                $paths = [];
+            }
+
             $responses = [];
-            for ($i = 0; $i < count($filesArray['name']); $i++) {
+            $fileCount = count($filesArray['name']);
+
+            for ($i = 0; $i < $fileCount; $i++) {
                 $file = [
                     'name' => $filesArray['name'][$i],
                     'type' => $filesArray['type'][$i],
@@ -584,7 +604,7 @@ class FileService
 
                 $parentId = $directoryId;
                 foreach ($pathParts as $folderName) {
-                    
+
                     $result = $this->directoryService->getOrCreateSubdirectory($folderName, $parentId, $userId);
 
                     if (!$result['success']) {
@@ -659,5 +679,40 @@ class FileService
         ];
 
         return in_array($mimeType, $previewTypes);
+    }
+
+    public function getFileShares(int $fileId, int $userId): array
+    {
+        try {
+            if (!$fileId) {
+                return ['success' => false, 'error' => 'ID файла не указан'];
+            }
+
+            $file = $this->fileRepository->getFileById($fileId);
+            if (!$file) {
+                return ['success' => false, 'error' => 'Файл не найден'];
+            }
+
+            if ($file['user_id'] != $userId) {
+                return ['success' => false, 'error' => 'Только владелец файла может просматривать список расшариваний'];
+            }
+
+            $shares = $this->fileRepository->getFileSharesList($fileId);
+
+            return [
+                'success' => true,
+                'file_id' => $fileId,
+                'file_name' => $file['filename'],
+                'shares' => $shares,
+                'shares_count' => count($shares)
+            ];
+        } catch (Exception $e) {
+            Logger::error("FileService::getFileShares error", [
+                'error' => $e->getMessage(),
+                'file_id' => $fileId,
+                'user_id' => $userId,
+            ]);
+            return ['success' => false, 'error' => 'Ошибка при получении списка расшариваний'];
+        }
     }
 }

@@ -36,12 +36,22 @@ class AdminController extends BaseController
         }, true, true);
     }
 
+    public function getUsersList(Request $request): Response
+    {
+        return $this->getUsers($request);
+    }
+
     public function getUser(Request $request): Response
     {
         return $this->executeWithAuth(function () use ($request) {
             $userId = (int)($request->routeParams['id'] ?? 0);
             return $this->handleServiceResult($this->adminService->getUser($userId));
         }, true, true);
+    }
+
+    public function getUserById(Request $request): Response
+    {
+        return $this->getUser($request);
     }
 
     public function createUser(Request $request): Response
@@ -118,6 +128,14 @@ class AdminController extends BaseController
             $fileId = $request->routeParams['id'] ?? null;
             $currentUserId = $this->getCurrentUserId();
             return $this->handleServiceResult($this->adminService->deleteFile($fileId, $currentUserId));
+        }, true, true);
+    }
+
+    public function cleanupFiles(Request $request): Response
+    {
+        return $this->executeWithAuth(function () {
+            $currentUserId = $this->getCurrentUserId();
+            return $this->handleServiceResult($this->adminService->clearFiles($currentUserId));
         }, true, true);
     }
 
@@ -217,32 +235,30 @@ class AdminController extends BaseController
         }, true, true);
     }
 
-    public function exportUsers(Request $request): Response
+    public function downloadUsersExport(Request $request): Response
     {
-        return $this->executeWithAuth(function () {
-            $fileInfo = $this->adminService->exportUsersToCSV();
+        $fileInfo = $this->adminService->exportUsersToCSV();
 
-            if (empty($fileInfo['success']) || !$fileInfo['success']) {
-                return new Response(['success' => false, 'error' => $fileInfo['error'] ?? 'Ошибка при экспорте'], 500);
-            }
+        if (!$fileInfo['success']) {
+            return new Response(['success' => false, 'error' => $fileInfo['error']], 500);
+        }
 
-            $filePath = $fileInfo['file_path'] ?? null;
-            $filename = $fileInfo['filename'] ?? 'users_export.csv';
+        $filePath = $fileInfo['file_path'] ?? null;
+        $filename = $fileInfo['filename'] ?? 'users_export.csv';
 
-            if (!$filePath || !file_exists($filePath)) {
-                return new Response(['success' => false, 'error' => 'Файл не найден'], 404);
-            }
+        if (!$filePath || !file_exists($filePath)) {
+            return new Response(['success' => false, 'error' => 'Файл не найден'], 404);
+        }
 
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
-            header('Content-Length: ' . filesize($filePath));
-            header('Cache-Control: no-cache, no-store, must-revalidate');
-            header('Pragma: no-cache');
-            header('Expires: 0');
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
+        header('Content-Length: ' . filesize($filePath));
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
 
-            readfile($filePath);
-            unlink($filePath);
-            exit;
-        }, true, true);
+        readfile($filePath);
+        unlink($filePath);
+        exit;
     }
 }

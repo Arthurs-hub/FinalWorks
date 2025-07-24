@@ -5,16 +5,22 @@ namespace App\Services;
 use App\Core\Db;
 use App\Core\Logger;
 use App\Repositories\UserRepository;
+use App\Repositories\PasswordResetRepository;
 use Exception;
 use RuntimeException;
+use App\Services\EmailService;
 
 class UserService
 {
     private UserRepository $userRepository;
+    private PasswordResetRepository $passwordResetRepository;
+    private EmailService $emailService;
 
     public function __construct()
     {
         $this->userRepository = new UserRepository();
+        $this->passwordResetRepository = new PasswordResetRepository();
+        $this->emailService = new EmailService();
     }
 
     public function findUserByEmail(string $email): ?array
@@ -39,7 +45,7 @@ class UserService
 
     public function createUser(array $userData): int
     {
-        if (isset($userData['password'])) {
+        if (isset($userData['password']) && !password_get_info($userData['password'])['algo']) {
             $userData['password'] = password_hash($userData['password'], PASSWORD_DEFAULT);
         }
 
@@ -57,39 +63,7 @@ class UserService
 
     public function createUserWithRootDirectory(array $userData): int
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $conn->beginTransaction();
-
-            try {
-
-                $userId = $this->createUser($userData);
-
-                $directoryRepo = new \App\Repositories\DirectoryRepository();
-                $directoryRepo->createRootDirectory($userId);
-
-                $conn->commit();
-
-                Logger::info("User created with root directory", [
-                    'user_id' => $userId,
-                    'email' => $userData['email'] ?? 'unknown',
-                ]);
-
-                return $userId;
-            } catch (Exception $e) {
-                $conn->rollBack();
-
-                throw $e;
-            }
-        } catch (Exception $e) {
-            Logger::error("Error creating user with root directory", [
-                'email' => $userData['email'] ?? 'unknown',
-                'error' => $e->getMessage(),
-            ]);
-
-            throw new RuntimeException('Ошибка при создании пользователя: ' . $e->getMessage());
-        }
+        return $this->userRepository->createUserWithRootDirectory($userData);
     }
 
     public function updateUser(int $userId, array $data): bool
@@ -151,38 +125,56 @@ class UserService
     }
 
     public function makeAdmin(int $userId): bool
-    {
-        try {
-            $result = $this->userRepository->makeAdmin($userId);
+{
+    try {
+        $user = $this->userRepository->findById($userId);
 
-            if ($result) {
-                Logger::info("User promoted to admin", ['user_id' => $userId]);
-            }
-
-            return $result;
-        } catch (Exception $e) {
-            Logger::error("Error promoting user to admin", ['user_id' => $userId, 'error' => $e->getMessage()]);
-
+        if (!$user) {
+            Logger::error("User not found", ['user_id' => $userId]);
             return false;
         }
+
+        $result1 = $this->userRepository->makeAdmin($userId);
+        $result2 = $this->updateUser($userId, ['role' => 'admin']);
+
+        $result = $result1 && $result2;
+
+        if ($result) {
+            Logger::info("User promoted to admin", ['user_id' => $userId]);
+        }
+
+        return $result;
+    } catch (Exception $e) {
+        Logger::error("Error promoting user to admin", ['user_id' => $userId, 'error' => $e->getMessage()]);
+        return false;
     }
+}
 
-    public function removeAdmin(int $userId): bool
-    {
-        try {
-            $result = $this->userRepository->removeAdmin($userId);
+public function removeAdmin(int $userId): bool
+{
+    try {
+        $user = $this->userRepository->findById($userId);
 
-            if ($result) {
-                Logger::info("User demoted from admin", ['user_id' => $userId]);
-            }
-
-            return $result;
-        } catch (Exception $e) {
-            Logger::error("Error removing admin rights", ['user_id' => $userId, 'error' => $e->getMessage()]);
-
+        if (!$user) {
+            Logger::error("User not found", ['user_id' => $userId]);
             return false;
         }
+
+        $result1 = $this->userRepository->removeAdmin($userId);
+        $result2 = $this->updateUser($userId, ['role' => 'user']);
+
+        $result = $result1 && $result2;
+
+        if ($result) {
+            Logger::info("User demoted from admin", ['user_id' => $userId]);
+        }
+
+        return $result;
+    } catch (Exception $e) {
+        Logger::error("Error removing admin rights", ['user_id' => $userId, 'error' => $e->getMessage()]);
+        return false;
     }
+}
 
     public function authenticateUser(string $email, string $password): ?array
     {
@@ -290,6 +282,16 @@ class UserService
         return $errors;
     }
 
+    public function findByEmail(string $email): ?array
+    {
+        return $this->userRepository->findByEmail($email);
+    }
+
+    public function updatePassword(int $userId, string $hashedPassword): bool
+    {
+        return $this->userRepository->updatePassword($userId, $hashedPassword);
+    }
+
     public function changePassword(int $userId, string $currentPassword, string $newPassword): void
     {
         $user = $this->userRepository->findById($userId);
@@ -329,33 +331,47 @@ class UserService
         try {
             $user = $this->userRepository->findByEmail($email);
             if (! $user) {
-                throw new RuntimeException('Пользователь не найден');
+
+                Logger::warning("Password reset requested for non-existent email", [
+                    'email' => $email,
+                ]);
+
+                return 'Ссылка для сброса пароля отправлена на ваш email';
             }
 
-            $tempPassword = $this->generateTempPassword();
-            $hashedPassword = password_hash($tempPassword, PASSWORD_DEFAULT);
+            $resetToken = bin2hex(random_bytes(16));
+            $expiresAt = time() + 3600;
 
-            if (! $this->userRepository->updatePassword($user['id'], $hashedPassword)) {
-                throw new RuntimeException('Ошибка при обновлении пароля');
+            error_log("Generated reset token: $resetToken");
+
+            if (! $this->passwordResetRepository->createResetToken($user['id'], $resetToken, $expiresAt)) {
+                throw new RuntimeException('Ошибка при сохранении токена сброса');
             }
 
-            Logger::info("Password reset", [
+            $emailSent = $this->emailService->sendPasswordResetEmail($email, $resetToken, $user['first_name'] . ' ' . $user['last_name']);
+            if (! $emailSent) {
+                Logger::error("Failed to send password reset email", ['email' => $email]);
+                throw new RuntimeException('Ошибка при отправке email');
+            }
+
+            Logger::info("Password reset token generated and email sent", [
                 'user_id' => $user['id'],
                 'email' => $email,
+                'token' => $resetToken,
             ]);
 
-            return $tempPassword;
+            return 'Ссылка для сброса пароля отправлена на ваш email';
         } catch (Exception $e) {
-            Logger::error("Password reset failed", [
+            Logger::error("Error sending password reset email", [
                 'email' => $email,
                 'error' => $e->getMessage(),
             ]);
 
-            throw $e;
+            return 'Ссылка для сброса пароля отправлена на ваш email';
         }
     }
 
-    private function generateTempPassword(int $length = 12): string
+    public function generateTempPassword(int $length = 12): string
     {
         $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
         $password = '';
@@ -401,7 +417,7 @@ class UserService
         return $user && ($user['role'] === 'admin' || $user['is_admin'] == 1);
     }
 
-    public function promoteToAdmin(int $userId): bool
+    public function promoteToAdmin(int $userId): array
     {
         if (! $this->userRepository->userExists($userId)) {
             throw new RuntimeException('Пользователь не найден');
@@ -410,7 +426,7 @@ class UserService
         return $this->userRepository->makeAdmin($userId);
     }
 
-    public function demoteFromAdmin(int $userId): bool
+    public function demoteFromAdmin(int $userId): array
     {
         if (! $this->userRepository->userExists($userId)) {
             throw new RuntimeException('Пользователь не найден');
@@ -503,125 +519,37 @@ class UserService
 
     private function getTotalFilesCount(): int
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM files");
-            $stmt->execute();
-            $result = $stmt->fetch();
-
-            return (int)($result['count'] ?? 0);
-        } catch (Exception $e) {
-            Logger::error("Error getting total files count", ['error' => $e->getMessage()]);
-
-            return 0;
-        }
+        return $this->userRepository->getTotalFilesCount();
     }
 
     private function getTotalFilesSize(): int
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("SELECT COALESCE(SUM(size), 0) as total_size FROM files");
-            $stmt->execute();
-            $result = $stmt->fetch();
-
-            return (int)($result['total_size'] ?? 0);
-        } catch (Exception $e) {
-            Logger::error("Error getting total files size", ['error' => $e->getMessage()]);
-
-            return 0;
-        }
+        return $this->userRepository->getTotalFilesSize();
     }
 
     private function getTotalDirectoriesCount(): int
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM directories");
-            $stmt->execute();
-            $result = $stmt->fetch();
-
-            return (int)($result['count'] ?? 0);
-        } catch (Exception $e) {
-            Logger::error("Error getting total directories count", ['error' => $e->getMessage()]);
-
-            return 0;
-        }
+        return $this->userRepository->getTotalDirectoriesCount();
     }
+
 
     private function getTotalSharesCount(): int
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM shared_items");
-            $stmt->execute();
-            $result = $stmt->fetch();
-
-            return (int)($result['count'] ?? 0);
-        } catch (Exception $e) {
-            Logger::error("Error getting total shares count", ['error' => $e->getMessage()]);
-
-            return 0;
-        }
+        return $this->userRepository->getTotalSharesCount();
     }
 
     private function getRecentUsers(int $limit = 5): array
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT id, email, first_name, last_name, created_at, is_admin
-                FROM users 
-                ORDER BY created_at DESC 
-                LIMIT ?
-            ");
-            $stmt->execute([$limit]);
-
-            return $stmt->fetchAll() ?: [];
-        } catch (Exception $e) {
-            Logger::error("Error getting recent users", ['error' => $e->getMessage()]);
-
-            return [];
-        }
+        return $this->userRepository->getRecentUsers($limit);
     }
 
     private function getTopUsersByFiles(int $limit = 5): array
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT 
-                    u.id,
-                    u.email,
-                    u.first_name,
-                    u.last_name,
-                    COUNT(f.id) as files_count,
-                    COALESCE(SUM(f.size), 0) as total_size
-                FROM users u
-                LEFT JOIN files f ON u.id = f.user_id
-                GROUP BY u.id, u.email, u.first_name, u.last_name
-                ORDER BY files_count DESC, total_size DESC
-                LIMIT ?
-            ");
-            $stmt->execute([$limit]);
-            $users = $stmt->fetchAll() ?: [];
-
-            foreach ($users as &$user) {
-                $user['total_size_formatted'] = $this->formatFileSize((int)$user['total_size']);
-            }
-
-            return $users;
-        } catch (Exception $e) {
-            Logger::error("Error getting top users by files", ['error' => $e->getMessage()]);
-
-            return [];
+        $users = $this->userRepository->getTopUsersByFiles($limit);
+        foreach ($users as &$user) {
+            $user['total_size_formatted'] = $this->formatFileSize((int)$user['total_size']);
         }
+        return $users;
     }
 
     private function convertToBytes(string $memoryLimitRaw): int
@@ -807,83 +735,24 @@ class UserService
 
     private function getUserFiles(int $userId): array
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT id, filename, mime_type, size, created_at, directory_id
-                FROM files 
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-            ");
-            $stmt->execute([$userId]);
-
-            return $stmt->fetchAll() ?: [];
-        } catch (Exception $e) {
-            return [];
-        }
+        return $this->userRepository->getUserFiles($userId);
     }
 
     private function getUserDirectories(int $userId): array
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT id, name, parent_id, created_at
-                FROM directories 
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-            ");
-            $stmt->execute([$userId]);
-
-            return $stmt->fetchAll() ?: [];
-        } catch (Exception $e) {
-            return [];
-        }
+        return $this->userRepository->getUserDirectories($userId);
     }
 
     private function getUserSharedFiles(int $userId): array
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT f.id, f.filename, u.email as shared_with, si.created_at as shared_at
-                FROM files f
-                JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
-                JOIN users u ON si.shared_with_user_id = u.id
-                WHERE f.user_id = ?
-                ORDER BY si.created_at DESC
-            ");
-            $stmt->execute([$userId]);
-
-            return $stmt->fetchAll() ?: [];
-        } catch (Exception $e) {
-            return [];
-        }
+        return $this->userRepository->getUserSharedFiles($userId);
     }
 
     private function getUserReceivedShares(int $userId): array
     {
-        try {
-            $db = new Db();
-            $conn = $db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT f.id, f.filename, u.email as shared_by, si.created_at as shared_at
-                FROM files f
-                JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
-                JOIN users u ON si.shared_by_user_id = u.id
-                WHERE si.shared_with_user_id = ?
-                ORDER BY si.created_at DESC
-            ");
-            $stmt->execute([$userId]);
-
-            return $stmt->fetchAll() ?: [];
-        } catch (Exception $e) {
-            return [];
-        }
+        return $this->userRepository->getUserReceivedShares($userId);
     }
+
 
     public function sendPasswordResetEmail(string $email): bool
     {
@@ -898,14 +767,27 @@ class UserService
                 return true;
             }
 
-            $resetToken = bin2hex(random_bytes(32));
-            $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+            $resetToken = bin2hex(random_bytes(16));
+            $expiresAt = time() + 3600;
 
-            if (! $this->userRepository->savePasswordResetToken($user['id'], $resetToken, $expiresAt)) {
+            error_log("Generated reset token: $resetToken");
+
+            if (! $this->passwordResetRepository->createResetToken($user['id'], $resetToken, $expiresAt)) {
                 throw new RuntimeException('Ошибка при сохранении токена сброса');
             }
 
-            Logger::info("Password reset token generated", [
+            $emailSent = $this->emailService->sendPasswordResetEmail(
+                $email,
+                $resetToken,
+                $user['first_name'] . ' ' . $user['last_name']
+            );
+
+            if (! $emailSent) {
+                Logger::error("Failed to send password reset email", ['email' => $email]);
+                throw new RuntimeException('Ошибка при отправке email');
+            }
+
+            Logger::info("Password reset token generated and email sent", [
                 'user_id' => $user['id'],
                 'email' => $email,
                 'token' => $resetToken,
@@ -922,49 +804,30 @@ class UserService
         }
     }
 
-    public function resetPasswordWithToken(string $token, string $newPassword): bool
+    public function resetPasswordWithToken(string $token, string $newPassword): array
     {
+        if (empty($token) || empty($newPassword)) {
+            return ['success' => false, 'error' => 'Токен и новый пароль обязательны'];
+        }
+
         try {
-
-            $user = $this->userRepository->findByPasswordResetToken($token);
-            if (! $user) {
-                Logger::warning("Invalid password reset token used", [
-                    'token' => substr($token, 0, 8) . '...', // Логируем только начало токена
-                ]);
-
-                return false;
-            }
-
-            if (strtotime($user['reset_token_expires']) < time()) {
-                Logger::warning("Expired password reset token used", [
-                    'user_id' => $user['id'],
-                    'expired_at' => $user['reset_token_expires'],
-                ]);
-
-                return false;
-            }
-
-            if (strlen($newPassword) < 6) {
-                throw new RuntimeException('Пароль должен содержать минимум 6 символов');
+            $tokenData = $this->passwordResetRepository->findValidToken($token);
+            if (!$tokenData) {
+                return ['success' => false, 'error' => 'Недействительный или просроченный токен'];
             }
 
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
 
-            if (! $this->userRepository->updatePasswordAndClearToken($user['id'], $hashedPassword)) {
-                throw new RuntimeException('Ошибка при обновлении пароля');
+            if (!$this->userRepository->updatePassword($tokenData['user_id'], $hashedPassword)) {
+                return ['success' => false, 'error' => 'Ошибка при обновлении пароля'];
             }
 
-            Logger::info("Password reset completed successfully", [
-                'user_id' => $user['id'],
-            ]);
+            $this->passwordResetRepository->markTokenAsUsed($token);
 
-            return true;
+            return ['success' => true, 'message' => 'Пароль успешно изменен'];
         } catch (Exception $e) {
-            Logger::error("Error resetting password with token", [
-                'error' => $e->getMessage(),
-            ]);
-
-            throw $e;
+            Logger::error("UserService::resetPasswordWithToken error", ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'Ошибка при сбросе пароля'];
         }
     }
 
@@ -976,6 +839,9 @@ class UserService
             if (! $user) {
                 return false;
             }
+
+            $dt = new \DateTime('@' . $user['reset_token_expires']);
+            $dt = $dt->setTimezone(new \DateTimeZone('Europe/Moscow'));
 
             return strtotime($user['reset_token_expires']) >= time();
         } catch (Exception $e) {
@@ -1303,6 +1169,10 @@ class UserService
                 return ['success' => false, 'error' => implode(', ', $errors)];
             }
 
+            if (isset($data['password'])) {
+                $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+            }
+
             $newUserId = $this->createUserWithRootDirectory($data);
             return ['success' => true, 'message' => 'Регистрация успешна!'];
         } catch (RuntimeException $e) {
@@ -1326,19 +1196,22 @@ class UserService
             $user = $this->authenticateUser($email, $password);
 
             if ($user) {
-                if (isset($user['role']) && strtolower($user['role']) === 'admin') {
-                    $user['is_admin'] = 1;
+                $role = ($user['is_admin'] == 1) ? 'admin' : 'user';
+
+                if (isset($user['role'])) {
+                    unset($user['role']);
                 }
 
                 $_SESSION['user_id'] = $user['id'];
-                $_SESSION['role'] = $user['role'];
+                $_SESSION['role'] = $role;
+                $_SESSION['is_admin'] = $user['is_admin'];
                 $_SESSION['first_name'] = $user['first_name'];
                 $_SESSION['last_name'] = $user['last_name'];
                 $_SESSION['email'] = $user['email'];
 
                 return [
                     'success' => true,
-                    'role' => $user['role'] ?? null,
+                    'role' => $role,
                     'user' => $user,
                 ];
             } else {
@@ -1490,40 +1363,21 @@ class UserService
         error_log("UserService::publicPasswordReset called with data: " . json_encode($data));
 
         try {
-            if (empty($data['email'])) {
-                error_log("Password reset failed: email not provided");
-                return ['success' => false, 'error' => 'Необходимо указать email'];
+
+            if (isset($data['token']) && isset($data['password'])) {
+                $token = $data['token'];
+                $newPassword = $data['password'];
+
+                $result = $this->resetPasswordWithToken($token, $newPassword);
+                return ['success' => true, 'message' => 'Пароль успешно изменен'];
             }
 
-            $tempPassword = $this->resetPassword($data['email']);
+            if (isset($data['token']) && !isset($data['password'])) {
+                return $this->validateResetToken($data['token']);
+            }
 
-            error_log("Password reset successful for email: " . $data['email'] . ", temp password: " . $tempPassword);
-
-            $response = [
-                'success' => true,
-                'message' => 'Пароль успешно сброшен',
-                'temp_password' => $tempPassword,
-                'action' => 'password_reset',
-                'type' => 'password_reset',
-                'password_reset' => true,
-                'redirect' => false,
-                'show_temp_password' => true,
-            ];
-
-            error_log("Password reset response: " . json_encode($response));
-            return $response;
+            return $this->requestPasswordReset($data);
         } catch (RuntimeException $e) {
-            if (strpos($e->getMessage(), 'не найден') !== false) {
-                error_log("Password reset: user not found for email: " . $data['email']);
-                $response = [
-                    'success' => true,
-                    'message' => 'Если пользователь существует, инструкции отправлены',
-                    'action' => 'password_reset',
-                    'type' => 'password_reset'
-                ];
-                error_log("Password reset (user not found) response: " . json_encode($response));
-                return $response;
-            }
             error_log("Password reset runtime error: " . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         } catch (Exception $e) {
@@ -1576,6 +1430,118 @@ class UserService
         } catch (Exception $e) {
             Logger::error("UserService::delete error", ['error' => $e->getMessage()]);
             return ['success' => false, 'error' => 'Ошибка при удалении пользователя'];
+        }
+    }
+
+    /**
+     * Создание первого администратора
+     * ТОЛЬКО ДЛЯ ТЕСТИРОВАНИЯ! (например в Postman)
+     */
+    public function createFirstAdmin(array $data): array
+    {
+        $email = $data['email'] ?? '';
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['success' => false, 'error' => 'Некорректный email', 'status_code' => 400];
+        }
+
+        $adminCount = $this->userRepository->getAdminCount();
+        if ($adminCount > 0) {
+            return [
+                'success' => false,
+                'error' => 'Администратор уже существует.',
+                'admin_count' => $adminCount,
+                'status_code' => 403
+            ];
+        }
+
+        $user = $this->userRepository->findUserByEmail($email);
+        if (!$user) {
+            return [
+                'success' => false,
+                'error' => 'Пользователь с таким email не найден.',
+                'status_code' => 404
+            ];
+        }
+
+        if ($user['is_admin']) {
+            return [
+                'success' => false,
+                'error' => 'Пользователь уже является администратором',
+                'status_code' => 400
+            ];
+        }
+
+        $success = $this->userRepository->promoteToAdmin($user['id']);
+        if ($success) {
+            return [
+                'success' => true,
+                'message' => 'Пользователь успешно назначен администратором',
+                'user' => [
+                    'id' => $user['id'],
+                    'email' => $user['email'],
+                    'name' => ($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''),
+                    'role' => 'admin',
+                    'is_admin' => true
+                ]
+            ];
+        }
+
+        return ['success' => false, 'error' => 'Ошибка при назначении администратора', 'status_code' => 500];
+    }
+
+    public function requestPasswordReset(array $data): array
+    {
+        $email = trim($data['email'] ?? '');
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['success' => false, 'error' => 'Некорректный email'];
+        }
+
+        $user = $this->userRepository->findByEmail($email);
+        if (!$user) {
+            return ['success' => true, 'message' => 'Если пользователь с таким email существует, на него будет отправлена ссылка для сброса пароля'];
+        }
+
+        $resetToken = bin2hex(random_bytes(16));
+        $expiresAt = time() + 3600;
+
+        if (!$this->passwordResetRepository->createResetToken($user['id'], $resetToken, $expiresAt)) {
+            return ['success' => false, 'error' => 'Ошибка при сохранении токена сброса'];
+        }
+
+        if (!$this->emailService->sendPasswordResetEmail($email, $resetToken, $user['first_name'] . ' ' . $user['last_name'])) {
+            return ['success' => false, 'error' => 'Ошибка при отправке email'];
+        }
+
+        return ['success' => true, 'message' => 'Ссылка для сброса пароля отправлена на ваш email'];
+    }
+
+    public function validateResetToken(string $token): array
+    {
+        try {
+            if (empty($token)) {
+                return ['success' => false, 'error' => 'Токен не указан'];
+            }
+
+            $tokenData = $this->passwordResetRepository->findValidToken($token);
+
+            if (!$tokenData) {
+                return ['success' => false, 'error' => 'Недействительный или просроченный токен'];
+            }
+
+            $dt = new \DateTime('@' . $tokenData['expires_at']);
+            $dt = $dt->setTimezone(new \DateTimeZone('Europe/Moscow'));
+
+            return [
+                'success' => true,
+                'data' => [
+                    'email' => $tokenData['email'],
+                    'user_name' => $tokenData['first_name'] . ' ' . $tokenData['last_name'],
+                    'expires_at' => $dt->format('Y-m-d H:i:s'),
+                ],
+            ];
+        } catch (Exception $e) {
+
+            return ['success' => false, 'error' => 'Ошибка при проверке токена'];
         }
     }
 }

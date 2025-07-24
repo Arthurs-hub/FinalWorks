@@ -4,6 +4,13 @@ namespace App\Validators;
 
 class AuthValidator
 {
+    private array $config;
+
+    public function __construct()
+    {
+        $this->config = require __DIR__ . '/../config/config.php';
+    }
+
     public function validateLoginData(array $data): array
     {
         $email = $data['email'] ?? '';
@@ -23,10 +30,11 @@ class AuthValidator
             ];
         }
 
-        if (strlen($password) < 6) {
+        $minLength = $this->config['security']['password_min_length'];
+        if (strlen($password) < $minLength) {
             return [
                 'valid' => false,
-                'message' => 'Пароль должен содержать минимум 6 символов',
+                'message' => "Пароль должен содержать минимум {$minLength} символов",
             ];
         }
 

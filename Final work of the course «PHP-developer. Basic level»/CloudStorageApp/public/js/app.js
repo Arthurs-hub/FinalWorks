@@ -1,7 +1,6 @@
 let currentView = 'list';
 let currentDirectoryId = localStorage.getItem("currentDirectoryId") || "root";
 
-
 async function refreshLists() {
     try {
 
@@ -328,7 +327,7 @@ async function handleDrop(event) {
             try {
                 const errorData = JSON.parse(errorText);
                 console.error('Server error:', errorData);
-                
+
                 if (errorData.error && errorData.error.includes('Нет прав доступа к папке')) {
                     showMessage('Ошибка при обработке перемещения: Нет прав владельца', 'danger');
                 } else {
@@ -439,7 +438,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error('Ошибка при инициализации приложения:', error);
         showMessage('Ошибка при загрузке приложения', 'danger');
-        
+
     }
 
     document.getElementById("fileInput").addEventListener("change", handleFileSelection);
@@ -922,12 +921,12 @@ async function loadFolders() {
         const data = await res.json();
 
         if (data.directory && data.directory.is_shared && Number(data.directory.user_id) !== Number(currentUserId)) {
-            
+
             if (!sharedRootId || directoryIdToLoad === 'root') {
                 sharedRootId = data.directory.shared_root_id || data.directory.id;
             }
         }
-       
+
         if (!data.directory || directoryIdToLoad === 'root' || Number(data.directory.user_id) === Number(currentUserId)) {
             sharedRootId = null;
         }
@@ -1070,7 +1069,7 @@ async function goBack() {
         const directory = data.directory;
 
         if (directory.is_shared_root) {
-            
+
             currentDirectoryId = 'root';
             localStorage.setItem("currentDirectoryId", currentDirectoryId);
             await loadFolders();
@@ -1439,7 +1438,7 @@ async function showFileInfo(fileId) {
         if (file.mime_type && file.mime_type.startsWith('image/')) {
             filePreviewDiv.innerHTML = `<img src="/CloudStorageApp/public/files/download/${file.id}?inline=1" alt="${file.name}" style="max-width: 100%;">`;
         } else if (file.mime_type === 'application/pdf') {
-          
+
             filePreviewDiv.innerHTML = `<iframe src="/CloudStorageApp/public/files/preview/${file.id}" width="100%" height="600px" style="border:none"></iframe>`;
         } else if (
             file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||

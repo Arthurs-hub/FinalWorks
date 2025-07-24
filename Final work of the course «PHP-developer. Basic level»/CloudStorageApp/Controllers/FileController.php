@@ -17,13 +17,19 @@ class FileController extends BaseController
 
     public function upload(Request $request): Response
     {
-        $userId = $this->getCurrentUserId();
-        $files = $_FILES; 
-        $data = $request->getData();
+        return $this->executeWithAuth(function () use ($request) {
+            $userId = $this->getCurrentUserId();
+            $files = $_FILES ?? [];
+            $postData = $_POST ?? [];
 
-        $result = $this->fileService->uploadFiles($userId, $files, $data);
+            $result = $this->fileService->uploadFiles($userId, $files, $postData);
+            return $this->handleServiceResult($result);
+        });
+    }
 
-        return new Response($result);
+    public function add(Request $request): Response
+    {
+        return $this->upload($request);
     }
 
     public function download(Request $request): Response
@@ -86,6 +92,32 @@ class FileController extends BaseController
         return new Response($result);
     }
 
+    public function shareWithUser(Request $request): Response
+    {
+        return $this->executeWithAuth(function () use ($request) {
+            $fileId = $request->routeParams['id'] ?? null;
+            $targetUserId = $request->routeParams['user_id'] ?? null;
+            $userId = $this->getCurrentUserId();
+
+            $data = ['user_id' => $targetUserId];
+
+            $result = $this->fileService->shareFile($fileId, $data, $userId);
+            return $this->handleServiceResult($result);
+        });
+    }
+
+    public function unshareFromUser(Request $request): Response
+    {
+        return $this->executeWithAuth(function () use ($request) {
+            $fileId = $request->routeParams['id'] ?? null;
+            $targetUserId = $request->routeParams['user_id'] ?? null;
+            $userId = $this->getCurrentUserId();
+
+            $result = $this->fileService->unshareFile($fileId, $targetUserId);
+            return $this->handleServiceResult($result);
+        });
+    }
+
     public function getSharedFiles(Request $request): Response
     {
         $userId = $this->getCurrentUserId();
@@ -143,6 +175,26 @@ class FileController extends BaseController
 
         $result = $this->fileService->unshareFile($data['file_id'] ?? null, $userId);
         return new Response($result);
+    }
+
+    public function get(Request $request): Response
+    {
+        return $this->getFileInfo($request);
+    }
+
+    public function getShares(Request $request): Response
+    {
+        return $this->executeWithAuth(function () use ($request) {
+            $fileId = (int)($request->routeParams['id'] ?? 0);
+            $userId = $this->getCurrentUserId();
+
+            if (!$fileId) {
+                return new Response(['success' => false, 'error' => 'ID файла не указан'], 400);
+            }
+
+            $result = $this->fileService->getFileShares($fileId, $userId);
+            return new Response($result);
+        });
     }
 
     private function sendFileResponse(array $file, bool $inline = false): void

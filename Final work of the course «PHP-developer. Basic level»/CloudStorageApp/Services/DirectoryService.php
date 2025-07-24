@@ -23,7 +23,6 @@ class DirectoryService
         $this->directoryValidator = new DirectoryValidator();
     }
 
-
     public function addDirectory(array $data, int $userId): array
     {
         try {
@@ -209,12 +208,12 @@ class DirectoryService
         }
     }
 
-    public function deleteDirectory(?string $directoryId, int $userId): array
+    public function deleteDirectory(?string $directoryId, int $userId, bool $isAdmin = false): array
     {
         try {
             $id = ($directoryId === 'root' || $directoryId === null || $directoryId === '' || $directoryId === 0 || $directoryId === '0') ? null : (int)$directoryId;
 
-            if (!$this->directoryRepository->checkDirectoryOwnership($id, $userId)) {
+            if (!$isAdmin && !$this->directoryRepository->checkDirectoryOwnership($id, $userId)) {
                 return ['success' => false, 'error' => 'Вы можете удалять только свои папки'];
             }
 
@@ -302,7 +301,11 @@ class DirectoryService
             }
 
             $this->directoryRepository->unshareDirectoryRecursively($directoryId, $userId);
-            return ['success' => true, 'message' => 'Папка и её содержимое успешно расшарены'];
+
+            return [
+                'success' => true,
+                'message' => 'Доступ к папке успешно отозван. Папка больше не отображается в вашем списке.'
+            ];
         } catch (Exception $e) {
             Logger::error("DirectoryService::unshareDirectory error", ['error' => $e->getMessage()]);
             return ['success' => false, 'error' => 'Ошибка при отмене расшаривания папки'];

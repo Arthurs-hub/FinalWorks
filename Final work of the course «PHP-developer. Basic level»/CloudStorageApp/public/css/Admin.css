@@ -417,7 +417,7 @@ body {
 }
 
 .system-health-card {
-    height: 220px; 
+    height: 220px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -433,7 +433,7 @@ body {
 }
 
 #systemHealthDetails {
-    max-height: 60px; 
+    max-height: 60px;
     overflow-y: auto;
     white-space: pre-wrap;
     font-family: monospace;

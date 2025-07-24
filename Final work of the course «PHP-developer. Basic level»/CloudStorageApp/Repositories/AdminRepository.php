@@ -251,6 +251,12 @@ class AdminRepository
     public function updateUserData(int $userId, array $data): array
     {
         try {
+            $user = $this->userRepository->findUserByEmail($userId);
+
+            if (!$user) {
+                return ['success' => false, 'error' => 'Пользователь не найден'];
+            }
+
             if (isset($data['email'])) {
                 try {
                     Validator::email($data['email']);
@@ -503,6 +509,23 @@ class AdminRepository
                 'error' => $e->getMessage(),
             ]);
 
+            return [];
+        }
+    }
+
+    public function fetchCurrentUser(): array
+    {
+        try {
+            $conn = $this->db->getConnection();
+            $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
+            $stmt->bindValue(1, $_SESSION['user_id'], PDO::PARAM_INT);
+            $stmt->execute();
+            $currentUser = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $currentUser;
+        } catch (Exception $e) {
+            Logger::error("AdminRepository::fetchCurrentUser error", [
+                'error' => $e->getMessage(),
+            ]);
             return [];
         }
     }
@@ -764,6 +787,24 @@ class AdminRepository
             Logger::error("AdminRepository::cleanupOrphanedFiles error", ['error' => $e->getMessage()]);
             throw $e;
         }
+    }
+
+    public function deleteAllFiles(): int
+    {
+        $sql = "DELETE FROM files";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+        $deletedCount = $stmt->rowCount();
+
+        $uploadDir = __DIR__ . '/../../uploads';
+        $files = glob($uploadDir . '/*');
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+
+        return $deletedCount;
     }
 
     private function getDiskUsageInfo(): array

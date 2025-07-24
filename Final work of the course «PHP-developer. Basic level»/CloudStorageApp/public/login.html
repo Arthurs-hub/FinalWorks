@@ -16,99 +16,122 @@
         </div>
 
         <form id="loginForm">
+            <div class="text-center mb-4"></div>
+
             <div class="form-group">
-                <label class="form-label" for="login_email">Email:</label>
-                <input autofocus class="form-control" id="login_email" name="email" required type="email"
-                    autocomplete="email">
+                <label class="form-label" for="email">Email:</label>
+                <input class="form-control" id="email" name="email" required type="email">
             </div>
+
             <div class="form-group">
-                <label class="form-label" for="login_password">Пароль:</label>
-                <input class="form-control" id="login_password" name="password" required type="password"
-                    autocomplete="current-password">
+                <label class="form-label" for="password">Пароль:</label>
+                <input class="form-control" id="password" name="password" required type="password">
             </div>
-            <button class="btn btn-primary w-100 mt-3" type="submit">Войти</button>
+
+            <button class="btn btn-primary w-100" type="submit">Войти</button>
+
+            <div id="loginFormMsg" class="d-none mt-3"></div>
+
             <div class="text-center mt-3">
-                <a href="#" id="showRegister">Регистрация</a>
-                <span class="mx-2">|</span>
-                <a href="#" id="showForgot">Забыли пароль?</a>
+                <a href="#" id="showRegister">Нет аккаунта? Зарегистрироваться</a><br>
+                <a href="#" id="showReset" class="mt-2">Забыли пароль?</a>
             </div>
         </form>
 
-        <form class="d-none" id="registerForm">
-            <div class="row">
-                <div class="col-md-6">
+        <form id="registerForm" class="d-none">
+            <div class="text-center mb-4">
+                <h2>Регистрация</h2>
+            </div>
+
+            <div class="form-row">
+                <div class="form-col">
                     <div class="form-group">
-                        <label class="form-label" for="reg_firstname">Имя <span class="text-danger">*</span>:</label>
-                        <input class="form-control" id="reg_firstname" name="firstname" required type="text"
-                            autocomplete="given-name">
-                        <div class="invalid-feedback">Имя обязательно для заполнения</div>
+                        <label class="form-label" for="first_name">Имя <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="first_name" name="first_name" required type="text">
                     </div>
+                </div>
+                <div class="form-col">
                     <div class="form-group">
-                        <label class="form-label" for="reg_middlename">Отчество:</label>
-                        <input class="form-control" id="reg_middlename" name="middlename" type="text"
-                            autocomplete="additional-name">
+                        <label class="form-label" for="register_email">Email <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="register_email" name="email" required type="email">
                     </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-col">
                     <div class="form-group">
-                        <label class="form-label" for="reg_lastname">Фамилия <span class="text-danger">*</span>:</label>
-                        <input class="form-control" id="reg_lastname" name="lastname" required type="text"
-                            autocomplete="family-name">
-                        <div class="invalid-feedback">Фамилия обязательна для заполнения</div>
+                        <label class="form-label" for="last_name">Фамилия <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="last_name" name="last_name" required type="text">
                     </div>
+                </div>
+                <div class="form-col">
                     <div class="form-group">
-                        <label class="form-label" for="reg_gender">Пол:</label>
-                        <select class="form-select" id="reg_gender" name="gender" autocomplete="sex">
-                            <option value="">Выберите...</option>
+                        <label class="form-label" for="register_password">Пароль <span
+                                class="text-danger">*</span>:</label>
+                        <input class="form-control" id="register_password" name="password" required type="password">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="middle_name">Отчество:</label>
+                        <input class="form-control" id="middle_name" name="middle_name" type="text">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="confirm_password">Повторите пароль <span
+                                class="text-danger">*</span>:</label>
+                        <input class="form-control" id="confirm_password" name="confirm_password" required
+                            type="password">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="age">Возраст:</label>
+                        <input class="form-control" id="age" name="age" type="number" min="13" max="120">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="gender">Пол:</label>
+                        <select class="form-control" id="gender" name="gender">
+                            <option value="">Не указан</option>
                             <option value="male">Мужской</option>
                             <option value="female">Женский</option>
                         </select>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label class="form-label" for="reg_age">Возраст:</label>
-                        <input class="form-control" id="reg_age" name="age" max="120" min="1" type="number"
-                            autocomplete="off">
-                        <div class="invalid-feedback">Возраст должен быть от 1 до 120 лет</div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="reg_email">Email <span class="text-danger">*</span>:</label>
-                        <input class="form-control" id="reg_email" name="email" required type="email"
-                            autocomplete="email">
-                        <div class="invalid-feedback">Введите корректный email</div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="reg_password">Пароль <span class="text-danger">*</span>:</label>
-                        <input class="form-control" id="reg_password" name="password" required type="password"
-                            minlength="6" autocomplete="new-password">
-                        <div class="invalid-feedback">Пароль должен содержать минимум 6 символов</div>
-                        <div class="password-strength" id="passwordStrength"></div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="reg_password2">Повторите пароль <span
-                                class="text-danger">*</span>:</label>
-                        <input class="form-control" id="reg_password2" name="password2" required type="password"
-                            minlength="6" autocomplete="new-password">
-                        <div class="invalid-feedback">Пароли не совпадают</div>
-                    </div>
-                </div>
             </div>
-            <div class="row mt-3">
-                <div class="col-md-6 mx-auto">
-                    <button class="btn btn-success w-100" type="submit">Зарегистрироваться</button>
-                </div>
-            </div>
+
+            <button class="btn btn-success w-100" type="submit">Зарегистрироваться</button>
+
+            <div id="registerFormMsg" class="d-none mt-3"></div>
+
             <div class="text-center mt-3">
                 <a href="#" id="showLogin1">Уже есть аккаунт? Войти</a>
             </div>
         </form>
 
-        <form class="d-none" id="resetForm">
+        <form id="resetForm" class="d-none">
+            <div class="text-center mb-4"></div>
+
             <div class="form-group">
                 <label class="form-label" for="reset_email">Email для сброса пароля:</label>
                 <input class="form-control" id="reset_email" name="reset_email" required type="email"
                     autocomplete="email">
             </div>
+
             <button class="btn btn-warning w-100 mt-3" type="submit">Сбросить пароль</button>
+
+            <div id="resetFormMsg" class="d-none mt-3"></div>
+
             <div class="text-center mt-3">
                 <a href="#" id="showLogin2">Войти</a>
             </div>
@@ -119,29 +142,157 @@
     <script>
         const container = document.querySelector('.login-container');
 
-
         function toggleForms(show, hide1, hide2) {
-            if (document.getElementById(show) && document.getElementById(hide1) && document.getElementById(hide2)) {
-                document.getElementById(show).classList.remove('d-none');
-                document.getElementById(hide1).classList.add('d-none');
-                document.getElementById(hide2).classList.add('d-none');
+            const showForm = document.getElementById(show);
+            const hideForm1 = document.getElementById(hide1);
+            const hideForm2 = document.getElementById(hide2);
+
+            if (showForm) {
+                showForm.classList.remove('d-none');
+            } else {
+                console.error(`Форма ${show} не найдена`);
             }
-            if (container) container.classList.toggle('wide', show === 'registerForm');
+
+            if (hideForm1) {
+                hideForm1.classList.add('d-none');
+            }
+
+            if (hideForm2) {
+                hideForm2.classList.add('d-none');
+            }
+
+            clearAllMessages();
+
+            const container = document.querySelector('.login-container');
+            if (container) {
+                if (show === 'registerForm') {
+                    container.classList.add('wide');
+                } else {
+                    container.classList.remove('wide');
+                }
+            }
         }
 
-        document.getElementById('showRegister').onclick = (e) => {
-            e.preventDefault();
-            toggleForms('registerForm', 'loginForm', 'resetForm');
-        };
-        document.getElementById('showLogin1').onclick = document.getElementById('showLogin2').onclick = (e) => {
-            e.preventDefault();
-            toggleForms('loginForm', 'registerForm', 'resetForm');
-        };
-        document.getElementById('showForgot').onclick = (e) => {
-            e.preventDefault();
-            toggleForms('resetForm', 'loginForm', 'registerForm');
-        };
+        document.addEventListener('DOMContentLoaded', function () {
 
+            const showRegisterBtn = document.getElementById('showRegister');
+            if (showRegisterBtn) {
+                showRegisterBtn.onclick = function (e) {
+                    e.preventDefault();
+                    toggleForms('registerForm', 'loginForm', 'resetForm');
+                };
+            }
+
+            const showLogin1Btn = document.getElementById('showLogin1');
+            if (showLogin1Btn) {
+                showLogin1Btn.onclick = function (e) {
+                    e.preventDefault();
+                    toggleForms('loginForm', 'registerForm', 'resetForm');
+                };
+            }
+
+            const showLogin2Btn = document.getElementById('showLogin2');
+            if (showLogin2Btn) {
+                showLogin2Btn.onclick = function (e) {
+                    e.preventDefault();
+                    toggleForms('loginForm', 'resetForm', 'registerForm');
+                };
+            }
+
+            const showResetBtn = document.getElementById('showReset');
+            if (showResetBtn) {
+                showResetBtn.onclick = function (e) {
+                    e.preventDefault();
+                    toggleForms('resetForm', 'loginForm', 'registerForm');
+                };
+            }
+
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.onsubmit = async function (e) {
+                    e.preventDefault();
+
+                    const email = document.getElementById('email')?.value.trim();
+                    const password = document.getElementById('password')?.value.trim();
+
+                    if (!email || !password) {
+                        const msg = document.getElementById('loginFormMsg');
+                        if (msg) {
+                            msg.innerHTML = '<div class="alert alert-danger">Заполните все поля</div>';
+                            msg.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    await handleFormSubmit('loginForm', '/CloudStorageApp/public/login', {
+                        email: email,
+                        password: password
+                    });
+                };
+            }
+
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.onsubmit = async function (e) {
+                    e.preventDefault();
+
+                    const formData = {
+                        first_name: document.getElementById('first_name')?.value.trim(),
+                        last_name: document.getElementById('last_name')?.value.trim(),
+                        middle_name: document.getElementById('middle_name')?.value.trim(),
+                        email: document.getElementById('register_email')?.value.trim(),
+                        password: document.getElementById('register_password')?.value.trim(),
+                        confirm_password: document.getElementById('confirm_password')?.value.trim(),
+                        age: document.getElementById('age')?.value,
+                        gender: document.getElementById('gender')?.value
+                    };
+
+                    if (!formData.first_name || !formData.last_name || !formData.email || !formData.password) {
+                        const msg = document.getElementById('registerFormMsg');
+                        if (msg) {
+                            msg.innerHTML = '<div class="alert alert-danger">Заполните все обязательные поля (отмечены *)</div>';
+                            msg.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    if (formData.password !== formData.confirm_password) {
+                        const msg = document.getElementById('registerFormMsg');
+                        if (msg) {
+                            msg.innerHTML = '<div class="alert alert-danger">Пароли не совпадают</div>';
+                            msg.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    delete formData.confirm_password;
+
+                    await handleFormSubmit('registerForm', '/CloudStorageApp/public/register', formData);
+                };
+            }
+
+            const resetForm = document.getElementById('resetForm');
+            if (resetForm) {
+                resetForm.onsubmit = async function (e) {
+                    e.preventDefault();
+
+                    const email = document.getElementById('reset_email')?.value.trim();
+
+                    if (!email) {
+                        const msg = document.getElementById('resetFormMsg');
+                        if (msg) {
+                            msg.innerHTML = '<div class="alert alert-danger">Введите email</div>';
+                            msg.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    await handleFormSubmit('resetForm', '/CloudStorageApp/public/reset_password', {
+                        email: email
+                    });
+                };
+            }
+        });
 
         function autoHideError(element, isInline = false) {
             if (isInline) {
@@ -162,7 +313,6 @@
                 }, 3500);
             }
         }
-
 
         function showInlineError(input, message) {
 
@@ -189,7 +339,6 @@
             };
             input.addEventListener('focus', focusHandler);
         }
-
 
         function shouldUseInlineError(input, message) {
 
@@ -248,7 +397,6 @@
             }
         });
 
-
         function validateRequired() {
             const errorElement = this.parentNode.querySelector('.invalid-feedback');
             const errorMessage = 'Поле обязательно для заполнения';
@@ -276,7 +424,6 @@
                 return true;
             }
         }
-
 
         function validateEmail() {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -314,7 +461,6 @@
             }
         }
 
-
         function validateAge() {
             const age = parseInt(this.value);
             const errorElement = this.parentNode.querySelector('.invalid-feedback');
@@ -350,7 +496,6 @@
                 return true;
             }
         }
-
 
         function validatePassword() {
             const password = this.value;
@@ -429,7 +574,6 @@
             }
         }
 
-
         function validatePasswordMatch() {
             const password = document.getElementById('reg_password').value;
             const password2 = this.value;
@@ -491,7 +635,6 @@
             }
         }
 
-
         function clearInvalidOnInput() {
             if (this.classList.contains('is-invalid') && this.value.trim() !== '') {
                 this.classList.remove('is-invalid');
@@ -506,10 +649,25 @@
             }
         }
 
-
         async function handleFormSubmit(formId, url, body) {
-            const msg = document.getElementById('formMsg');
+
+            let msg;
+            if (formId === 'resetForm') {
+                msg = document.getElementById('resetFormMsg');
+            } else if (formId === 'loginForm') {
+                msg = document.getElementById('loginFormMsg');
+            } else if (formId === 'registerForm') {
+                msg = document.getElementById('registerFormMsg');
+            }
+
+            if (!msg) {
+                console.error(`Элемент сообщения не найден для формы: ${formId}`);
+                alert(`Ошибка: элемент для отображения сообщений не найден для формы ${formId}`);
+                return;
+            }
+
             msg.classList.add('d-none');
+            msg.innerHTML = '';
 
             try {
                 const res = await fetch(url, {
@@ -518,38 +676,25 @@
                     body: JSON.stringify(body),
                 });
 
-                console.log('Статус ответа:', res.status);
-
                 const responseText = await res.text();
-                console.log('Полный текст ответа:', responseText);
 
                 if (!res.ok) {
-
                     let errorData;
                     try {
                         errorData = JSON.parse(responseText);
-                        console.log('Данные ошибки (JSON):', errorData);
-
-                        msg.textContent = errorData.error || `Ошибка сервера: ${res.status} ${res.statusText}`;
-                        msg.className = "alert alert-danger mt-3";
+                        msg.innerHTML = `<div class="alert alert-danger">${errorData.error || `Ошибка сервера: ${res.status}`}</div>`;
                         msg.classList.remove("d-none");
                         return;
                     } catch (parseError) {
-                        console.error('Не удалось парсить ответ как JSON:', parseError);
-                        console.log('Сырой ответ сервера:', responseText);
-                        msg.textContent = `Ошибка сервера: ${res.status}. ${responseText.substring(0, 200)}`;
-                        msg.className = "alert alert-danger mt-3";
+                        msg.innerHTML = `<div class="alert alert-danger">Ошибка сервера: ${res.status}</div>`;
                         msg.classList.remove("d-none");
                         return;
                     }
                 }
 
                 const contentType = res.headers.get("content-type");
-                console.log('Content-Type:', contentType);
-
                 if (!contentType || !contentType.includes("application/json")) {
-                    msg.textContent = "Ошибка: Сервер вернул некорректный формат данных.";
-                    msg.className = "alert alert-danger mt-3";
+                    msg.innerHTML = '<div class="alert alert-danger">Ошибка: Сервер вернул некорректный формат данных.</div>';
                     msg.classList.remove("d-none");
                     return;
                 }
@@ -559,163 +704,123 @@
                     data = JSON.parse(responseText);
                     console.log('Успешный ответ:', data);
                 } catch (parseError) {
-                    console.error('Не удалось парсить успешный ответ:', parseError);
-                    msg.textContent = "Ошибка: Некорректный формат ответа сервера.";
-                    msg.className = "alert alert-danger mt-3";
+                    msg.innerHTML = '<div class="alert alert-danger">Ошибка: Некорректный формат ответа сервера.</div>';
                     msg.classList.remove("d-none");
                     return;
                 }
 
-                if (data.success) {
-                    console.log('Form submission successful', { formId, data });
-                    if (formId === 'resetForm' && (data.temp_password || data.password_reset || data.action === 'password_reset')) {
-                        console.log('Password reset detected, showing temp password UI');
+                if (formId === 'resetForm') {
+                    if (data.success) {
                         msg.innerHTML = `
-                            <div class="mb-3">
-                                <strong>✅ Пароль успешно сброшен!</strong>
-                            </div>
-                            ${data.temp_password ? `
-                            <div class="mb-3">
-                                <label class="form-label" for="tempPasswordField">Ваш временный пароль:</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control text-center fw-bold" 
-                                           value="${data.temp_password}" 
-                                           id="tempPasswordField" readonly
-                                           style="font-size: 1.2em; letter-spacing: 2px; background: #f8f9fa;">
-                                    <button class="btn btn-outline-primary" type="button" 
-                                            onclick="copyTempPassword()">📋 Копировать</button>
+                            <div class="alert alert-success">
+                                <div class="mb-3">
+                                    <strong>✅ ${data.message}</strong>
                                 </div>
-                            </div>` : '<div class="mb-3">Инструкции для сброса пароля отправлены на ваш email.</div>'}
-                            <div class="mb-3">
-                                <button class="btn btn-success w-100" onclick="goToLogin()">
-                                    Перейти к входу
-                                </button>
+                                <div class="mb-3">
+                                    <p><small class="text-muted">
+                                        Проверьте папку "Входящие" и "Спам".<br>
+                                        Ссылка действительна 1 час.
+                                    </small></p>
+                                </div>
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-success w-100" onclick="toggleForms('loginForm', 'resetForm', 'registerForm')">
+                                        Перейти к входу
+                                    </button>
+                                </div>
                             </div>
-                            <small class="text-muted">
-                                💡 Используйте этот пароль для входа в систему.<br>
-                                Рекомендуем сменить пароль после входа.
-                            </small>
                         `;
-                        msg.className = "alert alert-success mt-3";
                         msg.classList.remove("d-none");
+                        clearResetFields();
                         return;
                     } else {
-                        msg.textContent = formId === 'registerForm' ? "Регистрация успешна!" : "Вход выполнен!";
-                        msg.className = "alert alert-success mt-3";
+                        msg.innerHTML = `<div class="alert alert-danger">${data.error || "Ошибка при сбросе пароля"}</div>`;
                         msg.classList.remove("d-none");
-
-                        setTimeout(() => {
-                            console.log('Redirect logic triggered', { formId, data });
-                            if (formId === 'registerForm') {
-                                console.log('Redirecting to login form after registration');
-                                document.getElementById('showLogin1').click();
-                            } else if (formId === 'loginForm') {
-                                console.log('Redirecting to upload.html after login');
-                              
-                                window.location.href = (data.user && (data.user.is_admin === 1 || data.user.role === 'admin'))
-                                    ? '/CloudStorageApp/public/Admin.html'
-                                    : '/CloudStorageApp/public/upload.html';
-                            } else {
-                                console.log('Not redirecting for form:', formId);
-                            }
-                            
-                        }, 3000);
+                        return;
                     }
+                }
+
+                if (data.success) {
+
+                    if (formId === 'loginForm') {
+                        if (data.user && data.user.is_admin == 1) {
+                            msg.innerHTML = `
+                                <div class="alert alert-success">
+                                    <div class="mb-3">
+                                        <strong>✅ Вход выполнен!</strong>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        Перенаправление в админ-панель...
+                                    </div>
+                                </div>
+                            `;
+                            msg.classList.remove("d-none");
+                            setTimeout(() => window.location.href = 'Admin.html', 1500);
+                            return;
+                        }
+
+
+                        msg.innerHTML = `
+                            <div class="alert alert-success">
+                                <div class="mb-3">
+                                    <strong>✅ Вход выполнен!</strong>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Перенаправление...
+                                </div>
+                            </div>
+                        `;
+                        msg.classList.remove("d-none");
+                        setTimeout(() => window.location.href = 'upload.html', 1500);
+                        return;
+                    }
+
+                    if (formId === 'registerForm') {
+                        msg.innerHTML = `
+                            <div class="alert alert-success">
+                                <div class="mb-3">
+                                    <strong>✅ ${data.message || 'Регистрация успешна!'}</strong>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Переход к форме входа через <span id="countdown">3</span> сек...
+                                </div>
+                            </div>
+                        `;
+                        msg.classList.remove("d-none");
+                        clearRegisterFields();
+
+                        let countdown = 3;
+                        const countdownElement = document.getElementById('countdown');
+                        const countdownInterval = setInterval(() => {
+                            countdown--;
+                            if (countdownElement) {
+                                countdownElement.textContent = countdown;
+                            }
+                            if (countdown <= 0) {
+                                clearInterval(countdownInterval);
+                                toggleForms('loginForm', 'registerForm', 'resetForm');
+                            }
+                        }, 1000);
+
+                        return;
+                    }
+
                 } else {
 
-                    msg.textContent = data.error || "Неизвестная ошибка!";
-                    msg.className = "alert alert-danger mt-3";
+                    msg.innerHTML = `<div class="alert alert-danger">${data.error || "Неизвестная ошибка!"}</div>`;
                     msg.classList.remove("d-none");
+                    setTimeout(() => msg.classList.add("d-none"), 5000);
                 }
+
             } catch (error) {
                 console.error("Ошибка запроса:", error);
-
-                msg.textContent = `Произошла ошибка: ${error.message}`;
-                msg.className = "alert alert-danger mt-3";
+                msg.innerHTML = `<div class="alert alert-danger">Произошла ошибка: ${error.message}</div>`;
                 msg.classList.remove("d-none");
-            }
-
-            if (formId !== 'resetForm') {
                 setTimeout(() => msg.classList.add("d-none"), 5000);
             }
         }
-
-
-        document.getElementById('loginForm').onsubmit = async (e) => {
-            e.preventDefault();
-            await handleFormSubmit('loginForm', '/CloudStorageApp/public/login', {
-                email: document.getElementById('login_email').value,
-                password: document.getElementById('login_password').value
-            });
-        };
-
-
-        document.getElementById('registerForm').onsubmit = async (e) => {
-            e.preventDefault();
-
-            const firstName = document.getElementById('reg_firstname');
-            const lastName = document.getElementById('reg_lastname');
-            const email = document.getElementById('reg_email');
-            const password = document.getElementById('reg_password');
-            const password2 = document.getElementById('reg_password2');
-            const age = document.getElementById('reg_age');
-
-            let isValid = true;
-            if (!validateRequired.call(firstName)) isValid = false;
-            if (!validateRequired.call(lastName)) isValid = false;
-            if (!validateEmail.call(email)) isValid = false;
-            if (!validatePassword.call(password)) isValid = false;
-            if (!validatePasswordMatch.call(password2)) isValid = false;
-            if (!validateAge.call(age)) isValid = false;
-
-            if (!isValid) {
-                const msg = document.getElementById('formMsg');
-                msg.textContent = "Пожалуйста, исправьте ошибки в форме";
-                msg.className = "alert alert-danger mt-3";
-                msg.classList.remove("d-none");
-                setTimeout(() => msg.classList.add("d-none"), 5000);
-                return;
-            }
-
-            if (password.value !== password2.value) {
-                const msg = document.getElementById('formMsg');
-                msg.textContent = "Пароли не совпадают";
-                msg.className = "alert alert-danger mt-3";
-                msg.classList.remove("d-none");
-                setTimeout(() => msg.classList.add("d-none"), 3000);
-                return;
-            }
-
-            if (password.value.length < 6) {
-                const msg = document.getElementById('formMsg');
-                msg.textContent = "Пароль должен содержать минимум 6 символов";
-                msg.className = "alert alert-danger mt-3";
-                msg.classList.remove("d-none");
-                setTimeout(() => msg.classList.add("d-none"), 3000);
-                return;
-            }
-
-            const requestData = {
-                first_name: firstName.value.trim(),
-                middle_name: document.getElementById('reg_middlename').value.trim() || null,
-                last_name: lastName.value.trim(),
-                gender: document.getElementById('reg_gender').value || null,
-                age: age.value ? parseInt(age.value) : null,
-                email: email.value.trim(),
-                password: password.value
-            };
-
-            await handleFormSubmit('registerForm', '/CloudStorageApp/public/register', requestData);
-        };
-
-
-        document.getElementById('resetForm').onsubmit = async (e) => {
-            e.preventDefault();
-            await handleFormSubmit('resetForm', '/CloudStorageApp/public/password-reset-public', {
-                email: document.getElementById('reset_email').value
-            });
-        };
-
 
         function copyTempPassword() {
             const field = document.getElementById('tempPasswordField');
@@ -743,11 +848,61 @@
             }
         }
 
-        
         function goToLogin() {
             document.getElementById('showLogin1').click();
             document.getElementById('reset_email').value = '';
             document.getElementById('formMsg').classList.add('d-none');
+        }
+
+        function clearLoginFields() {
+            const emailField = document.getElementById('email');
+            const passwordField = document.getElementById('password');
+
+            if (emailField) emailField.value = '';
+            if (passwordField) passwordField.value = '';
+        }
+
+        function clearRegisterFields() {
+            const registerFields = [
+                'first_name',
+                'last_name',
+                'register_email',
+                'register_password',
+                'confirm_password',
+                'middle_name',
+                'age',
+                'gender'
+            ];
+
+            registerFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.value = '';
+                }
+            });
+        }
+
+        function clearResetFields() {
+            const resetEmailField = document.getElementById('reset_email');
+            if (resetEmailField) {
+                resetEmailField.value = '';
+            }
+        }
+
+        function clearAllMessages() {
+            const messageElements = [
+                'loginFormMsg',
+                'registerFormMsg',
+                'resetFormMsg'
+            ];
+
+            messageElements.forEach(msgId => {
+                const msgElement = document.getElementById(msgId);
+                if (msgElement) {
+                    msgElement.classList.add('d-none');
+                    msgElement.innerHTML = '';
+                }
+            });
         }
     </script>
 

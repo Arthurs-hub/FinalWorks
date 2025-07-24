@@ -4,43 +4,48 @@ let currentFiles = [];
 
 async function checkAuth() {
     try {
+
         const response = await fetch('/CloudStorageApp/public/users/current', {
             method: 'GET',
             credentials: 'include',
             headers: {
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             }
         });
 
         if (!response.ok) {
-            throw new Error('Не авторизован');
+            throw new Error(`HTTP ${response.status}`);
         }
 
-        const text = await response.text();
-        let data;
-        try {
-            data = text ? JSON.parse(text) : {};
-        } catch (e) {
-            showMessage('danger', 'Ошибка при обработке ответа сервера');
-            return;
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Ошибка авторизации');
         }
 
-        if (!data.success || !data.user) {
-            throw new Error('Пользователь не найден');
+        if (!data.user) {
+            throw new Error('Данные пользователя не получены');
         }
 
-        if (!data.user.is_admin && data.user.role !== 'admin') {
-            throw new Error('Недостаточно прав');
+        if (data.user.is_admin != 1) {
+            throw new Error('Недостаточно прав доступа');
         }
-
-        window.currentUserId = data.user.id;
 
         currentUser = data.user;
+        window.currentUser = data.user;
+        updateUserInfo(data.user);
+
         return data.user;
+
     } catch (error) {
         console.error('Ошибка авторизации:', error);
+        showMessage('danger', 'Ошибка при инициализации панели администратора: ' + error.message);
 
-        window.location.href = '/CloudStorageApp/public/login.html';
+        setTimeout(() => {
+            window.location.href = '/CloudStorageApp/public/login.html';
+        }, 2000);
+
         throw error;
     }
 }
@@ -57,11 +62,13 @@ function loadCurrentAdminName() {
     }
 }
 
+
 let currentUser = null;
 
 let usersLoaded = false;
 let filesLoaded = false;
 let logsLoaded = false;
+
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -145,7 +152,7 @@ function showSection(name) {
         loadLogs();
         logsLoaded = true;
     }
-  
+
     if (name === 'dashboard' || name === 'system') {
         if (typeof refreshSystemHealth === 'function') {
             console.log('refreshSystemHealth called for section:', name);
@@ -208,7 +215,6 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-
 function getCurrentUserId() {
     return window.currentUserId || null;
 }
@@ -260,7 +266,7 @@ function showStatsError() {
         'totalUsers', 'totalAdmins', 'activeUsers30', 'activeUsers7',
         'totalFiles', 'totalSize', 'totalDirectories', 'totalShares',
         'phpVersion', 'systemLoad'
-        
+
     ];
 
     elements.forEach(id => {
@@ -392,6 +398,18 @@ async function refreshData() {
     } finally {
         refreshBtn.innerHTML = originalContent;
         refreshBtn.disabled = false;
+    }
+}
+
+function updateUserInfo(user) {
+    const userNameElement = document.getElementById('userName');
+    if (userNameElement) {
+        userNameElement.textContent = `${user.first_name} ${user.last_name}`;
+    }
+
+    const userEmailElement = document.getElementById('userEmail');
+    if (userEmailElement) {
+        userEmailElement.textContent = user.email;
     }
 }
 
@@ -775,52 +793,15 @@ async function clearLogs() {
 
 async function exportUsers() {
     try {
-        const response = await fetch('/CloudStorageApp/public/admin/users/export', {
-            method: 'GET',
-            credentials: 'include'
-        });
 
-        if (!response.ok) {
-            let errorMsg = `HTTP error! status: ${response.status}`;
-            try {
-                const errorData = await response.json();
-                if (errorData.error) {
-                    errorMsg = errorData.error;
-                }
-            } catch {
-                
-            }
-            throw new Error(errorMsg);
-        }
+        const link = document.createElement('a');
+        link.href = '/CloudStorageApp/public/admin/users/export/download';
+        link.download = `users_export_${new Date().toISOString().slice(0, 10)}.csv`;
 
-        const contentType = response.headers.get('Content-Type');
-        if (contentType && contentType.includes('application/json')) {
-            const errorData = await response.json();
-            showMessage('danger', 'Ошибка при экспорте: ' + (errorData.error || 'Неизвестная ошибка'));
-            return;
-        }
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-
-        const disposition = response.headers.get('Content-Disposition');
-        let filename = `users_export_${new Date().toISOString().slice(0, 10)}.csv`;
-        if (disposition && disposition.indexOf('filename=') !== -1) {
-            const match = disposition.match(/filename="?([^"]+)"?/);
-            if (match && match[1]) {
-                filename = match[1];
-            }
-        }
-        a.download = filename;
-
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-
-        showMessage('success', 'Экспорт пользователей завершен');
     } catch (error) {
         console.error('Ошибка экспорта:', error);
         showMessage('danger', 'Ошибка при экспорте пользователей: ' + error.message);
@@ -1016,7 +997,7 @@ async function logout(event) {
     event.preventDefault();
     try {
         const response = await fetch('/CloudStorageApp/public/logout', {
-            method: 'POST',
+            method: 'GET',
             credentials: 'include',
             headers: {
                 'Accept': 'application/json'
@@ -1627,14 +1608,14 @@ async function refreshSystemHealth() {
         const health = data.health;
 
         let overallStatus = 'Здоровая';
-        let statusColor = '#198754'; 
+        let statusColor = '#198754';
 
         if (health.status === 'unhealthy' || health.status === 'error') {
             overallStatus = 'Проблемы';
-            statusColor = '#dc3545'; 
+            statusColor = '#dc3545';
         } else if (health.status === 'warning') {
             overallStatus = 'Предупреждение';
-            statusColor = '#ffc107'; 
+            statusColor = '#ffc107';
         }
 
         statusElem.innerHTML = '';

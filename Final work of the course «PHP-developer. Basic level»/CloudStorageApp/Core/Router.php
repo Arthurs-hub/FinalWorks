@@ -13,6 +13,7 @@ class Router
         '/users/logout' => ['GET' => ['App\Controllers\UserController', 'logout']],
         '/users/reset_password' => ['GET' => ['App\Controllers\UserController', 'resetPassword']],
         '/users/current' => ['GET' => ['App\Controllers\UserController', 'getCurrentUser']],
+        
 
         '/admin/users/list' => ['GET' => ['App\Controllers\AdminController', 'list']],
         '/admin/users/get/{id}' => ['GET' => ['App\Controllers\AdminController', 'get']],

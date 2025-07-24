@@ -65,7 +65,10 @@ class DirectoryController extends BaseController
     {
         $directoryId = $request->routeParams['id'] ?? null;
         $userId = $this->getCurrentUserId();
-        $result = $this->directoryService->deleteDirectory($directoryId, $userId);
+
+        $isAdmin = $this->isCurrentUserAdmin();
+
+        $result = $this->directoryService->deleteDirectory($directoryId, $userId, $isAdmin);
         return new Response($result);
     }
 
@@ -92,11 +95,16 @@ class DirectoryController extends BaseController
         return new Response($result);
     }
 
-     public function list(Request $request): Response
+    public function list(Request $request): Response
     {
         $directoryId = $request->getQueryParam('directory_id', 'root');
         $userId = $this->getCurrentUserId();
         $result = $this->directoryService->getDirectory($directoryId, $userId);
         return new Response($result);
+    }
+
+    protected function isCurrentUserAdmin(): bool
+    {
+        return !empty($_SESSION['is_admin']);
     }
 }

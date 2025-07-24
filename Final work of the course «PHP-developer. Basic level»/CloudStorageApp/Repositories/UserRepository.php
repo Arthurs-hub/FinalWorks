@@ -3,6 +3,8 @@
 namespace App\Repositories;
 
 use App\Core\Repository;
+use App\Core\Logger;
+use Exception;
 use PDO;
 
 class UserRepository extends Repository
@@ -17,13 +19,58 @@ class UserRepository extends Repository
         return parent::fetchAll($sql, $params);
     }
 
+    /**
+     * Получить количество администраторов
+     */
+    public function getAdminCount(): int
+    {
+        try {
+            $conn = $this->db->getConnection();
+            $stmt = $conn->prepare("SELECT COUNT(*) as admin_count FROM users WHERE is_admin = 1");
+            $stmt->execute();
+            $result = $stmt->fetch();
+
+            return (int)($result['admin_count'] ?? 0);
+        } catch (Exception $e) {
+            Logger::error("UserRepository::getAdminCount error", [
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
+    }
+
     public function findUserByEmail(string $email): ?array
     {
-        return $this->fetchOne("
-            SELECT id, email, first_name, last_name, role, is_admin, created_at, last_login
-            FROM users 
-            WHERE email = ?
-        ", [$email]);
+        try {
+            $conn = $this->db->getConnection();
+            $stmt = $conn->prepare("
+                SELECT id, email, first_name, last_name, is_admin, role 
+                FROM users 
+                WHERE email = :email
+            ");
+            $stmt->execute(['email' => $email]);
+            $user = $stmt->fetch();
+
+            return $user ?: null;
+        } catch (Exception $e) {
+            Logger::error("UserRepository::findUserByEmail error", [
+                'error' => $e->getMessage(),
+                'email' => $email
+            ]);
+            return null;
+        }
+    }
+
+    public function promoteToAdmin(int $userId): bool
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("
+            UPDATE users 
+            SET role = 'admin', is_admin = 1 
+            WHERE id = :user_id
+        ");
+        $stmt->execute(['user_id' => $userId]);
+        return $stmt->rowCount() > 0;
     }
 
     public function findByEmailWithPassword(string $email): ?array
@@ -39,7 +86,7 @@ class UserRepository extends Repository
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             return $result ?: null;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return null;
         }
     }
@@ -122,7 +169,7 @@ class UserRepository extends Repository
                 } else {
                     $results['failed'][] = $userId;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
 
                 $results['failed'][] = $userId;
             }
@@ -175,7 +222,7 @@ class UserRepository extends Repository
             ]);
 
             return $stmt->fetchAll() ?: [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [];
         }
     }
@@ -195,14 +242,36 @@ class UserRepository extends Repository
         return $user['is_admin'] == 1 || strtolower($user['role']) === 'admin';
     }
 
-    public function makeAdmin(int $userId): bool
+    public function makeAdmin(int $userId): array
     {
-        return $this->update('users', ['is_admin' => 1], ['id' => $userId]);
+        $user = $this->findById($userId);
+
+        if (!$user) {
+            return ['success' => false, 'error' => 'Пользователь не найден'];
+        }
+
+        $stmt = $this->db->getConnection()->prepare("UPDATE users SET is_admin = 1, role = 'admin' WHERE id = ?");
+        $stmt->execute([$userId]);
+
+        return ['success' => true, 'message' => 'Пользователь назначен администратором'];
     }
 
-    public function removeAdmin(int $userId): bool
+    public function removeAdmin(int $userId): array
     {
-        return $this->update('users', ['is_admin' => 0], ['id' => $userId]);
+        $user = $this->findById($userId);
+
+        if (!$user) {
+            return ['success' => false, 'error' => 'Пользователь не найден'];
+        }
+
+        if (!$user['is_admin']) {
+            return ['success' => false, 'error' => 'Пользователь не является администратором'];
+        }
+
+        $stmt = $this->db->getConnection()->prepare("UPDATE users SET is_admin = 0, role = 'user' WHERE id = ?");
+        $stmt->execute([$userId]);
+
+        return ['success' => true, 'message' => 'Права администратора сняты'];
     }
 
     public function updateLastLogin(int $userId): bool
@@ -212,7 +281,7 @@ class UserRepository extends Repository
             $stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
 
             return $stmt->execute([$userId]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
@@ -228,14 +297,13 @@ class UserRepository extends Repository
 
     public function updatePassword(int $userId, string $hashedPassword): bool
     {
-        try {
-            $conn = $this->db->getConnection();
-            $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+        $sql = "UPDATE users SET password = :password, updated_at = NOW() WHERE id = :id";
 
-            return $stmt->execute([$hashedPassword, $userId]);
-        } catch (\Exception $e) {
-            return false;
-        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindParam(':password', $hashedPassword, PDO::PARAM_STR);
+        $stmt->bindParam(':id', $userId, PDO::PARAM_INT);
+
+        return $stmt->execute();
     }
 
     public function userExists(int $userId): bool
@@ -246,7 +314,7 @@ class UserRepository extends Repository
             $stmt->execute([$userId]);
 
             return $stmt->fetch() !== false;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
@@ -320,7 +388,7 @@ class UserRepository extends Repository
                 'offset' => $offset,
                 'limit' => $limit,
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [
                 'users' => [],
                 'total' => 0,
@@ -343,7 +411,7 @@ class UserRepository extends Repository
             $stmt->execute([$days]);
 
             return $stmt->fetchAll() ?: [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [];
         }
     }
@@ -357,7 +425,7 @@ class UserRepository extends Repository
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             return (int)($result['count'] ?? 0);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return 0;
         }
     }
@@ -371,7 +439,7 @@ class UserRepository extends Repository
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             return (int)($result['count'] ?? 0);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return 0;
         }
     }
@@ -390,7 +458,7 @@ class UserRepository extends Repository
             $result = $stmt->fetch();
 
             return (int)($result['count'] ?? 0);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return 0;
         }
     }
@@ -408,7 +476,7 @@ class UserRepository extends Repository
             $stmt->execute([$days]);
 
             return $stmt->fetchAll() ?: [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [];
         }
     }
@@ -424,7 +492,7 @@ class UserRepository extends Repository
             ");
 
             return $stmt->execute([$token, $expiresAt, $userId]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
@@ -442,7 +510,7 @@ class UserRepository extends Repository
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             return $result ?: null;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return null;
         }
     }
@@ -458,7 +526,7 @@ class UserRepository extends Repository
             ");
 
             return $stmt->execute([$hashedPassword, $userId]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
@@ -475,7 +543,7 @@ class UserRepository extends Repository
             $stmt->execute();
 
             return $stmt->rowCount();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return 0;
         }
     }
@@ -487,7 +555,7 @@ class UserRepository extends Repository
             $stmt = $conn->prepare("UPDATE users SET is_banned = 1 WHERE id = ?");
 
             return $stmt->execute([$userId]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
@@ -510,7 +578,7 @@ class UserRepository extends Repository
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             return (bool)($result['is_banned'] ?? false);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }
@@ -545,7 +613,7 @@ class UserRepository extends Repository
             $stmt->execute([$userId, $days, $userId, $days]);
 
             return $stmt->fetchAll() ?: [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [];
         }
     }
@@ -567,7 +635,7 @@ class UserRepository extends Repository
             $stmt->execute([$days, $days]);
 
             return $stmt->fetchAll() ?: [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [];
         }
     }
@@ -606,7 +674,7 @@ class UserRepository extends Repository
             $stmt->execute();
 
             return $stmt->fetchAll() ?: [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [];
         }
     }
@@ -633,7 +701,7 @@ class UserRepository extends Repository
             $stmt->execute();
 
             return $stmt->fetchAll() ?: [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [];
         }
     }
@@ -645,5 +713,147 @@ class UserRepository extends Repository
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getTotalFilesCount(): int
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM files");
+        $stmt->execute();
+        $result = $stmt->fetch();
+        return (int)($result['count'] ?? 0);
+    }
+
+    public function getTotalFilesSize(): int
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("SELECT COALESCE(SUM(size), 0) as total_size FROM files");
+        $stmt->execute();
+        $result = $stmt->fetch();
+        return (int)($result['total_size'] ?? 0);
+    }
+
+    public function getTotalDirectoriesCount(): int
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM directories");
+        $stmt->execute();
+        $result = $stmt->fetch();
+        return (int)($result['count'] ?? 0);
+    }
+
+    public function getTotalSharesCount(): int
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM shared_items");
+        $stmt->execute();
+        $result = $stmt->fetch();
+        return (int)($result['count'] ?? 0);
+    }
+
+    public function getRecentUsers(int $limit = 5): array
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("
+            SELECT id, email, first_name, last_name, created_at, is_admin
+            FROM users 
+            ORDER BY created_at DESC 
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
+        return $stmt->fetchAll() ?: [];
+    }
+
+    public function getTopUsersByFiles(int $limit = 5): array
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("
+            SELECT 
+                u.id,
+                u.email,
+                u.first_name,
+                u.last_name,
+                COUNT(f.id) as files_count,
+                COALESCE(SUM(f.size), 0) as total_size
+            FROM users u
+            LEFT JOIN files f ON u.id = f.user_id
+            GROUP BY u.id, u.email, u.first_name, u.last_name
+            ORDER BY files_count DESC, total_size DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
+        return $stmt->fetchAll() ?: [];
+    }
+
+    public function createUserWithRootDirectory(array $userData): int
+    {
+        $conn = $this->db->getConnection();
+        $conn->beginTransaction();
+        try {
+            $userId = $this->create($userData);
+            $directoryRepo = new \App\Repositories\DirectoryRepository();
+            $directoryRepo->createRootDirectory($userId);
+            $conn->commit();
+            return $userId;
+        } catch (Exception $e) {
+            $conn->rollBack();
+            throw $e;
+        }
+    }
+
+    public function getUserFiles(int $userId): array
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("
+            SELECT id, filename, mime_type, size, created_at, directory_id
+            FROM files 
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll() ?: [];
+    }
+
+    public function getUserDirectories(int $userId): array
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("
+            SELECT id, name, parent_id, created_at
+            FROM directories 
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll() ?: [];
+    }
+
+    public function getUserSharedFiles(int $userId): array
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("
+            SELECT f.id, f.filename, u.email as shared_with, si.created_at as shared_at
+            FROM files f
+            JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
+            JOIN users u ON si.shared_with_user_id = u.id
+            WHERE f.user_id = ?
+            ORDER BY si.created_at DESC
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll() ?: [];
+    }
+
+    public function getUserReceivedShares(int $userId): array
+    {
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare("
+            SELECT f.id, f.filename, u.email as shared_by, si.created_at as shared_at
+            FROM files f
+            JOIN shared_items si ON f.id = si.item_id AND si.item_type = 'file'
+            JOIN users u ON si.shared_by_user_id = u.id
+            WHERE si.shared_with_user_id = ?
+            ORDER BY si.created_at DESC
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll() ?: [];
     }
 }

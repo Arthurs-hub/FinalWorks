@@ -13,6 +13,26 @@ abstract class Repository
         $this->db = new Db();
     }
 
+    protected function prepare(string $sql)
+    {
+        return $this->db->getConnection()->prepare($sql);
+    }
+
+    protected function query(string $sql)
+    {
+        return $this->db->query($sql);
+    }
+
+    protected function exec(string $sql)
+    {
+        return $this->db->exec($sql);
+    }
+
+    protected function lastInsertId()
+    {
+        return $this->db->lastInsertId();
+    }
+
     protected function fetchOne(string $sql, array $params = []): ?array
     {
         try {
@@ -87,8 +107,8 @@ abstract class Repository
         try {
             $conn = $this->db->getConnection();
 
-            $setClause = implode(', ', array_map(fn ($key) => "{$key} = :{$key}", array_keys($data)));
-            $whereClause = implode(' AND ', array_map(fn ($key) => "{$key} = :where_{$key}", array_keys($where)));
+            $setClause = implode(', ', array_map(fn($key) => "{$key} = :{$key}", array_keys($data)));
+            $whereClause = implode(' AND ', array_map(fn($key) => "{$key} = :where_{$key}", array_keys($where)));
 
             $sql = "UPDATE {$table} SET {$setClause} WHERE {$whereClause}";
 
@@ -117,12 +137,14 @@ abstract class Repository
         try {
             $conn = $this->db->getConnection();
 
-            $whereClause = implode(' AND ', array_map(fn ($key) => "{$key} = :{$key}", array_keys($where)));
+            $whereClause = implode(' AND ', array_map(fn($key) => "{$key} = :{$key}", array_keys($where)));
             $sql = "DELETE FROM {$table} WHERE {$whereClause}";
 
             $stmt = $conn->prepare($sql);
+            $executed = $stmt->execute($where);
 
-            return $stmt->execute($where);
+            // Проверяем, была ли удалена хотя бы одна строка
+            return $executed && $stmt->rowCount() > 0;
         } catch (\Exception $e) {
             Logger::error("Repository delete error", [
                 'table' => $table,
@@ -139,7 +161,7 @@ abstract class Repository
         try {
             $conn = $this->db->getConnection();
 
-            $whereClause = implode(' AND ', array_map(fn ($key) => "{$key} = :{$key}", array_keys($where)));
+            $whereClause = implode(' AND ', array_map(fn($key) => "{$key} = :{$key}", array_keys($where)));
             $sql = "SELECT 1 FROM {$table} WHERE {$whereClause} LIMIT 1";
 
             $stmt = $conn->prepare($sql);
@@ -166,7 +188,7 @@ abstract class Repository
             $params = [];
 
             if (! empty($where)) {
-                $whereClause = implode(' AND ', array_map(fn ($key) => "{$key} = :{$key}", array_keys($where)));
+                $whereClause = implode(' AND ', array_map(fn($key) => "{$key} = :{$key}", array_keys($where)));
                 $sql .= " WHERE {$whereClause}";
                 $params = $where;
             }

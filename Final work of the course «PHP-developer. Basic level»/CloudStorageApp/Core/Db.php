@@ -7,40 +7,63 @@ use PDOException;
 
 class Db
 {
-    private ?PDO $connection = null;
-    private array $config;
+    private static ?PDO $instance = null;
+    private static array $config;
 
-    public function __construct()
+    public static function getInstance(): PDO
     {
-        $this->config = require __DIR__ . '/../config/config.php';
-    }
+        if (self::$instance === null) {
+            self::$config = require __DIR__ . '/../config/config.php';
 
-    public function getConnection(): PDO
-    {
-        if ($this->connection === null) {
+            $dsn = sprintf(
+                'mysql:host=%s;dbname=%s;charset=%s',
+                self::$config['database']['host'],
+                self::$config['database']['dbname'],
+                self::$config['database']['charset']
+            );
+
             try {
-                $this->connection = new PDO(
-                    $this->config['db_dsn'],
-                    $this->config['db_user'],
-                    $this->config['db_pass'],
+                self::$instance = new PDO(
+                    $dsn,
+                    self::$config['database']['username'],
+                    self::$config['database']['password'],
                     [
                         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8",
+                        PDO::ATTR_EMULATE_PREPARES => false,
                     ]
                 );
             } catch (PDOException $e) {
-                error_log("Database connection error: " . $e->getMessage());
-
-                throw new \RuntimeException("Ошибка подключения к базе данных");
+                throw new PDOException("Database connection failed: " . $e->getMessage());
             }
         }
 
-        return $this->connection;
+        return self::$instance;
     }
 
-    public function closeConnection(): void
+    public function getConnection()
     {
-        $this->connection = null;
+        return self::getInstance();
+    }
+
+
+    public static function prepare(string $sql)
+    {
+        return self::getInstance()->prepare($sql);
+    }
+
+    public static function query(string $sql)
+    {
+        return self::getInstance()->query($sql);
+    }
+
+    public static function exec(string $sql)
+    {
+        return self::getInstance()->exec($sql);
+    }
+
+    public static function lastInsertId()
+    {
+        return self::getInstance()->lastInsertId();
     }
 }
