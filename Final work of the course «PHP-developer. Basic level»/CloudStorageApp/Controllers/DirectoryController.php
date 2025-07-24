@@ -11,9 +11,9 @@ class DirectoryController extends BaseController
 {
     private DirectoryService $directoryService;
 
-    public function __construct()
+    public function __construct(DirectoryService $directoryService)
     {
-        $this->directoryService = new DirectoryService();
+        $this->directoryService = $directoryService;
     }
 
     public function add(Request $request): Response
@@ -71,6 +71,7 @@ class DirectoryController extends BaseController
         $result = $this->directoryService->deleteDirectory($directoryId, $userId, $isAdmin);
         return new Response($result);
     }
+
 
     public function share(Request $request): Response
     {

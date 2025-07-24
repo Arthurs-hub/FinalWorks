@@ -9,16 +9,17 @@ use App\Services\DirectoryService;
 use App\Services\UserService;
 
 
+
 class FileService
 {
     private FileRepository $fileRepository;
     private DirectoryService $directoryService;
     private UserService $userService;
 
-    public function __construct()
+    public function __construct(DirectoryService $directoryService)
     {
+        $this->directoryService = $directoryService;
         $this->fileRepository = new FileRepository();
-        $this->directoryService = new DirectoryService();
         $this->userService = new UserService();
     }
 

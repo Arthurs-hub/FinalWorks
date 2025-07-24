@@ -245,7 +245,7 @@ class DirectoryRepository extends Repository
         }
     }
 
-    private function getDirectoryById(int $id, int $userId): ?array
+    protected function getDirectoryById(int $id, int $userId): ?array
     {
         $conn = $this->db->getConnection();
         $stmt = $conn->prepare("
@@ -284,6 +284,12 @@ class DirectoryRepository extends Repository
         ");
         $stmt->execute([$userId, $userId, $userId, $userId, $id, $userId, $userId]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+
+    public function getDirectoryByIdPublic(int $id, int $userId): array|null
+    {
+        return $this->getDirectoryById($id, $userId);
     }
 
     private function getSubdirectories(int $directoryId, int $userId): array

@@ -5,14 +5,15 @@ namespace App\Controllers;
 use App\Core\Request;
 use App\Core\Response;
 use App\Services\FileService;
+use App\Services\DirectoryService;
 
 class FileController extends BaseController
 {
     private FileService $fileService;
 
-    public function __construct()
+    public function __construct(FileService $fileService, DirectoryService $directoryService)
     {
-        $this->fileService = new FileService();
+        $this->fileService = $fileService;
     }
 
     public function upload(Request $request): Response

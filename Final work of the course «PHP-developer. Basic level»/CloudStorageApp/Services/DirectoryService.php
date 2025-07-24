@@ -16,11 +16,12 @@ class DirectoryService
     private DirectoryRepository $directoryRepository;
     private DirectoryValidator $directoryValidator;
 
-    public function __construct()
+    public function __construct(DirectoryRepository $directoryRepository)
     {
         $this->userRepository = new UserRepository();
         $this->directoryRepository = new DirectoryRepository();
         $this->directoryValidator = new DirectoryValidator();
+        $this->directoryRepository = $directoryRepository;
     }
 
     public function addDirectory(array $data, int $userId): array
@@ -209,21 +210,31 @@ class DirectoryService
     }
 
     public function deleteDirectory(?string $directoryId, int $userId, bool $isAdmin = false): array
-    {
-        try {
-            $id = ($directoryId === 'root' || $directoryId === null || $directoryId === '' || $directoryId === 0 || $directoryId === '0') ? null : (int)$directoryId;
+{
+    try {
+        $id = ($directoryId === 'root' || empty($directoryId)) ? null : (int)$directoryId;
 
-            if (!$isAdmin && !$this->directoryRepository->checkDirectoryOwnership($id, $userId)) {
-                return ['success' => false, 'error' => 'Вы можете удалять только свои папки'];
-            }
-
-            $result = $this->directoryRepository->deleteDirectory($id, $userId);
-            return ['success' => $result, 'message' => $result ? 'Папка удалена' : 'Ошибка удаления'];
-        } catch (Exception $e) {
-            Logger::error("DirectoryService::deleteDirectory error", ['error' => $e->getMessage()]);
-            return ['success' => false, 'error' => 'Ошибка при удалении папки'];
+        $directory = $this->directoryRepository->getDirectoryByIdPublic($directoryId, $userId);
+        if (!$directory) {
+            return ['success' => false, 'error' => 'Папка не найдена'];
         }
+
+        if (!$isAdmin && !$this->directoryRepository->checkDirectoryOwnership($id, $userId)) {
+            return ['success' => false, 'error' => 'Вы можете удалять только свои папки'];
+        }
+
+        $result = $this->directoryRepository->deleteDirectory($id, $userId);
+
+        if (!$result) {
+            return ['success' => false, 'error' => 'Ошибка удаления'];
+        }
+
+        return ['success' => true, 'message' => 'Папка удалена'];
+    } catch (Exception $e) {
+        Logger::error("DirectoryService::deleteDirectory error", ['error' => $e->getMessage()]);
+        return ['success' => false, 'error' => 'Ошибка при удалении папки'];
     }
+}
 
     public function shareDirectory(array $data, int $userId): array
     {

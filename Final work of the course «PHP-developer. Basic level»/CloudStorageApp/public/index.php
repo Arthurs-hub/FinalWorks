@@ -220,7 +220,26 @@ $request = new Request();
 $request->routeParams = $params;
 
 try {
-    $controller = new $controllerClass();
+    
+    if ($controllerClass === 'App\Controllers\FileController') {
+        
+        $directoryService = new App\Services\DirectoryService(new App\Repositories\DirectoryRepository());
+        $fileService = new App\Services\FileService($directoryService);
+        $controller = new $controllerClass($fileService, $directoryService);
+    } elseif ($controllerClass === 'App\Controllers\DirectoryController') {
+        $directoryRepository = new App\Repositories\DirectoryRepository();
+        $directoryService = new App\Services\DirectoryService($directoryRepository);
+        $controller = new $controllerClass($directoryService);
+    } elseif ($controllerClass === 'App\Controllers\UserController') {
+       
+        $userRepository = new App\Repositories\UserRepository();
+        $userService = new App\Services\UserService();
+        $controller = new $controllerClass($userService);
+    } else {
+        
+        $controller = new $controllerClass();
+    }
+
     $response = $controller->$methodName($request);
 
     if ($response instanceof Response) {
