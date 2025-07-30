@@ -67,10 +67,9 @@ class AuthMiddleware
             '/login',
             '/register',
             '/password-reset-public',
-            '/CloudStorageApp/public/',
-            '/CloudStorageApp/public/login.html',
-            '/CloudStorageApp/public/register.html',
-            '/CloudStorageApp/public/password-reset.html',
+            '/login.html',
+            '/register.html',
+            '/password-reset.html',
         ];
 
         foreach ($publicRoutes as $route) {
@@ -86,12 +85,10 @@ class AuthMiddleware
     {
         $adminRoutes = [
             '/admin/',
-            '/CloudStorageApp/public/admin/',
-            '/CloudStorageApp/admin/',
         ];
 
         foreach ($adminRoutes as $route) {
-            if (strpos($path, $route) !== false) {
+            if (strpos($path, $route) === 0) {
                 return true;
             }
         }

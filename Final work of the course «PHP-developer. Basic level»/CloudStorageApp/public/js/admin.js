@@ -5,7 +5,7 @@ let currentFiles = [];
 async function checkAuth() {
     try {
 
-        const response = await fetch('/CloudStorageApp/public/users/current', {
+        const response = await fetch('/users/current', {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -43,7 +43,7 @@ async function checkAuth() {
         showMessage('danger', 'Ошибка при инициализации панели администратора: ' + error.message);
 
         setTimeout(() => {
-            window.location.href = '/CloudStorageApp/public/login.html';
+            window.location.href = '/login.html';
         }, 2000);
 
         throw error;
@@ -280,7 +280,7 @@ function showStatsError() {
 
 async function loadUsers() {
     try {
-        const response = await fetch('/CloudStorageApp/public/admin/users', {
+        const response = await fetch('/admin/users', {
             method: 'GET',
             credentials: 'include',
             headers: { 'Accept': 'application/json' }
@@ -462,7 +462,7 @@ async function createUser() {
             is_admin: document.getElementById('createUserIsAdmin').checked ? 1 : 0,
         };
 
-        const response = await fetch('/CloudStorageApp/public/admin/users/create', {
+        const response = await fetch('/admin/users/create', {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -565,7 +565,7 @@ async function saveUserChanges() {
             updateData.password = password.trim();
         }
 
-        const response = await fetch(`/CloudStorageApp/public/admin/users/${userId}`, {
+        const response = await fetch(`/admin/users/update/${userId}`, {
             method: 'PUT',
             credentials: 'include',
             headers: {
@@ -727,7 +727,7 @@ async function deleteUser(userId) {
     }
 
     try {
-        const response = await fetch(`/CloudStorageApp/public/admin/users/${userId}`, {
+        const response = await fetch(`/admin/users/delete/${userId}`, {
             method: 'DELETE',
             credentials: 'include',
             headers: {
@@ -765,7 +765,7 @@ async function deleteUser(userId) {
 
 async function clearLogs() {
     try {
-        const response = await fetch('/CloudStorageApp/public/admin/logs/clear', {
+        const response = await fetch('/admin/logs/clear', {
             method: 'DELETE',
             credentials: 'include',
             headers: {
@@ -795,7 +795,7 @@ async function exportUsers() {
     try {
 
         const link = document.createElement('a');
-        link.href = '/CloudStorageApp/public/admin/users/export/download';
+        link.href = '/admin/users/export/download';
         link.download = `users_export_${new Date().toISOString().slice(0, 10)}.csv`;
 
         document.body.appendChild(link);
@@ -996,7 +996,7 @@ function cleanupModals() {
 async function logout(event) {
     event.preventDefault();
     try {
-        const response = await fetch('/CloudStorageApp/public/logout', {
+        const response = await fetch('/logout', {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -1004,7 +1004,7 @@ async function logout(event) {
             }
         });
         if (response.ok) {
-            window.location.href = '/CloudStorageApp/public/login.html';
+            window.location.href = '/login.html';
         } else {
             showMessage('danger', 'Ошибка при выходе из системы');
         }
@@ -1067,7 +1067,7 @@ async function loadLogs() {
     </div>`;
 
     try {
-        const response = await fetch(`/CloudStorageApp/public/admin/logs?level=${encodeURIComponent(level)}`, {
+        const response = await fetch(`/admin/logs?level=${encodeURIComponent(level)}`, {
             credentials: 'include',
             headers: { 'Accept': 'application/json' }
         });
@@ -1125,7 +1125,7 @@ async function loadLogs() {
 
 async function loadFiles() {
     try {
-        const response = await fetch('/CloudStorageApp/public/admin/files', {
+        const response = await fetch('/admin/files', {
             method: 'GET',
             credentials: 'include',
             headers: { 'Accept': 'application/json' }
@@ -1276,7 +1276,7 @@ function showFileModal(file) {
             <div class="col-12 mb-3">
                 <div class="text-center">
                     ${isImage ? `
-                        <img src="/CloudStorageApp/public/files/download/${file.id}" 
+                        <img src="/files/download/${file.id}" 
                              alt="${file.filename || 'Изображение'}" 
                              class="img-fluid" 
                              style="max-height: 300px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
@@ -1404,7 +1404,7 @@ function showFileModal(file) {
 
 async function loadPdfPreview(fileId) {
     try {
-        const response = await fetch(`/CloudStorageApp/public/files/download/${fileId}`, {
+        const response = await fetch(`/files/download/${fileId}`, {
             method: 'GET',
             credentials: 'include'
         });
@@ -1452,7 +1452,7 @@ async function openPdfInNewTab(fileId) {
         button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Загрузка...';
         button.disabled = true;
 
-        const response = await fetch(`/CloudStorageApp/public/files/download/${fileId}`, {
+        const response = await fetch(`/files/download/${fileId}`, {
             method: 'GET',
             credentials: 'include'
         });
@@ -1513,7 +1513,7 @@ function deleteFileFromModal() {
 
 function downloadFile(fileId) {
 
-    const url = `/CloudStorageApp/public/files/download/${fileId}`;
+    const url = `/files/download/${fileId}`;
     window.open(url, '_blank');
 }
 
@@ -1524,7 +1524,7 @@ async function deleteFile(fileId) {
 
     try {
 
-        const response = await fetch(`/CloudStorageApp/public/admin/files/${fileId}`, {
+        const response = await fetch(`/admin/files/${fileId}`, {
             method: 'DELETE',
             credentials: 'include',
             headers: {
@@ -1555,7 +1555,7 @@ async function deleteFile(fileId) {
 
 async function loadStats() {
     try {
-        const response = await fetch('/CloudStorageApp/public/admin/stats', {
+        const response = await fetch('/admin/stats', {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -1593,7 +1593,7 @@ async function refreshSystemHealth() {
     detailsElem.textContent = 'Загрузка...';
 
     try {
-        const response = await fetch('/CloudStorageApp/public/admin/system/health', {
+        const response = await fetch('/admin/system/health', {
             method: 'GET',
             credentials: 'include',
             headers: { 'Accept': 'application/json' }
@@ -1671,7 +1671,7 @@ async function cleanupFiles() {
     }
 
     try {
-        const response = await fetch('/CloudStorageApp/public/admin/files/clear', {
+        const response = await fetch('/admin/files/clear', {
             method: 'DELETE',
             credentials: 'include',
             headers: {

@@ -285,7 +285,8 @@ class FileService
         }
 
         try {
-            $file = $this->fileRepository->getFileForShare($fileId, $userId);
+
+            $file = $this->fileRepository->getFileInfo($fileId, $userId);
             if (!$file) {
                 return ['success' => false, 'error' => 'Файл не найден или нет прав доступа'];
             }

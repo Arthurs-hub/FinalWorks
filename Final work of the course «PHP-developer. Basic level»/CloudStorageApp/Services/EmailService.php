@@ -18,11 +18,11 @@ class EmailService
 
     public function sendPasswordResetEmail(string $email, string $resetToken, string $userName): bool
     {
-        require_once __DIR__ . '/../../vendor/autoload.php';
+        require_once __DIR__ . '/../vendor/autoload.php';
 
         $emailConfig = $this->config['email'];
         $provider = $this->selectEmailProvider($emailConfig);
-        $resetLink = $this->config['app']['url'] . '/CloudStorageApp/public/reset-password.html?token=' . urlencode($resetToken);
+        $resetLink = $this->config['app']['url'] . '/reset-password.html?token=' . urlencode($resetToken);
 
         $mail = new PHPMailer(true);
 

@@ -15,7 +15,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-
 $startTime = microtime(true);
 
 spl_autoload_register(function ($class) {
@@ -37,29 +36,64 @@ Logger::info("Request started", [
     'user_id' => $_SESSION['user_id'] ?? null,
 ]);
 
-
 error_log("Incoming request URI: " . $_SERVER['REQUEST_URI']);
 error_log("Session user_id: " . ($_SESSION['user_id'] ?? 'none'));
 
 $urlList = [
 
+    // Public routes
     '/register' => ['POST' => ['App\Controllers\UserController', 'register']],
     '/login' => ['POST' => ['App\Controllers\UserController', 'login']],
     '/logout' => ['GET' => ['App\Controllers\UserController', 'logout']],
-    '/reset_password' => ['POST' => ['App\Controllers\UserController', 'publicPasswordReset']], // Основной роут как указал куратор
+    '/reset_password' => ['POST' => ['App\Controllers\UserController', 'publicPasswordReset']],
     '/create-first-admin' => ['POST' => ['App\Controllers\UserController', 'createFirstAdmin']],
-
 
     '/password-reset-request' => ['POST' => ['App\Controllers\UserController', 'requestPasswordReset']],
     '/password-reset-confirm' => ['POST' => ['App\Controllers\UserController', 'resetPasswordWithToken']],
     '/password-reset-validate' => ['POST' => ['App\Controllers\UserController', 'validateResetToken']],
 
+    // Admin users routes 
+    '/admin/users/list' => ['GET' => ['App\Controllers\AdminController', 'getUsers']],
+    '/admin/users/export' => ['GET' => ['App\Controllers\AdminController', 'exportUsers']],
+    '/admin/users/export/download' => ['GET' => ['App\Controllers\AdminController', 'downloadUsersExport']],
+    '/admin/users/bulk-delete' => ['DELETE' => ['App\Controllers\AdminController', 'bulkDeleteUsers']],
+    '/admin/users' => ['GET' => ['App\Controllers\AdminController', 'getUsers']],
 
+    // Admin users routes with id parameter - with numeric id constraints implied
+    '/admin/users/get/{id}' => [
+        'GET' => ['App\Controllers\AdminController', 'getUser'],
+        'PUT' => ['App\Controllers\AdminController', 'updateUser'],
+    ],
+    '/admin/users/update/{id}' => ['PUT' => ['App\Controllers\AdminController', 'updateUser']],
+    '/admin/users/delete/{id}' => ['DELETE' => ['App\Controllers\AdminController', 'deleteUser']],
+    '/admin/users/{id}/make-admin' => ['POST' => ['App\Controllers\AdminController', 'makeAdmin']],
+    '/admin/users/{id}/remove-admin' => ['PATCH' => ['App\Controllers\AdminController', 'removeAdmin']],
+
+    // Admin logs and reports
     '/admin/logs' => ['GET' => ['App\Controllers\AdminController', 'getLogs']],
     '/admin/logs/clear' => ['DELETE' => ['App\Controllers\AdminController', 'clearLogs']],
     '/admin/security/report' => ['GET' => ['App\Controllers\AdminController', 'getSecurityReport']],
 
+    // Admin users search
+    '/admin/users/search' => ['GET' => ['App\Controllers\AdminController', 'searchUsers']],
 
+    // Admin stats
+    '/admin/stats' => ['GET' => ['App\Controllers\AdminController', 'getStats']],
+
+    // Admin files routes - list and cleanup first
+    '/admin/files/list' => ['GET' => ['App\Controllers\AdminController', 'getFiles']],
+    '/admin/files' => ['GET' => ['App\Controllers\AdminController', 'getFiles']],
+    '/admin/files/cleanup' => ['DELETE' => ['App\Controllers\AdminController', 'cleanupFiles']],
+    '/admin/files/clear' => ['DELETE' => ['App\Controllers\AdminController', 'clearFiles']],
+    '/admin/files/{id}' => ['DELETE' => ['App\Controllers\AdminController', 'deleteFile']],
+
+    // Admin system health
+    '/admin/system/health' => ['GET' => ['App\Controllers\AdminController', 'getSystemHealth']],
+
+    // Admin directories routes
+    '/admin/directories/delete/{id}' => ['DELETE' => ['App\Controllers\DirectoryController', 'delete']],
+
+    // User routes
     '/users/current' => ['GET' => ['App\Controllers\UserController', 'getCurrentUser']],
     '/users/list' => ['GET' => ['App\Controllers\UserController', 'list']],
     '/users/get/{id}' => ['GET' => ['App\Controllers\UserController', 'get']],
@@ -69,31 +103,7 @@ $urlList = [
     '/users/stats/{id}' => ['GET' => ['App\Controllers\UserController', 'getUserStats']],
     '/users/change-password' => ['PUT' => ['App\Controllers\UserController', 'changePassword']],
 
-
-    '/admin/users/bulk-delete' => ['DELETE' => ['App\Controllers\AdminController', 'bulkDeleteUsers']],
-    '/admin/stats' => ['GET' => ['App\Controllers\AdminController', 'getStats']],
-    '/admin/users' => ['GET' => ['App\Controllers\AdminController', 'getUsers']],
-    '/admin/users/list' => ['GET' => ['App\Controllers\AdminController', 'getUsers']],
-    '/admin/users/export' => ['GET' => ['App\Controllers\AdminController', 'exportUsers']],
-    '/admin/users/export/download' => ['GET' => ['App\Controllers\AdminController', 'downloadUsersExport']],
-    '/admin/files' => ['GET' => ['App\Controllers\AdminController', 'getFiles']],
-    '/admin/files/list' => ['GET' => ['App\Controllers\AdminController', 'getFiles']],
-    '/admin/files/cleanup' => ['DELETE' => ['App\Controllers\AdminController', 'cleanupFiles']],
-    '/admin/files/clear' => ['DELETE' => ['App\Controllers\AdminController', 'clearFiles']],
-    '/admin/files/{id}' => ['DELETE' => ['App\Controllers\AdminController', 'deleteFile']],
-    '/admin/users/{id}' => [
-        'GET' => ['App\Controllers\AdminController', 'getUser'],
-        'PUT' => ['App\Controllers\AdminController', 'updateUser'],
-        'DELETE' => ['App\Controllers\AdminController', 'deleteUser']
-    ],
-    '/admin/users/update/{id}' => ['PUT' => ['App\Controllers\AdminController', 'updateUser']],
-    '/admin/users/{id}/make-admin' => ['POST' => ['App\Controllers\AdminController', 'makeAdmin']],
-    '/admin/users/{id}/remove-admin' => ['PATCH' => ['App\Controllers\AdminController', 'removeAdmin']],
-    '/admin/users/search' => ['GET' => ['App\Controllers\AdminController', 'searchUsers']],
-    '/admin/system/health' => ['GET' => ['App\Controllers\AdminController', 'getSystemHealth']],
-    '/admin/directories/delete/{id}' => ['DELETE' => ['App\Controllers\DirectoryController', 'delete']],
-
-
+    // File routes
     '/files/list' => [
         'GET' => ['App\Controllers\FileController', 'list'],
         'POST' => ['App\Controllers\FileController', 'list'],
@@ -118,7 +128,7 @@ $urlList = [
     '/files/bulk-delete' => ['DELETE' => ['App\Controllers\FileController', 'bulkDelete']],
     '/files/shared' => ['GET' => ['App\Controllers\FileController', 'getSharedFiles']],
 
-
+    // Directory routes
     '/directories/get/{id}' => ['GET' => ['App\Controllers\DirectoryController', 'get']],
     '/directories/share' => ['POST' => ['App\Controllers\DirectoryController', 'share']],
     '/directories/add' => ['POST' => ['App\Controllers\DirectoryController', 'add']],
@@ -131,17 +141,25 @@ $urlList = [
     '/directories/list' => ['GET' => ['App\Controllers\DirectoryController', 'list']],
     '/directories/shared' => ['GET' => ['App\Controllers\DirectoryController', 'getSharedDirectories']],
 
-
+    // Misc
     '/hello' => ['GET' => ['App\Controllers\UserController', 'hello']],
 ];
 
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$scriptName = dirname($_SERVER['SCRIPT_NAME']);
-$route = '/' . ltrim(str_replace($scriptName, '', $requestUri), '/');
+$method = $_SERVER['REQUEST_METHOD'];
+
+$route = $requestUri;
+
+if (strpos($route, '/get/') === 0) {
+    $route = substr($route, 4); 
+    if ($route === '') {
+        $route = '/';
+    }
+}
+
 $route = rtrim($route, '/');
 
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-
+error_log("Parsed route after '/get' removal: " . $route);
 error_log("Request URI: " . $_SERVER['REQUEST_URI']);
 error_log("Parsed route: " . $route);
 error_log("Request method: " . $method);
@@ -150,9 +168,14 @@ function matchRoute($route, $urlList, &$params): array
 {
     foreach ($urlList as $pattern => $methods) {
         error_log("Checking route pattern: $pattern");
+
         $regex = preg_replace_callback('#\{([a-zA-Z_][a-zA-Z0-9_]*)}#', function ($matches) {
+            if ($matches[1] === 'id') {
+                return '(?P<' . $matches[1] . '>(root|\d+))'; 
+            }
             return '(?P<' . $matches[1] . '>[^/]+)';
         }, $pattern);
+
         $regex = '#^' . $regex . '$#';
 
         if (preg_match($regex, $route, $matches)) {
@@ -175,6 +198,9 @@ function matchRoute($route, $urlList, &$params): array
 $params = [];
 [$matchedPattern, $methods] = matchRoute($route, $urlList, $params);
 
+error_log("Final matched route pattern: " . $matchedPattern);
+error_log("Route params: " . json_encode($params));
+
 if ($matchedPattern === null || !isset($methods[$method])) {
     http_response_code(404);
     header('Content-Type: application/json');
@@ -182,7 +208,13 @@ if ($matchedPattern === null || !isset($methods[$method])) {
     exit;
 }
 
-[$controllerClass, $methodName] = $methods[$method];
+if (isset($methods[$method]) && is_array($methods[$method])) {
+    [$controllerClass, $methodName] = $methods[$method];
+} else {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    exit;
+}
 
 $publicRoutes = [
     '/register',
@@ -195,7 +227,6 @@ $publicRoutes = [
 ];
 $adminRoutes = [
     '/admin/'
-
 ];
 
 $isPublicRoute = in_array($route, $publicRoutes);
@@ -220,9 +251,9 @@ $request = new Request();
 $request->routeParams = $params;
 
 try {
-    
+
     if ($controllerClass === 'App\Controllers\FileController') {
-        
+
         $directoryService = new App\Services\DirectoryService(new App\Repositories\DirectoryRepository());
         $fileService = new App\Services\FileService($directoryService);
         $controller = new $controllerClass($fileService, $directoryService);
@@ -231,12 +262,12 @@ try {
         $directoryService = new App\Services\DirectoryService($directoryRepository);
         $controller = new $controllerClass($directoryService);
     } elseif ($controllerClass === 'App\Controllers\UserController') {
-       
+
         $userRepository = new App\Repositories\UserRepository();
         $userService = new App\Services\UserService();
         $controller = new $controllerClass($userService);
     } else {
-        
+
         $controller = new $controllerClass();
     }
 

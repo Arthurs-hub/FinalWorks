@@ -86,6 +86,7 @@ class DirectoryService
         }
     }
 
+
     public function renameDirectory(array $data, int $userId): array
     {
         $validation = $this->directoryValidator->validateRenameDirectory($data);
@@ -96,6 +97,10 @@ class DirectoryService
         try {
             $id = $data['id'] ?? null;
             $newName = $data['new_name'] ?? null;
+
+            if (!$this->directoryRepository->checkDirectoryAccess($id, $userId)) {
+                return ['success' => false, 'error' => 'Нет прав доступа к папке'];
+            }
 
             $result = $this->directoryRepository->renameDirectory($id, $newName, $userId);
 
@@ -210,31 +215,31 @@ class DirectoryService
     }
 
     public function deleteDirectory(?string $directoryId, int $userId, bool $isAdmin = false): array
-{
-    try {
-        $id = ($directoryId === 'root' || empty($directoryId)) ? null : (int)$directoryId;
+    {
+        try {
+            $id = ($directoryId === 'root' || empty($directoryId)) ? null : (int)$directoryId;
 
-        $directory = $this->directoryRepository->getDirectoryByIdPublic($directoryId, $userId);
-        if (!$directory) {
-            return ['success' => false, 'error' => 'Папка не найдена'];
+            $directory = $this->directoryRepository->getDirectoryByIdPublic($directoryId, $userId, $isAdmin);
+            if (!$directory) {
+                return ['success' => false, 'error' => 'Папка не найдена'];
+            }
+
+            if (!$isAdmin && !$this->directoryRepository->checkDirectoryOwnership($id, $userId)) {
+                return ['success' => false, 'error' => 'Вы можете удалять только свои папки'];
+            }
+
+            $result = $this->directoryRepository->deleteDirectory($id, $userId, $isAdmin);
+
+            if (!$result) {
+                return ['success' => false, 'error' => 'Ошибка удаления'];
+            }
+
+            return ['success' => true, 'message' => 'Папка удалена'];
+        } catch (Exception $e) {
+            Logger::error("DirectoryService::deleteDirectory error", ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => 'Ошибка при удалении папки'];
         }
-
-        if (!$isAdmin && !$this->directoryRepository->checkDirectoryOwnership($id, $userId)) {
-            return ['success' => false, 'error' => 'Вы можете удалять только свои папки'];
-        }
-
-        $result = $this->directoryRepository->deleteDirectory($id, $userId);
-
-        if (!$result) {
-            return ['success' => false, 'error' => 'Ошибка удаления'];
-        }
-
-        return ['success' => true, 'message' => 'Папка удалена'];
-    } catch (Exception $e) {
-        Logger::error("DirectoryService::deleteDirectory error", ['error' => $e->getMessage()]);
-        return ['success' => false, 'error' => 'Ошибка при удалении папки'];
     }
-}
 
     public function shareDirectory(array $data, int $userId): array
     {
@@ -249,6 +254,10 @@ class DirectoryService
             $folderId = $data['folder_id'] ?? $data['directory_id'] ?? null;
             if (!$folderId) {
                 return ['success' => false, 'error' => 'ID папки не указан'];
+            }
+
+            if (!$this->directoryRepository->checkDirectoryAccess($folderId, $userId)) {
+                return ['success' => false, 'error' => 'Нет прав доступа к папке'];
             }
 
             $targetEmail = $data['email'] ?? $data['target_email'] ?? null;
@@ -389,10 +398,6 @@ class DirectoryService
 
         $directoryId = (int)$data['directory_id'];
         $targetParentId = $data['target_parent_id'];
-
-        if (!$this->directoryRepository->checkDirectoryOwnership($directoryId, $userId)) {
-            return ['success' => false, 'error' => 'Нет прав доступа к папке'];
-        }
 
         if ($targetParentId === 'root') {
             $targetParentId = $this->directoryRepository->getOrCreateRootDirectoryId($userId);

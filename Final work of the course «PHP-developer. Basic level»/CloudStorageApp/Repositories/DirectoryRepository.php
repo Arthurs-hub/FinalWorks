@@ -155,7 +155,7 @@ class DirectoryRepository extends Repository
         return $stmt->execute([$targetParentId, $directoryId]);
     }
 
-    public function deleteDirectory(?int $directoryId, int $userId): bool
+    public function deleteDirectory(?int $directoryId, int $userId, bool $isAdmin = false): bool
     {
         if ($directoryId === null) {
             return false;
@@ -166,8 +166,15 @@ class DirectoryRepository extends Repository
         $stmt = $conn->prepare("DELETE FROM shared_items WHERE item_type = 'directory' AND item_id = ?");
         $stmt->execute([$directoryId]);
 
-        $stmt = $conn->prepare("DELETE FROM directories WHERE id = ? AND user_id = ?");
-        return $stmt->execute([$directoryId, $userId]);
+        if ($isAdmin) {
+
+            $stmt = $conn->prepare("DELETE FROM directories WHERE id = ?");
+            return $stmt->execute([$directoryId]);
+        } else {
+            
+            $stmt = $conn->prepare("DELETE FROM directories WHERE id = ? AND user_id = ?");
+            return $stmt->execute([$directoryId, $userId]);
+        }
     }
 
     public function getDirectoryWithContents($idRaw, int $userId): ?array
@@ -287,8 +294,15 @@ class DirectoryRepository extends Repository
     }
 
 
-    public function getDirectoryByIdPublic(int $id, int $userId): array|null
+    public function getDirectoryByIdPublic(int $id, int $userId, bool $isAdmin = false): ?array
     {
+        if ($isAdmin) {
+            $conn = $this->db->getConnection();
+            $stmt = $conn->prepare("SELECT id, name, parent_id, user_id, created_at FROM directories WHERE id = ?");
+            $stmt->execute([$id]);
+            return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        }
+
         return $this->getDirectoryById($id, $userId);
     }
 
@@ -474,8 +488,8 @@ class DirectoryRepository extends Repository
                 throw new RuntimeException('Папка не найдена');
             }
 
-            if ((int)$directory['user_id'] !== $ownerId) {
-                throw new RuntimeException('Нет прав владельца');
+            if ((int)$directory['user_id'] !== $ownerId && !$this->checkDirectoryAccess($folderId, $ownerId)) {
+                throw new RuntimeException('Нет прав доступа к папке');
             }
 
             $targetUser = $userService->findUserByEmail($targetEmail);

@@ -194,8 +194,22 @@ return [
 **Установка и настройка:**
 
 1. Поместите проект в папку `C:\xampp\htdocs\welcome\`
-2. Запустите Apache и MySQL в панели управления XAMPP
-3. Откройте в браузере: `http://localhost/welcome/CloudStorageApp/public`
+2. Внесите или измените конфигурацию в файле httpd-vhosts.conf в папке `C:\xampp\apache\conf\extra\`следующим содержимым:
+
+    ```apache
+    <VirtualHost *:8080>
+         DocumentRoot "C:/xampp/htdocs/welcome/CloudStorageApp/public"
+         ServerName localhost
+         <Directory "C:/xampp/htdocs/welcome/CloudStorageApp/public">
+              AllowOverride All
+              Require all granted
+         </Directory>
+    </VirtualHost>
+
+   ```
+
+3. Запустите Apache и MySQL в панели управления XAMPP
+4. Откройте в браузере: `http://localhost:8080/login.html`
 
 **Структура должна быть:**
 
@@ -218,7 +232,22 @@ C:\xampp\htdocs\
     ├── public\
     └── ...
 
-Тогда адрес будет: `http://localhost/CloudStorageApp/public`
+Внесите или измените конфигурацию в файле httpd-vhosts.conf в папке `C:\xampp\apache\conf\extra\`и если нужно в файле httpd.conf в папке `C:\xampp\apache\conf\` следующим содержимым:
+
+```apache
+
+    <VirtualHost *:8080>
+         DocumentRoot "C:/xampp/htdocs/CloudStorageApp/public"
+         ServerName localhost
+         <Directory "C:/xampp/htdocs/CloudStorageApp/public">
+              AllowOverride All
+              Require all granted
+         </Directory>
+    </VirtualHost>
+
+```
+
+Тогда адрес тоже будет: `http://localhost:8080/login.html`
 
 #### Требования к веб-серверу
 
@@ -233,7 +262,7 @@ C:\xampp\htdocs\
 
 - Поместите проект в соответствующую папку (`www`, `htdocs`)
 - Убедитесь, что Apache и MySQL запущены
-- Откройте `http://localhost/CloudStorageApp/public`
+- Откройте `http://localhost/login.html`
 
 ### Краткие требования к веб-серверу
 
@@ -244,7 +273,7 @@ C:\xampp\htdocs\
 
 ### 6. Проверка установки
 
-Откройте браузер и перейдите по адресу: `http://localhost/CloudStorageApp/public`
+Откройте браузер и перейдите по адресу: `http://localhost:8080/login.html`
 
 ## Структура проекта
 
@@ -371,7 +400,7 @@ UPDATE users SET role = 'admin', is_admin = 1 WHERE id = userID;
 
 ## Регистрация и авторизация
 
-`base_url`: `http://localhost:8080/CloudStorageApp/public`
+`base_url`: `http://localhost:8080/login.html`
 
 **POST /register**  
 Регистрация нового пользователя
@@ -505,7 +534,7 @@ Body → raw → JSON:
 **Параметры формы:**
 
 - `files[]` - массив файлов для загрузки (обязательный)
-- `directory_id` - ID папки назначения (необязательный, по умолчанию "root")
+- `directory_id` - ID папки назначения (по умолчанию "root")
 - `paths` - JSON строка с относительными путями для создания структуры папок (необязательный)
 
 **GET /files/list**  
@@ -591,7 +620,7 @@ Body → raw → JSON:
 **Параметры формы:**
 
 - `files[]` - массив файлов для загрузки (обязательный)
-- `directory_id` - ID папки назначения (необязательный, по умолчанию "root")
+- `directory_id` - ID папки назначения (по умолчанию "root")
 - `paths` - JSON строка с относительными путями для создания структуры папок (необязательный)
 
 ### Пример 1: Загрузка одного или нескольких файлов в корневую папку
@@ -776,7 +805,7 @@ Body → raw → JSON:
 }
 ```
 
-**DELETE /admin/users/{id}**  
+**DELETE /admin/users/delete/{id}**  
 Удалить пользователя по ID
 
 ---
@@ -792,7 +821,7 @@ Body → raw → JSON:
 **PATCH /admin/users/{id}/remove-admin**  
 Отозвать права администратора
 
-**⚠️ ВАЖНО:** Сначала назначьте другого пользователя администратором, авторизуйтесь под его аккаунтом, и потом отзовите права первого администратора.
+**⚠️ ВАЖНО:** Чтобы снять права с первого администратора, сначала назначьте другого пользователя администратором, авторизуйтесь под его аккаунтом, и потом отзовите права первого администратора.
 
 **DELETE /admin/users/bulk-delete**  
 Массовое удаление пользователей

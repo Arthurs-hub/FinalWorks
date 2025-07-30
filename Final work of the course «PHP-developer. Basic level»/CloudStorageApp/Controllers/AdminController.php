@@ -32,7 +32,8 @@ class AdminController extends BaseController
     public function getUsers(Request $request): Response
     {
         return $this->executeWithAuth(function () {
-            return $this->handleServiceResult($this->adminService->getUsers());
+            $result = $this->adminService->getUsers();
+            return $this->handleServiceResult($result);
         }, true, true);
     }
 
@@ -115,7 +116,7 @@ class AdminController extends BaseController
         }, true, true);
     }
 
-    public function getFiles(Request $request): Response
+    public function getFiles(): Response
     {
         return $this->executeWithAuth(function () {
             return $this->handleServiceResult($this->adminService->getFiles());
@@ -131,7 +132,7 @@ class AdminController extends BaseController
         }, true, true);
     }
 
-    public function cleanupFiles(Request $request): Response
+    public function cleanupFiles(): Response
     {
         return $this->executeWithAuth(function () {
             $currentUserId = $this->getCurrentUserId();
@@ -139,7 +140,7 @@ class AdminController extends BaseController
         }, true, true);
     }
 
-    public function clearFiles(Request $request): Response
+    public function clearFiles(): Response
     {
         return $this->executeWithAuth(function () {
             $currentUserId = $this->getCurrentUserId();
@@ -156,7 +157,8 @@ class AdminController extends BaseController
         }, true, true);
     }
 
-    public function clearLogs(Request $request): Response
+
+    public function clearLogs(): Response
     {
         return $this->executeWithAuth(function () {
             $currentUserId = $this->getCurrentUserId();
@@ -164,7 +166,7 @@ class AdminController extends BaseController
         }, true, true);
     }
 
-    public function getSystemHealth(Request $request): Response
+    public function getSystemHealth(): Response
     {
         error_log('getSystemHealth called, session user_id: ' . ($_SESSION['user_id'] ?? 'none'));
         error_log('Session is_admin: ' . ($_SESSION['is_admin'] ?? 'not set'));
@@ -176,7 +178,7 @@ class AdminController extends BaseController
         }, true, true);
     }
 
-    public function getSecurityReport(Request $request): Response
+    public function getSecurityReport(): Response
     {
         return $this->executeWithAuth(function () {
             return $this->handleServiceResult($this->adminService->getSecurityReport());
@@ -235,7 +237,7 @@ class AdminController extends BaseController
         }, true, true);
     }
 
-    public function downloadUsersExport(Request $request): Response
+    public function downloadUsersExport(): Response
     {
         $fileInfo = $this->adminService->exportUsersToCSV();
 

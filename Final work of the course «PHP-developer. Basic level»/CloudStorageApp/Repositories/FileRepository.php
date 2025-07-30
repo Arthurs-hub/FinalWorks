@@ -288,6 +288,7 @@ class FileRepository extends Repository
         ", [$userId, $fileId, $userId, $userId]);
     }
 
+
     public function getFileForDownload(int $fileId): ?array
     {
         return $this->fetchOne("SELECT * FROM files WHERE id = ?", [$fileId]);

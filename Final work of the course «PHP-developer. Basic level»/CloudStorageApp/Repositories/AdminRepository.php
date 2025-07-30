@@ -251,7 +251,7 @@ class AdminRepository
     public function updateUserData(int $userId, array $data): array
     {
         try {
-            $user = $this->userRepository->findUserByEmail($userId);
+            $user = $this->userRepository->findById($userId);
 
             if (!$user) {
                 return ['success' => false, 'error' => 'Пользователь не найден'];

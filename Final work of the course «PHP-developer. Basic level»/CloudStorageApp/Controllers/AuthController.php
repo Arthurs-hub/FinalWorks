@@ -19,17 +19,17 @@ class AuthController extends BaseController
     public function login(Request $request): Response
     {
         $data = $request->getData();
-        
+
         if (!$data) {
             return new Response(['success' => false, 'error' => 'Некорректные данные'], 400);
         }
 
         $result = $this->userService->login($data);
-        
+
         if ($result['success']) {
             AuthMiddleware::login($result['user']['id']);
         }
-        
+
         return new Response($result, $result['success'] ? 200 : 401);
     }
 
@@ -42,7 +42,7 @@ class AuthController extends BaseController
     public function register(Request $request): Response
     {
         $data = $request->getData();
-        
+
         if (!$data) {
             return new Response(['success' => false, 'error' => 'Некорректные данные'], 400);
         }
@@ -54,7 +54,7 @@ class AuthController extends BaseController
     public function resetPassword(Request $request): Response
     {
         $data = $request->getData();
-        
+
         if (!$data || !isset($data['email'])) {
             return new Response(['success' => false, 'error' => 'Некорректные данные'], 400);
         }

@@ -129,7 +129,7 @@ function renderFoldersList(folders, currentDirectory) {
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')">Переименовать</a></li>
                         <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" href="/CloudStorageApp/public/directories/download/${folder.id}">Скачать</a></li>
+                        <li><a class="dropdown-item" href="/directories/download/${folder.id}">Скачать</a></li>
                         ${actionLinkHtml}
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})">+ Создать папку</a></li>
@@ -232,7 +232,7 @@ function renderFoldersGrid(folders, currentDirectory) {
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')">Переименовать</a></li>
                         <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" href="/CloudStorageApp/public/directories/download/${folder.id}">Скачать</a></li>
+                        <li><a class="dropdown-item" href="/directories/download/${folder.id}">Скачать</a></li>
                         ${actionLinkHtml}
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})">+ Создать папку</a></li>
@@ -299,13 +299,13 @@ async function handleDrop(event) {
         let url, body;
 
         if (draggedType === 'directory') {
-            url = '/CloudStorageApp/public/directories/move';
+            url = '/directories/move';
             body = {
                 directory_id: parseInt(draggedId),
                 target_parent_id: targetFolderId === 'root' ? 'root' : parseInt(targetFolderId)
             };
         } else if (draggedType === 'file') {
-            url = '/CloudStorageApp/public/files/move';
+            url = '/files/move';
             body = {
                 file_id: parseInt(draggedId),
                 directory_id: targetFolderId === 'root' ? 'root' : parseInt(targetFolderId)
@@ -369,7 +369,7 @@ function handleDragEnd(event) {
 
 async function isDescendantFolder(sourceId, targetId) {
     try {
-        const res = await fetch(`/CloudStorageApp/public/directories/get/${targetId}`, {
+        const res = await fetch(`/directories/get/${targetId}`, {
             credentials: 'include'
         });
 
@@ -405,7 +405,7 @@ function addDragAndDropHandlersToFolders() {
 
 async function loadUserInfo() {
     try {
-        const res = await fetch('/CloudStorageApp/public/users/current', {
+        const res = await fetch('/users/current', {
             credentials: 'include'
         });
 
@@ -495,9 +495,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('logoutBtn').onclick = async () => {
-        await fetch('/CloudStorageApp/public/logout', { method: 'POST', credentials: 'include' });
+        await fetch('/logout', { method: 'POST', credentials: 'include' });
         localStorage.removeItem("currentDirectoryId");
-        window.location.href = '/CloudStorageApp/public/login.html';
+        window.location.href = '/login.html';
     };
 
     const modalEl = document.getElementById('filePreviewModal');
@@ -624,7 +624,7 @@ async function loadFiles() {
     try {
         const timestamp = Date.now();
 
-        const res = await fetch(`/CloudStorageApp/public/files/list?directory_id=${currentDirectoryId}&_t=${timestamp}`, {
+        const res = await fetch(`/files/list?directory_id=${currentDirectoryId}&_t=${timestamp}`, {
             credentials: 'include',
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -690,7 +690,7 @@ function renderFilesList(files) {
                 sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 140px; justify-content: center;">👥 (вы поделились)</span>`;
             } else if (!isOwner && file.is_shared) {
                 const sharedByText = file.shared_by ? ` (Доступ предоставил: ${file.shared_by})` : '';
-                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 80px; justify-content: center;" title="Доступ предоставил${sharedByText}">👥 Общая</span>`;
+                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 80px; justify-content: center;" title="Общий файл${sharedByText}">👥 Общий</span>`;
             }
 
             const fileSize = file.file_size ? `<span class="text-muted ms-2">(${file.file_size})</span>` : '';
@@ -720,7 +720,7 @@ function renderFilesList(files) {
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="#" onclick="renameFile(${file.id}, '${file.name}')">Переименовать</a></li>
                         <li><a class="dropdown-item" href="#" onclick="shareFile(${file.id}, '${file.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" href="/CloudStorageApp/public/files/download/${file.id}">Скачать</a></li>
+                        <li><a class="dropdown-item" href="/files/download/${file.id}">Скачать</a></li>
                         ${deleteLinkHtml}
                     </ul>
                 </div>
@@ -780,7 +780,7 @@ function renderFilesGrid(files) {
                 sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1">👥 (вы поделились)</span>`;
             } else if (!isOwner && file.is_shared) {
                 const sharedByText = file.shared_by ? ` (Доступ предоставил: ${file.shared_by})` : '';
-                sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Доступ предоставил${sharedByText}">👥 Общая</span>`;
+                sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Общий файл${sharedByText}">👥 Общий</span>`;
             }
 
             const fileSize = file.file_size ? `<div class="text-muted">${file.file_size}</div>` : '';
@@ -797,7 +797,7 @@ function renderFilesGrid(files) {
                 <div class="img-container" style="height: 100px; display: flex; 
                      align-items: center; justify-content: center;">
                     ${isImage ?
-                    `<img src="/CloudStorageApp/public/files/download/${file.id}?inline=1" 
+                    `<img src="/files/download/${file.id}?inline=1" 
                               alt="${file.name}" 
                               style="max-width: 100%; max-height: 100%; 
                                      object-fit: contain; border-radius: 4px;">` :
@@ -821,7 +821,7 @@ function renderFilesGrid(files) {
                         <li><a class="dropdown-item" href="#" 
                                onclick="shareFile(${file.id}, '${file.name}')">Поделиться</a></li>
                         <li><a class="dropdown-item" 
-                               href="/CloudStorageApp/public/files/download/${file.id}">Скачать</a></li>
+                               href="/files/download/${file.id}">Скачать</a></li>
                         ${deleteLinkHtml}
                     </ul>
                 </div>
@@ -864,7 +864,7 @@ function renderFilesGrid(files) {
 }
 
 async function getPdfPreviewImageUrl(fileId) {
-    const url = `/CloudStorageApp/public/files/download/${fileId}?inline=1`;
+    const url = `/files/download/${fileId}?inline=1`;
     try {
         const loadingTask = pdfjsLib.getDocument(url);
         const pdf = await loadingTask.promise;
@@ -903,7 +903,7 @@ async function loadFolders() {
 
         const timestamp = Date.now();
 
-        const res = await fetch(`/CloudStorageApp/public/directories/get/${directoryIdToLoad}?_t=${timestamp}`, {
+        const res = await fetch(`/directories/get/${directoryIdToLoad}?_t=${timestamp}`, {
             credentials: 'include',
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -961,7 +961,7 @@ async function createFolder() {
     }
 
     try {
-        const res = await fetch('/CloudStorageApp/public/directories/add', {
+        const res = await fetch('/directories/add', {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -1000,7 +1000,7 @@ async function createSubfolderPrompt(parentFolderId) {
     if (!folderName) return;
 
     try {
-        const res = await fetch('/CloudStorageApp/public/directories/add', {
+        const res = await fetch('/directories/add', {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -1042,7 +1042,7 @@ async function goBack() {
             return;
         }
 
-        const res = await fetch(`/CloudStorageApp/public/directories/get/${currentDirectoryId}`, {
+        const res = await fetch(`/directories/get/${currentDirectoryId}`, {
             credentials: 'include',
             headers: {
                 'Cache-Control': 'no-cache',
@@ -1101,7 +1101,7 @@ async function renameFile(fileId, currentName) {
     }
 
     try {
-        const res = await fetch('/CloudStorageApp/public/files/rename', {
+        const res = await fetch('/files/rename', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1139,7 +1139,7 @@ async function renameFolder(folderId, currentName) {
     }
 
     try {
-        const res = await fetch('/CloudStorageApp/public/directories/rename', {
+        const res = await fetch('/directories/rename', {
             method: 'PUT',
             credentials: 'include',
             headers: {
@@ -1170,7 +1170,7 @@ async function shareFile(fileId, fileName) {
     if (!email) return;
 
     try {
-        const response = await fetch('/CloudStorageApp/public/files/share', {
+        const response = await fetch('/files/share', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1206,7 +1206,7 @@ async function shareFolder(folderId, folderName) {
             return;
         }
 
-        const response = await fetch('/CloudStorageApp/public/directories/share', {
+        const response = await fetch('/directories/share', {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -1240,7 +1240,7 @@ async function unshareFolder(folderId) {
     }
 
     try {
-        const res = await fetch('/CloudStorageApp/public/directories/unshare', {
+        const res = await fetch('/directories/unshare', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ directory_id: folderId }),
@@ -1265,7 +1265,7 @@ async function deleteFolder(folderId) {
     if (!confirm('Вы уверены, что хотите удалить эту папку?')) return;
 
     try {
-        const res = await fetch(`/CloudStorageApp/public/directories/delete/${folderId}`, {
+        const res = await fetch(`/directories/delete/${folderId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -1286,7 +1286,7 @@ async function deleteFile(fileId) {
     if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
 
     try {
-        const res = await fetch(`/CloudStorageApp/public/files/remove/${fileId}`, {
+        const res = await fetch(`/files/remove/${fileId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -1332,7 +1332,7 @@ document.getElementById('uploadFilesBtn').addEventListener('click', async (e) =>
     formData.append('directory_id', currentDirectoryId);
 
     try {
-        const res = await fetch('/CloudStorageApp/public/files/upload', {
+        const res = await fetch('/files/upload', {
             method: 'POST',
             credentials: 'include',
             body: formData,
@@ -1377,7 +1377,7 @@ async function unshareFile(fileId) {
     }
 
     try {
-        const res = await fetch('/CloudStorageApp/public/files/unshare', {
+        const res = await fetch('/files/unshare', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ file_id: fileId }),
@@ -1403,7 +1403,7 @@ let currentUserId = null;
 
 async function showFileInfo(fileId) {
     try {
-        const res = await fetch(`/CloudStorageApp/public/files/info/${fileId}`, {
+        const res = await fetch(`/files/info/${fileId}`, {
             credentials: 'include'
         });
 
@@ -1436,10 +1436,10 @@ async function showFileInfo(fileId) {
         `;
 
         if (file.mime_type && file.mime_type.startsWith('image/')) {
-            filePreviewDiv.innerHTML = `<img src="/CloudStorageApp/public/files/download/${file.id}?inline=1" alt="${file.name}" style="max-width: 100%;">`;
+            filePreviewDiv.innerHTML = `<img src="/files/download/${file.id}?inline=1" alt="${file.name}" style="max-width: 100%;">`;
         } else if (file.mime_type === 'application/pdf') {
 
-            filePreviewDiv.innerHTML = `<iframe src="/CloudStorageApp/public/files/preview/${file.id}" width="100%" height="600px" style="border:none"></iframe>`;
+            filePreviewDiv.innerHTML = `<iframe src="/files/preview/${file.id}" width="100%" height="600px" style="border:none"></iframe>`;
         } else if (
             file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
             file.mime_type === 'application/msword'
@@ -1447,14 +1447,14 @@ async function showFileInfo(fileId) {
             filePreviewDiv.innerHTML = `
                 <div class="alert alert-warning mb-2">
                     Предпросмотр docx доступен только для публичных файлов.<br>
-                    <a href="/CloudStorageApp/public/files/download/${file.id}" class="btn btn-primary mt-2" download>Скачать файл</a>
+                    <a href="/files/download/${file.id}" class="btn btn-primary mt-2" download>Скачать файл</a>
                 </div>
             `;
         } else {
             filePreviewDiv.innerHTML = '<div class="text-center text-muted">Нет предпросмотра для этого типа файла</div>';
         }
 
-        downloadBtn.href = `/CloudStorageApp/public/files/download/${file.id}`;
+        downloadBtn.href = `/files/download/${file.id}`;
         downloadBtn.download = file.name;
 
         shareBtn.dataset.fileId = file.id;
@@ -1467,7 +1467,7 @@ async function showFileInfo(fileId) {
             deleteBtn.onclick = async () => {
                 if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
                 try {
-                    const res = await fetch(`/CloudStorageApp/public/files/remove/${file.id}`, {
+                    const res = await fetch(`/files/remove/${file.id}`, {
                         method: 'DELETE',
                         credentials: 'include'
                     });
@@ -1488,7 +1488,7 @@ async function showFileInfo(fileId) {
             deleteBtn.onclick = async () => {
                 if (!confirm('Вы уверены, что хотите отказаться от доступа к этому файлу?')) return;
                 try {
-                    const res = await fetch('/CloudStorageApp/public/files/unshare', {
+                    const res = await fetch('/files/unshare', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ file_id: file.id }),
@@ -1536,7 +1536,7 @@ function getTileIconHtml(file) {
         return '<i class="fa fa-file-word-o fa-3x text-primary"></i>';
     }
     if (file.mime_type && file.mime_type.startsWith('image/')) {
-        return `<img src="/CloudStorageApp/public/download/${file.id}?inline=1" style="max-width:48px;max-height:48px;" alt="preview">`;
+        return `<img src="/download/${file.id}?inline=1" style="max-width:48px;max-height:48px;" alt="preview">`;
     }
     return '<i class="fa fa-file-o fa-3x text-secondary"></i>';
 }
