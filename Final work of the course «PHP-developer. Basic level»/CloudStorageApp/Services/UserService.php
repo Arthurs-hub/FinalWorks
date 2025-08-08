@@ -125,56 +125,56 @@ class UserService
     }
 
     public function makeAdmin(int $userId): bool
-{
-    try {
-        $user = $this->userRepository->findById($userId);
+    {
+        try {
+            $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
-            Logger::error("User not found", ['user_id' => $userId]);
+            if (!$user) {
+                Logger::error("User not found", ['user_id' => $userId]);
+                return false;
+            }
+
+            $result1 = $this->userRepository->makeAdmin($userId);
+            $result2 = $this->updateUser($userId, ['role' => 'admin']);
+
+            $result = $result1 && $result2;
+
+            if ($result) {
+                Logger::info("User promoted to admin", ['user_id' => $userId]);
+            }
+
+            return $result;
+        } catch (Exception $e) {
+            Logger::error("Error promoting user to admin", ['user_id' => $userId, 'error' => $e->getMessage()]);
             return false;
         }
-
-        $result1 = $this->userRepository->makeAdmin($userId);
-        $result2 = $this->updateUser($userId, ['role' => 'admin']);
-
-        $result = $result1 && $result2;
-
-        if ($result) {
-            Logger::info("User promoted to admin", ['user_id' => $userId]);
-        }
-
-        return $result;
-    } catch (Exception $e) {
-        Logger::error("Error promoting user to admin", ['user_id' => $userId, 'error' => $e->getMessage()]);
-        return false;
     }
-}
 
-public function removeAdmin(int $userId): bool
-{
-    try {
-        $user = $this->userRepository->findById($userId);
+    public function removeAdmin(int $userId): bool
+    {
+        try {
+            $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
-            Logger::error("User not found", ['user_id' => $userId]);
+            if (!$user) {
+                Logger::error("User not found", ['user_id' => $userId]);
+                return false;
+            }
+
+            $result1 = $this->userRepository->removeAdmin($userId);
+            $result2 = $this->updateUser($userId, ['role' => 'user']);
+
+            $result = $result1 && $result2;
+
+            if ($result) {
+                Logger::info("User demoted from admin", ['user_id' => $userId]);
+            }
+
+            return $result;
+        } catch (Exception $e) {
+            Logger::error("Error removing admin rights", ['user_id' => $userId, 'error' => $e->getMessage()]);
             return false;
         }
-
-        $result1 = $this->userRepository->removeAdmin($userId);
-        $result2 = $this->updateUser($userId, ['role' => 'user']);
-
-        $result = $result1 && $result2;
-
-        if ($result) {
-            Logger::info("User demoted from admin", ['user_id' => $userId]);
-        }
-
-        return $result;
-    } catch (Exception $e) {
-        Logger::error("Error removing admin rights", ['user_id' => $userId, 'error' => $e->getMessage()]);
-        return false;
     }
-}
 
     public function authenticateUser(string $email, string $password): ?array
     {
@@ -1290,33 +1290,69 @@ public function removeAdmin(int $userId): bool
     }
 
     public function update(?int $userId, array $data, ?int $currentUserId): array
-    {
-        if (!$userId) {
-            return ['success' => false, 'error' => 'ID пользователя не указан'];
-        }
-
-        if ($userId != $currentUserId && (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin')) {
-            return ['success' => false, 'error' => 'Недостаточно прав'];
-        }
-
-        try {
-            $errors = $this->validateUserData($data, true);
-            if (!empty($errors)) {
-                return ['success' => false, 'error' => implode(', ', $errors)];
-            }
-
-            $success = $this->updateUser($userId, $data);
-            if (!$success) {
-                return ['success' => false, 'error' => 'Ошибка при обновлении пользователя'];
-            }
-
-            return ['success' => true, 'message' => 'Пользователь успешно обновлен'];
-        } catch (Exception $e) {
-            Logger::error("UserService::update error", ['error' => $e->getMessage()]);
-            return ['success' => false, 'error' => 'Ошибка при обновлении пользователя'];
-        }
+{
+    if (!$userId) {
+        return ['success' => false, 'error' => 'ID пользователя не указан'];
     }
 
+    if ($userId != $currentUserId && (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin')) {
+        return ['success' => false, 'error' => 'Недостаточно прав'];
+    }
+
+    try {
+        $errors = $this->validateUserData($data, true);
+
+        $oldPassword = $data['old_password'] ?? null;
+        $newPassword = $data['new_password'] ?? null;
+        $confirmNewPassword = $data['confirm_new_password'] ?? null;
+
+        $passwordFieldsFilled = (!empty($oldPassword) || !empty($newPassword) || !empty($confirmNewPassword));
+
+        if ($passwordFieldsFilled) {
+            if (empty($oldPassword) || empty($newPassword) || empty($confirmNewPassword)) {
+                $errors[] = 'Для изменения пароля необходимо заполнить все поля: old_password, new_password, confirm_new_password';
+            } elseif ($newPassword !== $confirmNewPassword) {
+                $errors[] = 'Новый пароль и подтверждение не совпадают';
+            } elseif (strlen($newPassword) < 6) {
+                $errors[] = 'Новый пароль должен содержать минимум 6 символов';
+            } else {
+                $user = $this->userRepository->findById($userId);
+                if (!$user) {
+                    return ['success' => false, 'error' => 'Пользователь не найден'];
+                }
+                $userWithPassword = $this->userRepository->findByEmailWithPassword($user['email']);
+                if (!$userWithPassword || !password_verify($oldPassword, $userWithPassword['password'])) {
+                    $errors[] = 'Неверный текущий пароль';
+                }
+            }
+        }
+
+        if (!empty($errors)) {
+            return ['success' => false, 'error' => implode(', ', $errors)];
+        }
+
+        unset($data['old_password'], $data['new_password'], $data['confirm_new_password']);
+
+        $success = $this->updateUser($userId, $data);
+
+        if ($passwordFieldsFilled && $success) {
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $passwordUpdated = $this->userRepository->updatePassword($userId, $hashedPassword);
+            if (! $passwordUpdated) {
+                return ['success' => false, 'error' => 'Ошибка при обновлении пароля'];
+            }
+        }
+
+        if (!$success) {
+            return ['success' => false, 'error' => 'Ошибка при обновлении пользователя'];
+        }
+
+        return ['success' => true, 'message' => 'Пользователь успешно обновлен'];
+    } catch (Exception $e) {
+        Logger::error("UserService::update error", ['error' => $e->getMessage()]);
+        return ['success' => false, 'error' => 'Ошибка при обновлении пользователя'];
+    }
+}
     public function changeUserPassword(?int $userId, array $data): array
     {
         if (!$userId) {
