@@ -194,7 +194,7 @@ return [
 **Установка и настройка:**
 
 1. Поместите проект в папку `C:\xampp\htdocs\welcome\`
-2. Внесите или измените конфигурацию в файле httpd-vhosts.conf в папке `C:\xampp\apache\conf\extra\`следующим содержимым:
+2. Внесите или измените конфигурацию в файле httpd-vhosts.conf в папке `C:\xampp\apache\conf\extra\`и если нужно в файле httpd.conf в папке C:\xampp\apache\conf\ следующим содержимым:
 
     ```apache
     <VirtualHost *:8080>
