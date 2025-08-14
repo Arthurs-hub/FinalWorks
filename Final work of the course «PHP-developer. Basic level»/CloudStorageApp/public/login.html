@@ -224,7 +224,7 @@
                         return;
                     }
 
-                    await handleFormSubmit('loginForm', '/login', {
+                    await handleFormSubmit('loginForm', '/users/login', {
                         email: email,
                         password: password
                     });
@@ -267,7 +267,7 @@
 
                     delete formData.confirm_password;
 
-                    await handleFormSubmit('registerForm', '/register', formData);
+                    await handleFormSubmit('registerForm', '/users/register', formData);
                 };
             }
 
@@ -287,7 +287,7 @@
                         return;
                     }
 
-                    await handleFormSubmit('resetForm', '/reset_password', {
+                    await handleFormSubmit('resetForm', '/users/reset_password', {
                         email: email
                     });
                 };
@@ -755,7 +755,7 @@
                                 </div>
                             `;
                             msg.classList.remove("d-none");
-                            setTimeout(() => window.location.href = 'Admin.html', 1500);
+                            setTimeout(() => window.location.href = 'Admins.html', 1500);
                             return;
                         }
 
