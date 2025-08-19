@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель администратора - CloudStorageApp</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/Admin.css">
+</head>
+
+<body>
+    <div id="messageContainer"></div>
+
+    <div class="admin-container">
+
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">CloudStorageApp</div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#dashboard" class="nav-link active" data-section="dashboard">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Панель управления</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#users" class="nav-link" data-section="users">
+                        <i class="bi bi-people"></i>
+                        <span>Пользователи</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#files" class="nav-link" data-section="files">
+                        <i class="bi bi-file-earmark"></i>
+                        <span>Файлы</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#system" class="nav-link" data-section="system">
+                        <i class="bi bi-gear"></i>
+                        <span>Система</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#logs" class="nav-link" data-section="logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Логи</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/upload.html" class="nav-link">
+                        <i class="bi bi-arrow-left"></i>
+                        <span>Вернуться в приложение</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" onclick="logout(event)">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Выход</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+
+            <div class="header">
+                <div>
+                    <h1 class="header-title">Панель администратора</h1>
+                    <div class="user-greeting">Добро пожаловать, <span id="adminName">Администратор</span></div>
+                </div>
+
+                <div class="search-container" id="searchContainer" style="display:none;">
+                    <input type="text" class="search-input" id="searchInput"
+                        placeholder="Поиск по email, имени или фамилии...">
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn-modern btn-primary-modern" id="refreshBtn">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Обновить</span>
+                    </button>
+                    <button class="btn-modern btn-success-modern" id="exportBtn">
+                        <i class="bi bi-download"></i>
+                        <span>Экспорт</span>
+                    </button>
+                </div>
+            </div>
+            <div class="content-card" id="usersSection">
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
+                    <div>
+                        <button class="btn-modern btn-primary-modern" onclick="showCreateUserModal()">
+                            <i class="bi bi-person-plus"></i>
+                            <span>Добавить пользователя</span>
+                        </button>
+                    </div>
+                    <div class="user-filters d-flex gap-2">
+                        <button class="filter-btn active" data-role-filter="all">Все</button>
+                        <button class="filter-btn" data-role-filter="user">Пользователи</button>
+                        <button class="filter-btn" data-role-filter="admin">Администраторы</button>
+                        <button class="filter-btn" data-role-filter="banned">Заблокированные</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="modern-table" id="usersTable" style="table-layout: auto; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Email</th>
+                                <th>Имя</th>
+                                <th>Роль</th>
+                                <th>Статус</th>
+                                <th>Файлы</th>
+                                <th>Размер</th>
+                                <th>Последний вход</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="9" class="text-center">
+                                    <div class="loading-spinner me-2"></div>
+                                    Загрузка пользователей...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="content-card" id="dashboardSection" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="bi bi-graph-up me-2"></i>
+                        Статистика системы
+                    </h2>
+                </div>
+                <div class="stats-container">
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-icon users">
+                                <i class="bi bi-people"></i>
+                            </div>
+                            <div class="stat-value" id="totalUsers">0</div>
+                            <div class="stat-label">Всего пользователей</div>
+                            <div class="stat-change positive" id="usersChange">+0 за месяц</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon admins">
+                                <i class="bi bi-shield-check"></i>
+                            </div>
+                            <div class="stat-value" id="totalAdmins">0</div>
+                            <div class="stat-label">Администраторы</div>
+                            <div class="stat-change" id="adminsChange">Активных</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon active">
+                                <i class="bi bi-person-check"></i>
+                            </div>
+                            <div class="stat-value" id="activeUsers30">0</div>
+                            <div class="stat-label">Активные пользователи</div>
+                            <div class="stat-change positive" id="activeChange">За 30 дней</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon active">
+                                <i class="bi bi-person-check"></i>
+                            </div>
+                            <div class="stat-value" id="activeUsers7">0</div>
+                            <div class="stat-label">Активные пользователи</div>
+                            <div class="stat-change positive" id="active7Change">За 7 дней</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon files">
+                                <i class="bi bi-file-earmark"></i>
+                            </div>
+                            <div class="stat-value" id="totalFiles">0</div>
+                            <div class="stat-label">Всего файлов</div>
+                            <div class="stat-change positive" id="filesChange">+0 сегодня</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon size">
+                                <i class="bi bi-hdd"></i>
+                            </div>
+                            <div class="stat-value" id="totalSize">0 MB</div>
+                            <div class="stat-label">Общий размер</div>
+                            <div class="stat-change" id="sizeChange">Использовано</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon directories">
+                                <i class="bi bi-folder"></i>
+                            </div>
+                            <div class="stat-value" id="totalDirectories">0</div>
+                            <div class="stat-label">Папки</div>
+                            <div class="stat-change" id="directoriesChange">Всего создано</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon shares">
+                                <i class="bi bi-share"></i>
+                            </div>
+                            <div class="stat-value" id="totalShares">0</div>
+                            <div class="stat-label">Общие файлы</div>
+                            <div class="stat-change positive" id="sharesChange">Активных</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon system">
+                                <i class="bi bi-cpu"></i>
+                            </div>
+                            <div class="stat-value" id="systemLoad">Н/Д</div>
+                            <div class="stat-label">Нагрузка системы</div>
+                            <div class="stat-change" id="systemChange">Память</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon system">
+                                <i class="bi bi-code-slash"></i>
+                            </div>
+                            <div class="stat-value" id="phpVersion">Н/Д</div>
+                            <div class="stat-label">Версия PHP</div>
+                            <div class="stat-change">Текущая версия</div>
+                        </div>
+                        <div class="stat-card system-health-card" id="systemHealthCard" style="cursor: pointer;">
+                            <div class="stat-icon system"
+                                style="width: 30px; height: 30px; font-size: 1.25rem; line-height: 30px; text-align: center; ">
+                                <i class="bi bi-heart-pulse"></i>
+                            </div>
+                            <div class="stat-value" id="systemHealthStatus">Загрузка...</div>
+                            <div class="stat-label">Состояние системы</div>
+                            <div class="stat-change" id="systemHealthDetails"
+                                style="font-size: 0.75rem; color: var(--text-secondary); max-height: 100px; overflow-y: auto;">
+                            </div>
+                            <span id="systemHealth"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content-card" id="filesSection" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="bi bi-file-earmark me-2"></i>
+                        Управление файлами
+                    </h2>
+                    <div class="d-flex gap-2">
+                        <button class="btn-modern btn-primary-modern" onclick="loadFiles()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Обновить</span>
+                        </button>
+                        <button class="btn-modern btn-danger-modern" onclick="cleanupFiles()">
+                            <i class="bi bi-trash"></i>
+                            <span>Очистка</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-3">
+                    <div class="table-responsive">
+                        <table class="modern-table" id="filesTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;">ID</th>
+                                    <th style="width: 180px;">Имя файла</th>
+                                    <th style="width: 140px;">Владелец</th>
+                                    <th style="width: 80px;">Размер</th>
+                                    <th style="width: 100px;">Тип</th>
+                                    <th style="width: 160px;">Дата создания</th>
+                                    <th style="width: 100px;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="loading-spinner me-2"></div>
+                                        Загрузка файлов...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" id="systemSection" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="bi bi-gear me-2"></i>
+                        Системные настройки
+                    </h2>
+                </div>
+                <div class="p-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="stat-card">
+                                <h6 class="mb-3">Настройки безопасности</h6>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableTwoFactor">
+                                    <label class="form-check-label" for="enableTwoFactor">
+                                        Двухфакторная аутентификация
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enablePasswordPolicy">
+                                    <label class="form-check-label" for="enablePasswordPolicy">
+                                        Политика паролей
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="enableSessionTimeout">
+                                    <label class="form-check-label" for="enableSessionTimeout">
+                                        Тайм-аут сессии
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stat-card">
+                                <h6 class="mb-3">Настройки файлов</h6>
+                                <div class="mb-3">
+                                    <label for="maxFileSize" class="form-label">Максимальный размер файла (MB)</label>
+                                    <input type="number" class="form-control" id="maxFileSize" value="50">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="allowedExtensions" class="form-label">Разрешенные расширения</label>
+                                    <textarea class="form-control" id="allowedExtensions"
+                                        rows="3">jpg,jpeg,png,gif,pdf,doc,docx,txt</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" id="logsSection" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="bi bi-journal-text me-2"></i>
+                        Системные логи
+                    </h2>
+                    <div class="d-flex gap-2">
+                        <button class="btn-modern btn-primary-modern" onclick="loadLogs()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            <span>Обновить</span>
+                        </button>
+                        <button class="btn-modern btn-danger-modern" onclick="clearLogs()">
+                            <i class="bi bi-trash"></i>
+                            <span>Очистить</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-3">
+                    <div class="mb-3">
+                        <select class="form-select" id="logLevel">
+                            <option value="all">Все уровни</option>
+                            <option value="error">Ошибки</option>
+                            <option value="warning">Предупреждения</option>
+                            <option value="info">Информация</option>
+                        </select>
+                    </div>
+                    <div id="logsContainer"
+                        style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 1rem; border-radius: 8px;">
+                        <div class="text-center">
+                            <div class="loading-spinner me-2"></div>
+                            Загрузка логов...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal fade" id="createUserModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить нового пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createUserForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserEmail" class="form-label">Email *</label>
+                                    <input type="email" class="form-control" id="createUserEmail" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserFirstName" class="form-label">Имя *</label>
+                                    <input type="text" class="form-control" id="createUserFirstName" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserLastName" class="form-label">Фамилия *</label>
+                                    <input type="text" class="form-control" id="createUserLastName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserPassword" class="form-label">Пароль *</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="createUserPassword" required>
+                                        <button class="btn btn-outline-secondary" type="button"
+                                            onclick="generatePassword()">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserConfirmPassword" class="form-label">Подтвердить пароль
+                                        *</label>
+                                    <input type="password" class="form-control" id="createUserConfirmPassword" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserAge" class="form-label">Возраст</label>
+                                    <input type="number" class="form-control" id="createUserAge" min="13" max="120">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserGender" class="form-label">Пол</label>
+                                    <select class="form-select" id="createUserGender">
+                                        <option value="">Не указан</option>
+                                        <option value="male">Мужской</option>
+                                        <option value="female">Женский</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="createUserMiddleName" class="form-label">Отчество</label>
+                                    <input type="text" class="form-control" id="createUserMiddleName">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="createUserIsAdmin">
+                                    <label class="form-check-label" for="createUserIsAdmin">Администратор</label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="createUser()">Создать пользователя</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editUserForm">
+                        <input type="hidden" id="editUserId">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editUserEmail" class="form-label">Email *</label>
+                                    <input type="email" class="form-control" id="editUserEmail" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editUserFirstName" class="form-label">Имя *</label>
+                                    <input type="text" class="form-control" id="editUserFirstName" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editUserLastName" class="form-label">Фамилия *</label>
+                                    <input type="text" class="form-control" id="editUserLastName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editUserPassword" class="form-label">Новый пароль (оставьте пустым,
+                                        чтобы не менять)</label>
+                                    <input type="password" class="form-control" id="editUserPassword"
+                                        placeholder="Оставьте пустым, если не хотите менять пароль">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="editUserIsAdmin">
+                                    <label class="form-check-label" for="editUserIsAdmin">Администратор</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="editUserIsBanned">
+                                    <label class="form-check-label" for="editUserIsBanned">Заблокирован</label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="saveUserBtn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="viewUserModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Просмотр пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body" id="userDetailsContent">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="viewFileModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Информация о файле</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+                    <div id="fileDetailsContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="downloadFileFromModal()">
+                        <i class="bi bi-download"></i> Скачать
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="deleteFileFromModal()">
+                        <i class="bi bi-trash"></i> Удалить
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="js/admin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Вход в Cloud Storage</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <img alt="Cloud Logo" class="login-logo" src="CloudIcon.png">
+            <h3 class="mb-0">Вход в Cloud Storage</h3>
+        </div>
+
+        <form id="loginForm">
+            <div class="text-center mb-4"></div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email:</label>
+                <input class="form-control" id="email" name="email" required type="email">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Пароль:</label>
+                <input class="form-control" id="password" name="password" required type="password">
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit">Войти</button>
+
+            <div id="loginFormMsg" class="d-none mt-3"></div>
+
+            <div class="text-center mt-3">
+                <a href="#" id="showRegister">Нет аккаунта? Зарегистрироваться</a><br>
+                <a href="#" id="showReset" class="mt-2">Забыли пароль?</a>
+            </div>
+        </form>
+
+        <form id="registerForm" class="d-none">
+            <div class="text-center mb-4">
+                <h2>Регистрация</h2>
+            </div>
+
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="first_name">Имя <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="first_name" name="first_name" required type="text">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="register_email">Email <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="register_email" name="email" required type="email">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="last_name">Фамилия <span class="text-danger">*</span>:</label>
+                        <input class="form-control" id="last_name" name="last_name" required type="text">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="register_password">Пароль <span
+                                class="text-danger">*</span>:</label>
+                        <input class="form-control" id="register_password" name="password" required type="password">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="middle_name">Отчество:</label>
+                        <input class="form-control" id="middle_name" name="middle_name" type="text">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="confirm_password">Повторите пароль <span
+                                class="text-danger">*</span>:</label>
+                        <input class="form-control" id="confirm_password" name="confirm_password" required
+                            type="password">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="age">Возраст:</label>
+                        <input class="form-control" id="age" name="age" type="number" min="13" max="120">
+                    </div>
+                </div>
+                <div class="form-col">
+                    <div class="form-group">
+                        <label class="form-label" for="gender">Пол:</label>
+                        <select class="form-control" id="gender" name="gender">
+                            <option value="">Не указан</option>
+                            <option value="male">Мужской</option>
+                            <option value="female">Женский</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-success w-100" type="submit">Зарегистрироваться</button>
+
+            <div id="registerFormMsg" class="d-none mt-3"></div>
+
+            <div class="text-center mt-3">
+                <a href="#" id="showLogin1">Уже есть аккаунт? Войти</a>
+            </div>
+        </form>
+
+        <form id="resetForm" class="d-none">
+            <div class="text-center mb-4"></div>
+
+            <div class="form-group">
+                <label class="form-label" for="reset_email">Email для сброса пароля:</label>
+                <input class="form-control" id="reset_email" name="reset_email" required type="email"
+                    autocomplete="email">
+            </div>
+
+            <button class="btn btn-warning w-100 mt-3" type="submit">Сбросить пароль</button>
+
+            <div id="resetFormMsg" class="d-none mt-3"></div>
+
+            <div class="text-center mt-3">
+                <a href="#" id="showLogin2">Войти</a>
+            </div>
+        </form>
+        <div class="alert mt-3 d-none" id="formMsg"></div>
+    </div>
+
+    <script>
+        const container = document.querySelector('.login-container');
+
+        function toggleForms(show, hide1, hide2) {
+            const showForm = document.getElementById(show);
+            const hideForm1 = document.getElementById(hide1);
+            const hideForm2 = document.getElementById(hide2);
+
+            if (showForm) {
+                showForm.classList.remove('d-none');
+            } else {
+                console.error(`Форма ${show} не найдена`);
+            }
+
+            if (hideForm1) {
+                hideForm1.classList.add('d-none');
+            }
+
+            if (hideForm2) {
+                hideForm2.classList.add('d-none');
+            }
+
+            clearAllMessages();
+
+            const container = document.querySelector('.login-container');
+            if (container) {
+                if (show === 'registerForm') {
+                    container.classList.add('wide');
+                } else {
+                    container.classList.remove('wide');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const showRegisterBtn = document.getElementById('showRegister');
+            if (showRegisterBtn) {
+                showRegisterBtn.onclick = function (e) {
+                    e.preventDefault();
+                    toggleForms('registerForm', 'loginForm', 'resetForm');
+                };
+            }
+
+            const showLogin1Btn = document.getElementById('showLogin1');
+            if (showLogin1Btn) {
+                showLogin1Btn.onclick = function (e) {
+                    e.preventDefault();
+                    toggleForms('loginForm', 'registerForm', 'resetForm');
+                };
+            }
+
+            const showLogin2Btn = document.getElementById('showLogin2');
+            if (showLogin2Btn) {
+                showLogin2Btn.onclick = function (e) {
+                    e.preventDefault();
+                    toggleForms('loginForm', 'resetForm', 'registerForm');
+                };
+            }
+
+            const showResetBtn = document.getElementById('showReset');
+            if (showResetBtn) {
+                showResetBtn.onclick = function (e) {
+                    e.preventDefault();
+                    toggleForms('resetForm', 'loginForm', 'registerForm');
+                };
+            }
+
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.onsubmit = async function (e) {
+                    e.preventDefault();
+
+                    const email = document.getElementById('email')?.value.trim();
+                    const password = document.getElementById('password')?.value.trim();
+
+                    if (!email || !password) {
+                        const msg = document.getElementById('loginFormMsg');
+                        if (msg) {
+                            msg.innerHTML = '<div class="alert alert-danger">Заполните все поля</div>';
+                            msg.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    await handleFormSubmit('loginForm', '/users/login', {
+                        email: email,
+                        password: password
+                    });
+                };
+            }
+
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.onsubmit = async function (e) {
+                    e.preventDefault();
+
+                    const formData = {
+                        first_name: document.getElementById('first_name')?.value.trim(),
+                        last_name: document.getElementById('last_name')?.value.trim(),
+                        middle_name: document.getElementById('middle_name')?.value.trim(),
+                        email: document.getElementById('register_email')?.value.trim(),
+                        password: document.getElementById('register_password')?.value.trim(),
+                        confirm_password: document.getElementById('confirm_password')?.value.trim(),
+                        age: document.getElementById('age')?.value,
+                        gender: document.getElementById('gender')?.value
+                    };
+
+                    if (!formData.first_name || !formData.last_name || !formData.email || !formData.password) {
+                        const msg = document.getElementById('registerFormMsg');
+                        if (msg) {
+                            msg.innerHTML = '<div class="alert alert-danger">Заполните все обязательные поля (отмечены *)</div>';
+                            msg.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    if (formData.password !== formData.confirm_password) {
+                        const msg = document.getElementById('registerFormMsg');
+                        if (msg) {
+                            msg.innerHTML = '<div class="alert alert-danger">Пароли не совпадают</div>';
+                            msg.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    delete formData.confirm_password;
+
+                    await handleFormSubmit('registerForm', '/users/register', formData);
+                };
+            }
+
+            const resetForm = document.getElementById('resetForm');
+            if (resetForm) {
+                resetForm.onsubmit = async function (e) {
+                    e.preventDefault();
+
+                    const email = document.getElementById('reset_email')?.value.trim();
+
+                    if (!email) {
+                        const msg = document.getElementById('resetFormMsg');
+                        if (msg) {
+                            msg.innerHTML = '<div class="alert alert-danger">Введите email</div>';
+                            msg.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    await handleFormSubmit('resetForm', '/users/reset_password', {
+                        email: email
+                    });
+                };
+            }
+        });
+
+        function autoHideError(element, isInline = false) {
+            if (isInline) {
+                element.classList.add('auto-hide-inline');
+                setTimeout(() => {
+                    if (element.parentNode) {
+                        element.style.display = 'none';
+                        element.classList.remove('auto-hide-inline');
+                    }
+                }, 3500);
+            } else {
+                element.classList.add('auto-hide');
+                setTimeout(() => {
+                    if (element.parentNode) {
+                        element.style.display = 'none';
+                        element.classList.remove('auto-hide');
+                    }
+                }, 3500);
+            }
+        }
+
+        function showInlineError(input, message) {
+
+            const originalPlaceholder = input.getAttribute('placeholder') || '';
+
+            if (!input.hasAttribute('data-original-placeholder')) {
+                input.setAttribute('data-original-placeholder', originalPlaceholder);
+            }
+
+            input.setAttribute('placeholder', message);
+            input.classList.add('has-inline-error');
+
+            setTimeout(() => {
+                if (input.classList.contains('has-inline-error')) {
+                    input.setAttribute('placeholder', input.getAttribute('data-original-placeholder') || '');
+                    input.classList.remove('has-inline-error');
+                }
+            }, 3000);
+
+            const focusHandler = () => {
+                input.setAttribute('placeholder', input.getAttribute('data-original-placeholder') || '');
+                input.classList.remove('has-inline-error');
+                input.removeEventListener('focus', focusHandler);
+            };
+            input.addEventListener('focus', focusHandler);
+        }
+
+        function shouldUseInlineError(input, message) {
+
+            const tempSpan = document.createElement('span');
+            tempSpan.style.visibility = 'hidden';
+            tempSpan.style.position = 'absolute';
+            tempSpan.style.fontSize = window.getComputedStyle(input).fontSize;
+            tempSpan.style.fontFamily = window.getComputedStyle(input).fontFamily;
+            tempSpan.textContent = message;
+            document.body.appendChild(tempSpan);
+
+            const messageWidth = tempSpan.offsetWidth;
+            const inputWidth = input.offsetWidth - 60;
+
+            document.body.removeChild(tempSpan);
+
+            return messageWidth <= inputWidth;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const firstNameInput = document.getElementById('reg_firstname');
+            if (firstNameInput) {
+                firstNameInput.addEventListener('blur', validateRequired);
+                firstNameInput.addEventListener('input', clearInvalidOnInput);
+            }
+
+            const lastNameInput = document.getElementById('reg_lastname');
+            if (lastNameInput) {
+                lastNameInput.addEventListener('blur', validateRequired);
+                lastNameInput.addEventListener('input', clearInvalidOnInput);
+            }
+
+            const emailInput = document.getElementById('reg_email');
+            if (emailInput) {
+                emailInput.addEventListener('blur', validateEmail);
+                emailInput.addEventListener('input', clearInvalidOnInput);
+            }
+
+            const ageInput = document.getElementById('reg_age');
+            if (ageInput) {
+                ageInput.addEventListener('blur', validateAge);
+                ageInput.addEventListener('input', clearInvalidOnInput);
+            }
+
+            const passwordInput = document.getElementById('reg_password');
+            if (passwordInput) {
+                passwordInput.addEventListener('input', validatePassword);
+                passwordInput.addEventListener('blur', validatePassword);
+            }
+
+            const password2Input = document.getElementById('reg_password2');
+            if (password2Input) {
+                password2Input.addEventListener('input', validatePasswordMatch);
+                password2Input.addEventListener('blur', validatePasswordMatch);
+            }
+        });
+
+        function validateRequired() {
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            const errorMessage = 'Поле обязательно для заполнения';
+
+            if (this.value.trim() === '') {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            }
+        }
+
+        function validateEmail() {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            let errorMessage = '';
+
+            if (this.value.trim() === '') {
+                errorMessage = 'Email обязателен';
+            } else if (!emailRegex.test(this.value)) {
+                errorMessage = 'Введите корректный email';
+            }
+
+            if (errorMessage) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = errorMessage;
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            }
+        }
+
+        function validateAge() {
+            const age = parseInt(this.value);
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            const errorMessage = 'Возраст: 1-120 лет';
+
+            if (this.value && (isNaN(age) || age < 1 || age > 120)) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = errorMessage;
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else if (this.value) {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            } else {
+                this.classList.remove('is-invalid', 'is-valid', 'has-inline-error');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            }
+        }
+
+        function validatePassword() {
+            const password = this.value;
+            const strengthDiv = document.getElementById('passwordStrength');
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            const errorMessage = 'Минимум 6 символов';
+
+            if (password.length === 0) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, 'Пароль обязателен')) {
+                    showInlineError(this, 'Пароль обязателен');
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = 'Пароль обязателен';
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                strengthDiv.style.display = 'none';
+                return false;
+            } else if (password.length < 6) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = errorMessage;
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                strengthDiv.textContent = 'Слишком короткий пароль';
+                strengthDiv.className = 'password-strength weak';
+                strengthDiv.style.display = 'block';
+                autoHideError(strengthDiv, true);
+                return false;
+            } else {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+
+                let strength = 0;
+                if (password.length >= 8) strength++;
+                if (/[a-z]/.test(password)) strength++;
+                if (/[A-Z]/.test(password)) strength++;
+                if (/[0-9]/.test(password)) strength++;
+                if (/[^A-Za-z0-9]/.test(password)) strength++;
+
+                if (strength <= 2) {
+                    strengthDiv.textContent = 'Слабый пароль';
+                    strengthDiv.className = 'password-strength weak';
+                } else if (strength <= 3) {
+                    strengthDiv.textContent = 'Средний пароль';
+                    strengthDiv.className = 'password-strength medium';
+                } else {
+                    strengthDiv.textContent = 'Сильный пароль';
+                    strengthDiv.className = 'password-strength strong';
+                }
+                strengthDiv.style.display = 'block';
+                autoHideError(strengthDiv, true);
+
+                const password2Input = document.getElementById('reg_password2');
+                if (password2Input && password2Input.value) {
+                    validatePasswordMatch.call(password2Input);
+                }
+
+                return true;
+            }
+        }
+
+        function validatePasswordMatch() {
+            const password = document.getElementById('reg_password').value;
+            const password2 = this.value;
+            const errorElement = this.parentNode.querySelector('.invalid-feedback');
+            const errorMessage = 'Пароли не совпадают';
+
+            if (password2.length === 0) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, 'Повторите пароль')) {
+                    showInlineError(this, 'Повторите пароль');
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = 'Повторите пароль';
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else if (password2.length < 6) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, 'Минимум 6 символов')) {
+                    showInlineError(this, 'Минимум 6 символов');
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = 'Минимум 6 символов';
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else if (password !== password2) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+
+                if (shouldUseInlineError(this, errorMessage)) {
+                    showInlineError(this, errorMessage);
+                    if (errorElement) errorElement.style.display = 'none';
+                } else {
+                    if (errorElement) {
+                        errorElement.textContent = errorMessage;
+                        errorElement.style.display = 'block';
+                        autoHideError(errorElement);
+                    }
+                }
+                return false;
+            } else {
+                this.classList.remove('is-invalid', 'has-inline-error');
+                this.classList.add('is-valid');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                return true;
+            }
+        }
+
+        function clearInvalidOnInput() {
+            if (this.classList.contains('is-invalid') && this.value.trim() !== '') {
+                this.classList.remove('is-invalid');
+                const errorElement = this.parentNode.querySelector('.invalid-feedback');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+            }
+            if (this.classList.contains('has-inline-error')) {
+                this.classList.remove('has-inline-error');
+                this.setAttribute('placeholder', this.getAttribute('data-original-placeholder') || '');
+            }
+        }
+
+        async function handleFormSubmit(formId, url, body) {
+
+            let msg;
+            if (formId === 'resetForm') {
+                msg = document.getElementById('resetFormMsg');
+            } else if (formId === 'loginForm') {
+                msg = document.getElementById('loginFormMsg');
+            } else if (formId === 'registerForm') {
+                msg = document.getElementById('registerFormMsg');
+            }
+
+            if (!msg) {
+                console.error(`Элемент сообщения не найден для формы: ${formId}`);
+                alert(`Ошибка: элемент для отображения сообщений не найден для формы ${formId}`);
+                return;
+            }
+
+            msg.classList.add('d-none');
+            msg.innerHTML = '';
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                const responseText = await res.text();
+
+                if (!res.ok) {
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(responseText);
+                        msg.innerHTML = `<div class="alert alert-danger">${errorData.error || `Ошибка сервера: ${res.status}`}</div>`;
+                        msg.classList.remove("d-none");
+                        return;
+                    } catch (parseError) {
+                        msg.innerHTML = `<div class="alert alert-danger">Ошибка сервера: ${res.status}</div>`;
+                        msg.classList.remove("d-none");
+                        return;
+                    }
+                }
+
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    msg.innerHTML = '<div class="alert alert-danger">Ошибка: Сервер вернул некорректный формат данных.</div>';
+                    msg.classList.remove("d-none");
+                    return;
+                }
+
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    console.log('Успешный ответ:', data);
+                } catch (parseError) {
+                    msg.innerHTML = '<div class="alert alert-danger">Ошибка: Некорректный формат ответа сервера.</div>';
+                    msg.classList.remove("d-none");
+                    return;
+                }
+
+                if (formId === 'resetForm') {
+                    if (data.success) {
+                        msg.innerHTML = `
+                            <div class="alert alert-success">
+                                <div class="mb-3">
+                                    <strong>✅ ${data.message}</strong>
+                                </div>
+                                <div class="mb-3">
+                                    <p><small class="text-muted">
+                                        Проверьте папку "Входящие" и "Спам".<br>
+                                        Ссылка действительна 1 час.
+                                    </small></p>
+                                </div>
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-success w-100" onclick="toggleForms('loginForm', 'resetForm', 'registerForm')">
+                                        Перейти к входу
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        msg.classList.remove("d-none");
+                        clearResetFields();
+                        return;
+                    } else {
+                        msg.innerHTML = `<div class="alert alert-danger">${data.error || "Ошибка при сбросе пароля"}</div>`;
+                        msg.classList.remove("d-none");
+                        return;
+                    }
+                }
+
+                if (data.success) {
+
+                    if (formId === 'loginForm') {
+                        if (data.user && data.user.is_admin == 1) {
+                            msg.innerHTML = `
+                                <div class="alert alert-success">
+                                    <div class="mb-3">
+                                        <strong>✅ Вход выполнен!</strong>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        Перенаправление в админ-панель...
+                                    </div>
+                                </div>
+                            `;
+                            msg.classList.remove("d-none");
+                            setTimeout(() => window.location.href = 'Admins.html', 1500);
+                            return;
+                        }
+
+
+                        msg.innerHTML = `
+                            <div class="alert alert-success">
+                                <div class="mb-3">
+                                    <strong>✅ Вход выполнен!</strong>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Перенаправление...
+                                </div>
+                            </div>
+                        `;
+                        msg.classList.remove("d-none");
+                        setTimeout(() => window.location.href = 'upload.html', 1500);
+                        return;
+                    }
+
+                    if (formId === 'registerForm') {
+                        msg.innerHTML = `
+                            <div class="alert alert-success">
+                                <div class="mb-3">
+                                    <strong>✅ ${data.message || 'Регистрация успешна!'}</strong>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Переход к форме входа через <span id="countdown">3</span> сек...
+                                </div>
+                            </div>
+                        `;
+                        msg.classList.remove("d-none");
+                        clearRegisterFields();
+
+                        let countdown = 3;
+                        const countdownElement = document.getElementById('countdown');
+                        const countdownInterval = setInterval(() => {
+                            countdown--;
+                            if (countdownElement) {
+                                countdownElement.textContent = countdown;
+                            }
+                            if (countdown <= 0) {
+                                clearInterval(countdownInterval);
+                                toggleForms('loginForm', 'registerForm', 'resetForm');
+                            }
+                        }, 1000);
+
+                        return;
+                    }
+
+                } else {
+
+                    msg.innerHTML = `<div class="alert alert-danger">${data.error || "Неизвестная ошибка!"}</div>`;
+                    msg.classList.remove("d-none");
+                    setTimeout(() => msg.classList.add("d-none"), 5000);
+                }
+
+            } catch (error) {
+                console.error("Ошибка запроса:", error);
+                msg.innerHTML = `<div class="alert alert-danger">Произошла ошибка: ${error.message}</div>`;
+                msg.classList.remove("d-none");
+                setTimeout(() => msg.classList.add("d-none"), 5000);
+            }
+        }
+
+        function copyTempPassword() {
+            const field = document.getElementById('tempPasswordField');
+            if (!field) return;
+
+            field.select();
+            field.setSelectionRange(0, 99999);
+
+            try {
+                document.execCommand('copy');
+
+                const btn = event.target;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✅ Скопировано!';
+                btn.classList.add('btn-success');
+                btn.classList.remove('btn-outline-primary');
+
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                }, 2000);
+            } catch (err) {
+                alert('Не удалось скопировать. Выделите текст вручную.');
+            }
+        }
+
+        function goToLogin() {
+            document.getElementById('showLogin1').click();
+            document.getElementById('reset_email').value = '';
+            document.getElementById('formMsg').classList.add('d-none');
+        }
+
+        function clearLoginFields() {
+            const emailField = document.getElementById('email');
+            const passwordField = document.getElementById('password');
+
+            if (emailField) emailField.value = '';
+            if (passwordField) passwordField.value = '';
+        }
+
+        function clearRegisterFields() {
+            const registerFields = [
+                'first_name',
+                'last_name',
+                'register_email',
+                'register_password',
+                'confirm_password',
+                'middle_name',
+                'age',
+                'gender'
+            ];
+
+            registerFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.value = '';
+                }
+            });
+        }
+
+        function clearResetFields() {
+            const resetEmailField = document.getElementById('reset_email');
+            if (resetEmailField) {
+                resetEmailField.value = '';
+            }
+        }
+
+        function clearAllMessages() {
+            const messageElements = [
+                'loginFormMsg',
+                'registerFormMsg',
+                'resetFormMsg'
+            ];
+
+            messageElements.forEach(msgId => {
+                const msgElement = document.getElementById(msgId);
+                if (msgElement) {
+                    msgElement.classList.add('d-none');
+                    msgElement.innerHTML = '';
+                }
+            });
+        }
+    </script>
+
+</body>
+
+</html>
