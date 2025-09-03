@@ -1,5 +1,80 @@
-let currentView = 'list';
+let currentView = localStorage.getItem('currentView') || 'list';
 let currentDirectoryId = localStorage.getItem("currentDirectoryId") || "root";
+let currentUserId = null;
+let currentPreviewVideo = null;
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+
+function getFileIcon(mimeType, size = '24px') {
+    const isImage = mimeType && mimeType.startsWith('image/');
+    const isVideo = mimeType && mimeType.startsWith('video/');
+
+    if (isImage) {
+        return `<i class="bi bi-file-image text-primary me-2" style="font-size: ${size};"></i>`;
+    } else if (isVideo) {
+        return `<i class="bi bi-play-circle-fill text-primary me-2" style="font-size: ${size};"></i>`;
+    } else if (mimeType === 'application/pdf') {
+        return `<i class="bi bi-file-pdf text-danger me-2" style="font-size: ${size};"></i>`;
+    } else if (
+        mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        mimeType === 'application/msword'
+    ) {
+        return `<i class="bi bi-file-word text-primary me-2" style="font-size: ${size};"></i>`;
+    } else if (mimeType && mimeType.startsWith('audio/')) {
+        return `<i class="bi bi-file-music text-warning me-2" style="font-size: ${size};"></i>`;
+    } else if (
+        mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        mimeType === 'application/vnd.ms-excel'
+    ) {
+        return `<i class="bi bi-file-excel text-success me-2" style="font-size: ${size};"></i>`;
+    } else if (
+        mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+        mimeType === 'application/vnd.ms-powerpoint'
+    ) {
+        return `<i class="bi bi-file-ppt text-warning me-2" style="font-size: ${size};"></i>`;
+    } else if (mimeType && mimeType.startsWith('text/')) {
+        return `<i class="bi bi-file-text text-info me-2" style="font-size: ${size};"></i>`;
+    } else if (mimeType && (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z'))) {
+        return `<i class="bi bi-file-zip text-secondary me-2" style="font-size: ${size};"></i>`;
+    } else {
+        return `<i class="bi bi-file-earmark text-muted me-2" style="font-size: ${size};"></i>`;
+    }
+}
+
+function getFileIconForTiles(mimeType, size = '48px') {
+    const isImage = mimeType && mimeType.startsWith('image/');
+    const isVideo = mimeType && mimeType.startsWith('video/');
+
+    if (isImage) {
+        return `<i class="bi bi-file-image text-primary" style="font-size: ${size};"></i>`;
+    } else if (isVideo) {
+        return `<i class="bi bi-play-circle-fill text-primary" style="font-size: ${size};"></i>`;
+    } else if (mimeType === 'application/pdf') {
+        return `<i class="bi bi-file-pdf text-danger" style="font-size: ${size};"></i>`;
+    } else if (
+        mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        mimeType === 'application/msword'
+    ) {
+        return `<i class="bi bi-file-word text-primary" style="font-size: ${size};"></i>`;
+    } else if (mimeType && mimeType.startsWith('audio/')) {
+        return `<i class="bi bi-file-music text-warning" style="font-size: ${size};"></i>`;
+    } else if (
+        mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        mimeType === 'application/vnd.ms-excel'
+    ) {
+        return `<i class="bi bi-file-excel text-success" style="font-size: ${size};"></i>`;
+    } else if (
+        mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+        mimeType === 'application/vnd.ms-powerpoint'
+    ) {
+        return `<i class="bi bi-file-ppt text-warning" style="font-size: ${size};"></i>`;
+    } else if (mimeType && mimeType.startsWith('text/')) {
+        return `<i class="bi bi-file-text text-info" style="font-size: ${size};"></i>`;
+    } else if (mimeType && (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z'))) {
+        return `<i class="bi bi-file-zip text-secondary" style="font-size: ${size};"></i>`;
+    } else {
+        return `<i class="bi bi-file-earmark text-muted" style="font-size: ${size};"></i>`;
+    }
+}
 
 async function refreshLists() {
     try {
@@ -7,8 +82,8 @@ async function refreshLists() {
         const filesList = document.getElementById('filesList');
         const foldersList = document.getElementById('foldersList');
 
-        if (filesList) filesList.innerHTML = '<div class="text-center">Загрузка...</div>';
-        if (foldersList) foldersList.innerHTML = '<div class="text-center">Загрузка...</div>';
+        if (filesList) filesList.innerHTML = '<div class="text-center p-3"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Загрузка...</div>';
+        if (foldersList) foldersList.innerHTML = '<li class="list-group-item text-center"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Загрузка...</li>';
 
         await loadFolders();
 
@@ -26,21 +101,19 @@ function openFolder(folderId) {
 }
 
 function addRefreshButton() {
-    if (document.getElementById('refreshListsBtn')) {
+    const container = document.getElementById('refreshBtnContainer');
+    if (!container || container.querySelector('#refreshListsBtn')) {
         return;
     }
 
     const refreshBtn = document.createElement('button');
     refreshBtn.id = 'refreshListsBtn';
-    refreshBtn.className = 'btn btn-outline-secondary btn-sm';
-    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Обновить списки';
+    refreshBtn.className = 'btn btn-outline-secondary';
+    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i><span class="d-none d-sm-inline ms-2">Обновить списки</span>';
     refreshBtn.onclick = refreshLists;
     refreshBtn.title = 'Обновить списки файлов и папок';
 
-    const refreshBtnContainer = document.getElementById('refreshBtnContainer');
-    if (refreshBtnContainer) {
-        refreshBtnContainer.appendChild(refreshBtn);
-    }
+    container.appendChild(refreshBtn);
 }
 
 function handleDragEnter(event) {
@@ -76,9 +149,10 @@ function renderFoldersList(folders, currentDirectory) {
 
         if (parentId !== null && parentId !== undefined) {
             const backLi = document.createElement('li');
-            backLi.className = 'list-group-item d-flex align-items-center';
-            backLi.innerHTML = `<span style="cursor:pointer" onclick="goBack()">⬅️ Назад</span>
-                <span class="fw-bold ms-3">${currentDirectory.name}</span>`;
+            backLi.className = 'list-group-item list-group-item-action d-flex align-items-center';
+            backLi.style.cursor = 'pointer';
+            backLi.innerHTML = `<i class="bi bi-arrow-left-circle me-2"></i> Назад к "${currentDirectory.directory_name || 'предыдущей папке'}"`;
+            backLi.onclick = () => goBack();
             foldersList.appendChild(backLi);
             hasBack = true;
         }
@@ -87,7 +161,7 @@ function renderFoldersList(folders, currentDirectory) {
     if (folders.length > 0) {
         folders.forEach(folder => {
             const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
 
             li.setAttribute('draggable', 'true');
             li.dataset.folderId = folder.id;
@@ -98,65 +172,53 @@ function renderFoldersList(folders, currentDirectory) {
 
             let sharedInfo = '';
             if (folder.is_shared && !folder.is_shared_by_owner) {
-                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" title="Общая папка" style="min-width: 80px; justify-content: center;">👥 Общая</span>`;
+                sharedInfo = `<i class="bi bi-people-fill text-info ms-2" title="Общая папка"></i>`;
             } else if (folder.is_shared_by_owner && isOwner) {
-                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 120px; justify-content: center;">👥 (вы поделились)</span>`;
+                sharedInfo = `<i class="bi bi-send-fill text-primary ms-2" title="Вы поделились"></i>`;
             }
 
             const actionLinkHtml = isOwner
-                ? `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folder.id})">Удалить</a></li>`
-                : `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFolder(${folder.id})">Отказаться от доступа</a></li>`;
+                ? `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folder.id})"><i class="bi bi-trash me-2"></i>Удалить</a></li>`
+                : `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFolder(${folder.id})"><i class="bi bi-box-arrow-left me-2"></i>Отказаться от доступа</a></li>`;
 
             li.innerHTML = `
-                <div class="d-flex align-items-center" style="flex-grow: 1; overflow: hidden;">
-                    <span style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; margin-right: 8px;">
-                        <svg width="28" height="28" viewBox="0 0 48 48">
-                          <rect x="6" y="16" width="36" height="24" rx="4" fill="#FFD54F" stroke="#FFA000" stroke-width="2"/>
-                          <path d="M6 16L18 10H56C58.2091 10 60 11.7909 60 14V16H6Z" fill="#FFE082"/>
-                        </svg>
-                    </span>
+                <div class="d-flex align-items-center text-truncate" style="cursor:pointer;" onclick="openFolder(${folder.id})">
+                    <i class="bi bi-folder-fill text-warning me-3 fs-5"></i>
+                    <span class="fw-500 text-truncate">${folder.name}</span>
                     ${sharedInfo}
-                    <span style="cursor:pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${folder.name}</span>
                 </div>
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-link p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50%; width: 28px; height: 28px;">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                            <circle cx="2" cy="8" r="2"/>
-                            <circle cx="8" cy="8" r="2"/>
-                            <circle cx="14" cy="8" r="2"/>
-                        </svg>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')">Переименовать</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" href="/directories/download/${folder.id}">Скачать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')"><i class="bi bi-pencil-square me-2"></i>Переименовать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')"><i class="bi bi-share me-2"></i>Поделиться</a></li>
+                        <li><a class="dropdown-item" href="${getApiBase()}/directories/download/${folder.id}"><i class="bi bi-download me-2"></i>Скачать</a></li>
                         ${actionLinkHtml}
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})">+ Создать папку</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})"><i class="bi bi-folder-plus me-2"></i>Создать подпапку</a></li>
                     </ul>
                 </div>
             `;
 
             li.addEventListener('dragstart', handleDragStart);
             li.addEventListener('dragend', handleDragEnd);
-
-            li.onclick = (e) => {
-                if (!e.target.closest('.dropdown')) {
-                    openFolder(folder.id);
-                }
-            };
-
+            li.addEventListener('dragenter', handleDragEnter);
+            li.addEventListener('dragover', handleDragOver);
+            li.addEventListener('dragleave', handleDragLeave);
+            li.addEventListener('drop', handleDrop);
             foldersList.appendChild(li);
         });
     } else if (!hasBack) {
-        foldersList.innerHTML += '<li class="list-group-item">Нет папок</li>';
+        foldersList.innerHTML += '<li class="list-group-item text-muted">Нет папок</li>';
     }
 }
 
 function renderFoldersGrid(folders, currentDirectory) {
     const foldersList = document.getElementById('foldersList');
     foldersList.innerHTML = '';
-    foldersList.className = 'd-flex flex-wrap gap-3 mb-3';
+    foldersList.className = 'files-list grid-view';
 
     let hasBack = false;
     if (currentDirectory) {
@@ -164,18 +226,14 @@ function renderFoldersGrid(folders, currentDirectory) {
 
         if (parentId !== null && parentId !== undefined) {
             const backCard = document.createElement('div');
-            backCard.className = 'card position-relative p-2 text-center';
-            backCard.style.width = '180px';
-            backCard.style.cursor = 'pointer';
+            backCard.className = 'grid-item';
             backCard.onclick = () => goBack();
             backCard.innerHTML = `
-                <div class="img-container" style="height: 120px; display: flex; align-items: center; justify-content: center;">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
+                <div class="grid-item-icon">
+                    <i class="bi bi-arrow-left-circle-fill text-secondary"></i>
                 </div>
-                <div class="fw-bold text-truncate mt-2">Назад</div>
-                <div class="text-muted text-truncate" title="${currentDirectory.name}">${currentDirectory.name}</div>
+                <div class="grid-item-name">Назад</div>
+                <div class="grid-item-info text-truncate" title="${currentDirectory.directory_name || ''}">${currentDirectory.directory_name || ''}</div>
             `;
             foldersList.appendChild(backCard);
             hasBack = true;
@@ -185,76 +243,91 @@ function renderFoldersGrid(folders, currentDirectory) {
     if (folders && folders.length > 0) {
         folders.forEach(folder => {
             const card = document.createElement('div');
-            card.className = 'card position-relative p-2 text-center';
-            card.style.width = '180px';
-            card.style.cursor = 'pointer';
-
+            card.className = 'grid-item';
             card.setAttribute('draggable', 'true');
             card.dataset.folderId = folder.id;
             card.dataset.type = 'directory';
             card.dataset.id = folder.id;
 
             const isOwner = Number(folder.user_id) === Number(currentUserId);
-
-            const folderIconSvg = `
-                <svg width="96" height="96" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="6" y="16" width="36" height="24" rx="4" fill="#FFD54F" stroke="#FFA000" stroke-width="2"/>
-                    <path d="M6 16L18 10H56C58.2091 10 60 11.7909 60 14V16H6Z" fill="#FFE082"/>
-                </svg>
-            `;
-
             let sharedBadge = '';
             if (folder.is_shared && !folder.is_shared_by_owner) {
                 const sharedByText = folder.shared_by ? ` (Доступ предоставил: ${folder.shared_by})` : '';
-                sharedBadge = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Общая папка${sharedByText}">👥 Общая</span>`;
+                sharedBadge = `<span class="badge bg-info position-absolute top-0 start-0 m-1" title="Общая папка${sharedByText}"><i class="bi bi-people-fill"></i></span>`;
             } else if (folder.is_shared_by_owner && isOwner) {
-                sharedBadge = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1">👥 (вы поделились)</span>`;
+                sharedBadge = `<span class="badge bg-primary position-absolute top-0 start-0 m-1" title="Вы поделились"><i class="bi bi-send-fill"></i></span>`;
             }
 
             const actionLinkHtml = isOwner
-                ? `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folder.id})">Удалить</a></li>`
-                : `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFolder(${folder.id})">Отказаться от доступа</a></li>`;
+                ? `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFolder(${folder.id})"><i class="bi bi-trash me-2"></i>Удалить</a></li>`
+                : `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFolder(${folder.id})"><i class="bi bi-box-arrow-left me-2"></i>Отказаться от доступа</a></li>`;
 
             card.innerHTML = `
                 ${sharedBadge}
-                <div class="img-container" style="height: 120px; display: flex; align-items: center; justify-content: center;">
-                    ${folderIconSvg}
+                <div class="grid-item-icon" onclick="openFolder(${folder.id})">
+                    <i class="bi bi-folder-fill text-warning"></i>
                 </div>
-                <div class="fw-bold text-truncate mt-2" title="${folder.name}">${folder.name}</div>
+                <div class="grid-item-name" title="${folder.name}" onclick="openFolder(${folder.id})">${folder.name}</div>
                 <div class="dropdown position-absolute top-0 end-0 m-1">
-                    <button class="btn btn-sm btn-link p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50%; width: 28px; height: 28px;">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                            <circle cx="2" cy="8" r="2"/>
-                            <circle cx="8" cy="8" r="2"/>
-                            <circle cx="14" cy="8" r="2"/>
-                        </svg>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')">Переименовать</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" href="/directories/download/${folder.id}">Скачать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="renameFolder(${folder.id}, '${folder.name}')"><i class="bi bi-pencil-square me-2"></i>Переименовать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="shareFolder(${folder.id}, '${folder.name}')"><i class="bi bi-share me-2"></i>Поделиться</a></li>
+                        <li><a class="dropdown-item" href="${getApiBase()}/directories/download/${folder.id}"><i class="bi bi-download me-2"></i>Скачать</a></li>
                         ${actionLinkHtml}
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})">+ Создать папку</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="createSubfolderPrompt(${folder.id})"><i class="bi bi-folder-plus me-2"></i>Создать подпапку</a></li>
                     </ul>
                 </div>
             `;
 
             card.addEventListener('dragstart', handleDragStart);
             card.addEventListener('dragend', handleDragEnd);
-
-            card.onclick = (e) => {
-                if (!e.target.closest('.dropdown')) {
-                    openFolder(folder.id);
-                }
-            };
-
+            card.addEventListener('dragenter', handleDragEnter);
+            card.addEventListener('dragover', handleDragOver);
+            card.addEventListener('dragleave', handleDragLeave);
+            card.addEventListener('drop', handleDrop);
             foldersList.appendChild(card);
         });
     } else if (!hasBack) {
         const noFolders = document.createElement('div');
+        noFolders.className = 'text-center text-muted p-4 w-100';
         noFolders.textContent = 'Нет папок';
         foldersList.appendChild(noFolders);
+    }
+}
+
+async function renderPdfPreview(fileId, canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    try {
+        const url = `${getApiBase()}/files/download/${fileId}?inline=1`;
+        const loadingTask = pdfjsLib.getDocument(url);
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+
+        const viewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(canvas.width / viewport.width, canvas.height / viewport.height);
+        const scaledViewport = page.getViewport({ scale: scale });
+
+        canvas.width = scaledViewport.width;
+        canvas.height = scaledViewport.height;
+
+        const renderContext = {
+            canvasContext: ctx,
+            viewport: scaledViewport
+        };
+        await page.render(renderContext).promise;
+    } catch (error) {
+        console.error(`Error rendering PDF preview for file ${fileId}:`, error);
+        ctx.fillStyle = '#6c757d';
+        ctx.textAlign = 'center';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('Preview Error', canvas.width / 2, canvas.height / 2);
     }
 }
 
@@ -269,8 +342,14 @@ function handleDragStart(event) {
         return;
     }
 
-    event.dataTransfer.setData('text/type', itemType);
-    event.dataTransfer.setData('text/id', itemId);
+    try {
+        event.dataTransfer.clearData();
+        event.dataTransfer.setData('text/plain', JSON.stringify({ type: itemType, id: itemId }));
+    } catch (e) {
+        console.error('Ошибка при установке данных перетаскивания:', e);
+        event.preventDefault();
+        return;
+    }
     event.dataTransfer.effectAllowed = 'move';
 
     element.style.opacity = '0.5';
@@ -278,10 +357,26 @@ function handleDragStart(event) {
 
 async function handleDrop(event) {
     event.preventDefault();
-    event.currentTarget.classList.remove('drag-over');
 
-    const draggedType = event.dataTransfer.getData('text/type');
-    const draggedId = event.dataTransfer.getData('text/id');
+    let draggedType = null;
+    let draggedId = null;
+
+    const plainData = event.dataTransfer.getData('text/plain');
+    if (plainData) {
+        try {
+            const parsed = JSON.parse(plainData);
+            draggedType = parsed.type;
+            draggedId = parsed.id;
+        } catch (e) {
+            console.error('Ошибка при разборе данных перетаскивания:', e);
+        }
+    }
+
+    if (!draggedType || !draggedId) {
+        draggedType = draggedType || event.dataTransfer.getData('text/type') || event.dataTransfer.getData('type') || event.dataTransfer.getData('Text');
+        draggedId = draggedId || event.dataTransfer.getData('text/id') || event.dataTransfer.getData('id') || event.dataTransfer.getData('Text');
+    }
+
     const targetFolderId = event.currentTarget.dataset.folderId || event.currentTarget.dataset.id;
 
     if (!draggedId || !targetFolderId || !draggedType) {
@@ -299,13 +394,13 @@ async function handleDrop(event) {
         let url, body;
 
         if (draggedType === 'directory') {
-            url = '/directories/move';
+            url = `${getApiBase()}/directories/move`;
             body = {
                 directory_id: parseInt(draggedId),
                 target_parent_id: targetFolderId === 'root' ? 'root' : parseInt(targetFolderId)
             };
         } else if (draggedType === 'file') {
-            url = '/files/move';
+            url = `${getApiBase()}/files/move`;
             body = {
                 file_id: parseInt(draggedId),
                 directory_id: targetFolderId === 'root' ? 'root' : parseInt(targetFolderId)
@@ -319,7 +414,8 @@ async function handleDrop(event) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            credentials: 'include'
         });
 
         if (!response.ok) {
@@ -362,14 +458,13 @@ async function handleDrop(event) {
 }
 
 function handleDragEnd(event) {
-
     event.currentTarget.style.opacity = '1';
     event.currentTarget.classList.remove('dragging');
 }
 
 async function isDescendantFolder(sourceId, targetId) {
     try {
-        const res = await fetch(`/directories/get/${targetId}`, {
+        const res = await fetch(`${getApiBase()}/directories/get/${targetId}`, {
             credentials: 'include'
         });
 
@@ -403,9 +498,48 @@ function addDragAndDropHandlersToFolders() {
     });
 }
 
+function updateSelectedFilesUI() {
+    const fileInput = document.getElementById('fileInput');
+    const folderInput = document.getElementById('folderInput');
+    const allFiles = [...(fileInput.files || []), ...(folderInput.files || [])];
+
+    const selectedFilesElement = document.getElementById("selectedFiles");
+    const clearBtn = document.getElementById('clearSelectionBtn');
+
+    if (!selectedFilesElement || !clearBtn) return;
+
+    if (allFiles.length > 0) {
+        let names = allFiles.slice(0, 3).map(f => f.name);
+        let fileWord = 'файлов';
+        const count = allFiles.length;
+        if (count === 1) fileWord = 'файл';
+        else if (count > 1 && count < 5) fileWord = 'файла';
+
+        let message = `Выбрано: ${count} ${fileWord}`;
+        if (count > 3) {
+            message += ` (${names.join(', ')}...)`;
+        } else {
+            message += ` (${names.join(', ')})`;
+        }
+        selectedFilesElement.textContent = message;
+        selectedFilesElement.title = allFiles.map(f => f.name).join('\n');
+        clearBtn.disabled = false;
+    } else {
+        selectedFilesElement.textContent = "Файлы не выбраны";
+        selectedFilesElement.removeAttribute('title');
+        clearBtn.disabled = true;
+    }
+}
+
+function getApiBase() {
+    const meta = document.querySelector('meta[name="api-base"]');
+    return meta ? meta.getAttribute('content') || '' : '';
+}
+
+
 async function loadUserInfo() {
     try {
-        const res = await fetch('/users/current', {
+        const res = await fetch(`${getApiBase()}/users/current`, {
             credentials: 'include'
         });
 
@@ -425,7 +559,375 @@ async function loadUserInfo() {
         }
     } catch (error) {
         console.error('Ошибка при загрузке информации о пользователе:', error);
-        document.getElementById('userGreeting').textContent = 'Добро пожаловать!';
+        const greeting = document.getElementById('userGreeting');
+        if (greeting) greeting.textContent = 'Добро пожаловать!';
+    }
+}
+
+async function goBack() {
+    try {
+        if (currentDirectoryId === 'root' || !currentDirectoryId) {
+            currentDirectoryId = 'root';
+            localStorage.setItem("currentDirectoryId", currentDirectoryId);
+            await loadFolders();
+            return;
+        }
+
+        const res = await fetch(`${getApiBase()}/directories/get/${currentDirectoryId}`, {
+            credentials: 'include',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        });
+
+        if (!res.ok) {
+            currentDirectoryId = 'root';
+            localStorage.setItem("currentDirectoryId", currentDirectoryId);
+            await loadFolders();
+            return;
+        }
+
+        const data = await res.json();
+
+        if (!data.success || !data.directory) {
+            currentDirectoryId = 'root';
+            localStorage.setItem("currentDirectoryId", currentDirectoryId);
+            await loadFolders();
+            return;
+        }
+
+        const directory = data.directory;
+
+        if (directory.is_shared_root) {
+            currentDirectoryId = 'root';
+            localStorage.setItem("currentDirectoryId", currentDirectoryId);
+            await loadFolders();
+            return;
+        }
+
+        const parentId = directory.real_parent_id ?? directory.parent_id;
+
+        if (!parentId) {
+            currentDirectoryId = 'root';
+            localStorage.setItem("currentDirectoryId", currentDirectoryId);
+            await loadFolders();
+            return;
+        }
+
+        currentDirectoryId = parentId;
+        localStorage.setItem("currentDirectoryId", currentDirectoryId);
+        await loadFolders();
+
+    } catch (error) {
+        showMessage('Произошла ошибка при переходе назад', 'danger');
+    }
+}
+
+async function showFileInfo(fileId) {
+    try {
+        const res = await fetch(`${getApiBase()}/files/info/${fileId}`, {
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            throw new Error(`Ошибка HTTP: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        if (!data.success || !data.file) {
+            alert(data.error || 'Не удалось получить информацию о файле');
+            return;
+        }
+
+        const file = data.file.file || data.file;
+
+        const modalEl = document.getElementById('filePreviewModal');
+        const modalTitle = modalEl.querySelector('.modal-title');
+        const fileInfoDiv = modalEl.querySelector('#fileInfo');
+        const filePreviewDiv = modalEl.querySelector('#filePreview');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const shareBtn = document.getElementById('shareInModalBtn');
+        const deleteBtn = document.getElementById('deleteInModalBtn');
+
+        modalTitle.textContent = file.name || file.filename || '';
+
+        fileInfoDiv.innerHTML = `
+            <p><strong>Имя файла:</strong> ${file.name || file.filename || 'неизвестно'}</p>
+            <p><strong>Тип файла:</strong> ${file.mime_type || 'неизвестно'}</p>
+            <p><strong>Размер:</strong> ${file.file_size_formatted || file.file_size || file.size || 'неизвестно'}</p>
+        `;
+
+        if (file.mime_type && file.mime_type.startsWith('image/')) {
+            filePreviewDiv.innerHTML = `<img src="${getApiBase()}/files/download/${file.id}?inline=1" alt="${file.name}" style="max-width: 100%;">`;
+        } else if (file.mime_type === 'application/pdf') {
+            filePreviewDiv.innerHTML = `<iframe src="${getApiBase()}/files/preview/${file.id}" width="100%" height="600px" style="border:none"></iframe>`;
+        } else if (file.mime_type && file.mime_type.startsWith('video/')) {
+            filePreviewDiv.innerHTML = `
+                <video id="modalVideoElement" controls muted playsinline style="width: 100%; height: auto; border-radius: var(--radius); background: black;">
+                    <source src="${getApiBase()}/files/preview/${file.id}" type="${file.mime_type}">
+                </video>
+            `;
+
+            const video = document.getElementById('modalVideoElement');
+            video.muted = true;
+            video.play().catch(e => {
+                console.warn("Modal video autoplay was prevented:", e.name);
+            });
+
+            window.currentPreviewVideo = video;
+        } else if (
+            file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            file.mime_type === 'application/msword'
+        ) {
+            filePreviewDiv.innerHTML = `
+                <div class="alert alert-warning mb-2">
+                    Предпросмотр docx доступен только для публичных файлов.<br>
+                    <a href="${getApiBase()}/files/download/${file.id}" class="btn btn-primary mt-2" download>Скачать файл</a>
+                </div>
+            `;
+        } else {
+            filePreviewDiv.innerHTML = '<div class="alert alert-light text-center">Нет предпросмотра для этого типа файла</div>';
+        }
+
+        downloadBtn.href = `${getApiBase()}/files/download/${file.id}`;
+        downloadBtn.download = file.name || file.filename || '';
+
+        shareBtn.dataset.fileId = file.id;
+        shareBtn.dataset.fileName = file.name || file.filename || '';
+
+        if (deleteBtn) {
+            deleteBtn.dataset.fileId = file.id;
+        }
+
+        const isOwner = Number(file.user_id) === Number(currentUserId);
+
+        if (isOwner) {
+            shareBtn.style.display = 'inline-block';
+            deleteBtn.style.display = 'inline-block';
+        } else if (!isOwner && Number(file.is_shared) === 1) {
+            shareBtn.style.display = 'inline-block';
+            deleteBtn.style.display = 'none';
+        } else {
+            shareBtn.style.display = 'none';
+            deleteBtn.style.display = 'none';
+        }
+
+        const unshareContainer = document.getElementById('unshareBtnContainer');
+        if (unshareContainer) {
+            if (!isOwner && Number(file.is_shared) === 1) {
+                unshareContainer.innerHTML = `<button id="unshareInModalBtn" class="btn btn-outline-warning" type="button"><i class="bi bi-box-arrow-left me-1"></i>Отказаться от доступа</button>`;
+                document.getElementById('unshareInModalBtn').onclick = () => {
+                    window.filePreviewModalInstance.hide();
+                    unshareFile(file.id);
+                };
+                unshareContainer.style.display = 'inline-block';
+            } else {
+                unshareContainer.innerHTML = '';
+                unshareContainer.style.display = 'none';
+            }
+        }
+
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        window.filePreviewModalInstance.show();
+
+    } catch (error) {
+        console.error('Ошибка при получении информации о файле:', error);
+        alert('Произошла ошибка при получении информации о файле');
+    }
+}
+
+
+document.getElementById('filePreviewModal').addEventListener('hidden.bs.modal', () => {
+    const modalEl = document.getElementById('filePreviewModal');
+    const video = modalEl.querySelector('video');
+
+    if (video) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        video.remove();
+    }
+
+    if (window.currentPreviewVideo) {
+        try {
+            window.currentPreviewVideo.pause();
+            window.currentPreviewVideo.removeAttribute('src');
+            window.currentPreviewVideo.load();
+            if (window.currentPreviewVideo.parentNode) {
+                window.currentPreviewVideo.parentNode.removeChild(window.currentPreviewVideo);
+            }
+        } catch (_) { }
+        window.currentPreviewVideo = null;
+    }
+
+    if (window.currentPreviewCanvasAnimationId) {
+        cancelAnimationFrame(window.currentPreviewCanvasAnimationId);
+        window.currentPreviewCanvasAnimationId = null;
+    }
+
+    const filePreviewDiv = modalEl.querySelector('#filePreview');
+    if (filePreviewDiv) {
+        filePreviewDiv.innerHTML = '';
+    }
+
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+
+    const safeElement = document.getElementById('userGreeting') || document.body;
+    if (safeElement) {
+        safeElement.setAttribute('tabindex', '-1');
+        safeElement.focus();
+        safeElement.removeAttribute('tabindex');
+    }
+});
+
+
+document.getElementById('filePreviewModal').addEventListener('hidden.bs.modal', () => {
+    const modalEl = document.getElementById('filePreviewModal');
+    const video = modalEl.querySelector('video');
+
+    if (video) {
+
+        video.pause();
+
+        while (video.firstChild) {
+            video.removeChild(video.firstChild);
+        }
+
+        video.removeAttribute('src');
+        video.load();
+
+        video.remove();
+    }
+
+    if (window.currentPreviewVideo) {
+        try {
+            window.currentPreviewVideo.pause();
+            while (window.currentPreviewVideo.firstChild) {
+                window.currentPreviewVideo.removeChild(window.currentPreviewVideo.firstChild);
+            }
+            window.currentPreviewVideo.removeAttribute('src');
+            window.currentPreviewVideo.load();
+            if (window.currentPreviewVideo.parentNode) {
+                window.currentPreviewVideo.parentNode.removeChild(window.currentPreviewVideo);
+            }
+        } catch (_) { }
+        window.currentPreviewVideo = null;
+    }
+
+    const filePreviewDiv = modalEl.querySelector('#filePreview');
+    if (filePreviewDiv) {
+        filePreviewDiv.innerHTML = '';
+    }
+
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+
+    const safeElement = document.getElementById('userGreeting') || document.body;
+    if (safeElement) {
+        safeElement.setAttribute('tabindex', '-1');
+        safeElement.focus();
+        safeElement.removeAttribute('tabindex');
+    }
+});
+
+async function createFolder() {
+    const folderNameInput = document.getElementById('newFolderName');
+    const folderName = folderNameInput.value.trim();
+
+    if (!folderName) {
+        showMessage('Имя папки не может быть пустым', 'warning');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${getApiBase()}/directories/add`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: folderName,
+                parent_id: currentDirectoryId === 'root' ? 'root' : parseInt(currentDirectoryId)
+            })
+        });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Ошибка сервера: ${res.status} ${errorText}`);
+        }
+
+        const data = await res.json();
+        if (data.success) {
+            showMessage('Папка успешно создана', 'success');
+            folderNameInput.value = '';
+            await loadFolders();
+        } else {
+            showMessage(data.error || 'Ошибка при создании папки', 'danger');
+        }
+    } catch (error) {
+        console.error('Ошибка при создании папки:', error);
+        showMessage('Произошла ошибка при создании папки: ' + error.message, 'danger');
+    }
+}
+
+async function loadFolders() {
+    try {
+        let directoryIdToLoad = currentDirectoryId;
+
+        if (!directoryIdToLoad || directoryIdToLoad === 'root') {
+            directoryIdToLoad = 'root';
+        }
+
+        const timestamp = Date.now();
+
+        const res = await fetch(`${getApiBase()}/directories/get/${directoryIdToLoad}?_t=${timestamp}`, {
+            credentials: 'include',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
+
+        if (!res.ok) {
+            directoryIdToLoad = 'root';
+            currentDirectoryId = 'root';
+            localStorage.setItem("currentDirectoryId", currentDirectoryId);
+        }
+
+        const data = await res.json();
+
+        if (data.directory && data.directory.is_shared && Number(data.directory.user_id) !== Number(currentUserId)) {
+
+            if (!sharedRootId || directoryIdToLoad === 'root') {
+                sharedRootId = data.directory.shared_root_id || data.directory.id;
+            }
+        }
+
+        if (!data.directory || directoryIdToLoad === 'root' || Number(data.directory.user_id) === Number(currentUserId)) {
+            sharedRootId = null;
+        }
+
+        const allDirectories = [];
+        if (Array.isArray(data.subdirectories)) allDirectories.push(...data.subdirectories);
+        if (Array.isArray(data.shared_directories)) allDirectories.push(...data.shared_directories);
+
+        if (currentView === 'list') {
+            renderFoldersList(allDirectories, data.directory);
+        } else {
+            renderFoldersGrid(allDirectories, data.directory);
+        }
+
+        addDragAndDropHandlersToFolders();
+
+        await loadFiles();
+
+    } catch (error) {
+        console.log('loadFolders called');
+        console.error('Ошибка при загрузке папок:', error);
+        showMessage('Ошибка при загрузке папок', 'danger');
     }
 }
 
@@ -435,6 +937,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadUserInfo();
         await loadFolders();
         addRefreshButton();
+
+        const clearBtn = document.getElementById('clearSelectionBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', clearFileSelection);
+        }
+
+        updateSelectedFilesUI();
     } catch (error) {
         console.error('Ошибка при инициализации приложения:', error);
         showMessage('Ошибка при загрузке приложения', 'danger');
@@ -444,10 +953,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById("fileInput").addEventListener("change", handleFileSelection);
     document.getElementById("folderInput").addEventListener("change", handleFileSelection);
 
+    setupDragAndDrop();
 
     const fileInput = document.getElementById("fileInput");
     const folderInput = document.getElementById("folderInput");
     const uploadBtn = document.getElementById("uploadFilesBtn");
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await uploadSelectedFiles();
+            } catch (err) {
+                console.error('Ошибка при загрузке файлов:', err);
+                showMessage('Ошибка при загрузке файлов: ' + (err.message || err), 'danger');
+            }
+        });
+    }
 
     if (fileInput) {
         fileInput.addEventListener("keydown", (e) => {
@@ -495,13 +1016,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('logoutBtn').onclick = async () => {
-        await fetch('/logout', { method: 'POST', credentials: 'include' });
+        await fetch(`${getApiBase()}/logout`, { method: 'POST', credentials: 'include' });
         localStorage.removeItem("currentDirectoryId");
         window.location.href = '/login.html';
     };
 
     const modalEl = document.getElementById('filePreviewModal');
-    window.filePreviewModalInstance = new bootstrap.Modal(modalEl, { focus: false });
+    if (modalEl && modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+    window.filePreviewModalInstance = new bootstrap.Modal(modalEl, { backdrop: true, focus: false });
+    modalEl.addEventListener('show.bs.modal', () => {
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    });
+
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            try { window.filePreviewModalInstance?.hide(); } catch (_) { }
+            document.body.classList.remove('modal-open');
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        }
+    });
 
     const shareBtn = document.getElementById('shareInModalBtn');
     if (shareBtn) {
@@ -537,6 +1073,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             modalTitle.removeAttribute('tabindex');
         }
     });
+
+    document.addEventListener('show.bs.dropdown', event => {
+        const parentItem = event.target.closest('.grid-item, .list-group-item');
+        if (parentItem) {
+            parentItem.style.zIndex = '10';
+        }
+    });
+
+    document.addEventListener('hide.bs.dropdown', event => {
+        const parentItem = event.target.closest('.grid-item, .list-group-item');
+        if (parentItem) {
+            parentItem.style.zIndex = 'auto';
+        }
+    });
 });
 
 document.getElementById('viewListBtn').onclick = () => {
@@ -553,32 +1103,68 @@ document.getElementById('viewGridBtn').onclick = () => {
     loadFolders();
 };
 
-function handleFileSelection(event) {
-    const files = event.target.files;
-    const selectedFilesElement = document.getElementById("selectedFiles");
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
 
-    if (!selectedFilesElement) {
-        console.error("Element with id 'selectedFiles' not found");
+function setupDragAndDrop() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const folderInput = document.getElementById('folderInput');
+    const uploadBtn = document.getElementById('uploadFilesBtn');
+
+    if (!dropZone || !fileInput || !folderInput || !uploadBtn) {
+        console.error('Один из элементов для Drag & Drop не найден.');
         return;
     }
 
-    if (files.length > 0) {
-        let names = [];
-        for (let i = 0; i < Math.min(files.length, 3); i++) {
-            names.push(files[i].name);
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'));
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'));
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+
+        const hasFolders = Array.from(files).some(f => f.webkitRelativePath && f.webkitRelativePath.includes('/'));
+
+        if (hasFolders) {
+            showMessage('Загрузка папок через Drag-and-Drop не поддерживается. Пожалуйста, используйте кнопку "Выбрать папку".', 'warning');
+            return;
         }
-        let message = `Выбрано: ${files.length} ${files.length === 1 ? 'файл' : 'файлов'}`;
-        if (files.length > 3) {
-            message += ` (${names.join(', ')}...)`;
-        } else {
-            message += ` (${names.join(', ')})`;
-        }
-        selectedFilesElement.textContent = message;
-        selectedFilesElement.title = Array.from(files).map(f => f.name).join('\n');
-    } else {
-        selectedFilesElement.textContent = "Файлы/папки не выбраны";
-        selectedFilesElement.removeAttribute('title');
-    }
+
+        const dataTransfer = new DataTransfer();
+        Array.from(files).forEach(file => dataTransfer.items.add(file));
+        fileInput.files = dataTransfer.files;
+
+        updateSelectedFilesUI();
+
+        setTimeout(() => {
+            uploadSelectedFiles().catch(err => {
+                console.error('Автозагрузка: ошибка', err);
+                showMessage('Ошибка при автозагрузке: ' + (err.message || err), 'danger');
+            });
+        }, 0);
+    });
+}
+
+function handleFileSelection(event) {
+    updateSelectedFilesUI();
+}
+
+function clearFileSelection() {
+    document.getElementById('fileInput').value = '';
+    document.getElementById('folderInput').value = '';
+    updateSelectedFilesUI();
 }
 
 function showMessage(message, type = 'info') {
@@ -589,20 +1175,14 @@ function showMessage(message, type = 'info') {
     }
 
     const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type}`;
-    alertDiv.textContent = message;
-
-    alertDiv.style.position = 'fixed';
-    alertDiv.style.top = '20px';
-    alertDiv.style.left = '50%';
-    alertDiv.style.transform = 'translateX(-50%)';
-    alertDiv.style.zIndex = '1100';
-    alertDiv.style.minWidth = '200px';
-    alertDiv.style.maxWidth = '800px';
-    alertDiv.style.textAlign = 'center';
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
     alertDiv.style.opacity = '0';
     alertDiv.style.transition = 'opacity 0.3s ease-in-out';
-
     messageContainer.appendChild(alertDiv);
 
     requestAnimationFrame(() => {
@@ -624,7 +1204,7 @@ async function loadFiles() {
     try {
         const timestamp = Date.now();
 
-        const res = await fetch(`/files/list?directory_id=${currentDirectoryId}&_t=${timestamp}`, {
+        const res = await fetch(`${getApiBase()}/files/list?directory_id=${currentDirectoryId}&_t=${timestamp}`, {
             credentials: 'include',
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -656,79 +1236,60 @@ async function loadFiles() {
 function renderFilesList(files) {
     const filesList = document.getElementById('filesList');
     filesList.innerHTML = '';
-    filesList.className = 'list-group mt-2';
+    filesList.className = 'list-group list-group-flush';
 
     if (files && files.length > 0) {
         files.forEach(file => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.setAttribute('draggable', 'true');
-
+            const li = document.createElement('a');
+            li.href = "#";
+            li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
             li.dataset.type = 'file';
             li.dataset.id = file.id;
 
             const isOwner = Number(file.user_id) === Number(currentUserId);
-
-            const isImage = file.mime_type && file.mime_type.startsWith('image/');
-
-            let fileIcon = '';
-            if (isImage) {
-                fileIcon = '<i class="bi bi-file-image text-primary" style="font-size: 24px;"></i>';
-            } else if (file.mime_type === 'application/pdf') {
-                fileIcon = '<i class="bi bi-file-pdf text-danger" style="font-size: 24px;"></i>';
-            } else if (
-                file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-                file.mime_type === 'application/msword'
-            ) {
-                fileIcon = '<i class="bi bi-file-word text-primary" style="font-size: 24px;"></i>';
-            } else {
-                fileIcon = '<i class="bi bi-file-earmark" style="font-size: 48px;"></i>';
-            }
+            const fileIcon = getFileIcon(file.mime_type, '24px');
 
             let sharedInfo = '';
             if (isOwner && file.is_shared_by_owner) {
-                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 140px; justify-content: center;">👥 (вы поделились)</span>`;
+                sharedInfo = `<i class="bi bi-send-fill text-primary ms-2" title="Вы поделились"></i>`;
             } else if (!isOwner && file.is_shared) {
                 const sharedByText = file.shared_by ? ` (Доступ предоставил: ${file.shared_by})` : '';
-                sharedInfo = `<span class="badge bg-info me-2 d-flex align-items-center" style="min-width: 80px; justify-content: center;" title="Общий файл${sharedByText}">👥 Общий</span>`;
+                sharedInfo = `<i class="bi bi-people-fill text-info ms-2" title="Общий файл${sharedByText}"></i>`;
             }
 
-            const fileSize = file.file_size ? `<span class="text-muted ms-2">(${file.file_size})</span>` : '';
+            const fileSize = file.file_size_formatted ? `<small class="text-muted ms-auto me-3">${file.file_size_formatted}</small>` : '';
 
             let deleteLinkHtml = '';
             if (isOwner) {
-                deleteLinkHtml = `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFile(${file.id})">Удалить</a></li>`;
+                deleteLinkHtml = `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFile(${file.id})"><i class="bi bi-trash me-2"></i>Удалить</a></li>`;
             } else if (file.is_shared) {
-                deleteLinkHtml = `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFile(${file.id})">Отказаться от доступа</a></li>`;
+                deleteLinkHtml = `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFile(${file.id})"><i class="bi bi-box-arrow-left me-2"></i>Отказаться от доступа</a></li>`;
             }
 
             li.innerHTML = `
-                <div class="d-flex align-items-center" style="flex-grow: 1; overflow: hidden;">
+                <div class="d-flex align-items-center text-truncate">
                     ${fileIcon}
+                    <span class="text-truncate">${file.name}</span>
                     ${sharedInfo}
-                    <span style="cursor:pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${file.name}</span>
-                    ${fileSize}
                 </div>
+                ${fileSize}
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-link p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50%; width: 28px; height: 28px;">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                            <circle cx="2" cy="8" r="2"/>
-                            <circle cx="8" cy="8" r="2"/>
-                            <circle cx="14" cy="8" r="2"/>
-                        </svg>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" onclick="renameFile(${file.id}, '${file.name}')">Переименовать</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="shareFile(${file.id}, '${file.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" href="/files/download/${file.id}">Скачать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="showFileInfo(${file.id})"><i class="bi bi-eye me-2"></i>Просмотр</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="renameFile(${file.id}, '${file.name}')"><i class="bi bi-pencil-square me-2"></i>Переименовать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="shareFile(${file.id}, '${file.name}')"><i class="bi bi-share me-2"></i>Поделиться</a></li>
+                        <li><a class="dropdown-item" href="${getApiBase()}/files/download/${file.id}"><i class="bi bi-download me-2"></i>Скачать</a></li>
                         ${deleteLinkHtml}
                     </ul>
                 </div>
             `;
 
+            li.setAttribute('draggable', 'true');
             li.addEventListener('dragstart', handleDragStart);
             li.addEventListener('dragend', handleDragEnd);
-
             li.addEventListener('click', function (e) {
                 if (e.target.closest('.dropdown')) return;
                 showFileInfo(file.id);
@@ -737,270 +1298,477 @@ function renderFilesList(files) {
             filesList.appendChild(li);
         });
     } else {
-        filesList.innerHTML = '<li class="list-group-item">Нет файлов</li>';
+        filesList.innerHTML = '<li class="list-group-item text-muted">Нет файлов</li>';
     }
 }
 
 function renderFilesGrid(files) {
     const filesList = document.getElementById('filesList');
     filesList.innerHTML = '';
-    filesList.className = 'd-flex flex-wrap gap-3';
+    filesList.className = 'files-list grid-view';
 
     if (files && files.length > 0) {
         files.forEach(file => {
             const card = document.createElement('div');
-            card.className = 'card position-relative p-2 text-center';
-            card.style.width = '160px';
-            card.style.cursor = 'pointer';
+            card.className = 'grid-item';
             card.setAttribute('draggable', 'true');
 
             card.dataset.type = 'file';
             card.dataset.id = file.id;
 
             const isOwner = Number(file.user_id) === Number(currentUserId);
-
             const isImage = file.mime_type && file.mime_type.startsWith('image/');
-
-            let fileIcon = '';
-            if (isImage) {
-                fileIcon = '<i class="bi bi-file-image text-primary" style="font-size: 48px;"></i>';
-            } else if (file.mime_type === 'application/pdf') {
-                fileIcon = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
-            } else if (
-                file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-                file.mime_type === 'application/msword'
-            ) {
-                fileIcon = '<i class="bi bi-file-word text-primary" style="font-size: 48px;"></i>';
-            } else {
-                fileIcon = '<i class="bi bi-file-earmark" style="font-size: 48px;"></i>';
-            }
+            const isVideo = file.mime_type && file.mime_type.startsWith('video/');
+            const isPdf = file.mime_type === 'application/pdf';
 
             let sharedInfo = '';
             if (isOwner && file.is_shared_by_owner) {
-                sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1">👥 (вы поделились)</span>`;
+                sharedInfo = `<span class="badge bg-primary position-absolute top-0 start-0 m-1" title="Вы поделились"><i class="bi bi-send-fill"></i></span>`;
             } else if (!isOwner && file.is_shared) {
                 const sharedByText = file.shared_by ? ` (Доступ предоставил: ${file.shared_by})` : '';
-                sharedInfo = `<span class="badge bg-info me-2 position-absolute top-0 start-0 m-1" title="Общий файл${sharedByText}">👥 Общий</span>`;
+                sharedInfo = `<span class="badge bg-info position-absolute top-0 start-0 m-1" title="Общий файл${sharedByText}"><i class="bi bi-people-fill"></i></span>`;
             }
 
-            const fileSize = file.file_size ? `<div class="text-muted">${file.file_size}</div>` : '';
+            const fileSize = file.file_size_formatted ? `<div class="grid-item-info">${file.file_size_formatted}</div>` : '';
 
             let deleteLinkHtml = '';
             if (isOwner) {
-                deleteLinkHtml = `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFile(${file.id})">Удалить</a></li>`;
+                deleteLinkHtml = `<li><a class="dropdown-item text-danger" href="#" onclick="deleteFile(${file.id})"><i class="bi bi-trash me-2"></i>Удалить</a></li>`;
             } else if (file.is_shared) {
-                deleteLinkHtml = `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFile(${file.id})">Отказаться от доступа</a></li>`;
+                deleteLinkHtml = `<li><a class="dropdown-item text-danger" href="#" onclick="unshareFile(${file.id})"><i class="bi bi-box-arrow-left me-2"></i>Отказаться от доступа</a></li>`;
+            }
+
+            let contentHtml = '';
+            if (isImage) {
+                contentHtml = `<img src="${getApiBase()}/files/download/${file.id}?inline=1" alt="${file.name}" loading="lazy">`;
+            } else if (isVideo) {
+                contentHtml = `
+                    <div class="video-tile-container">
+                        <canvas width="140" height="100"></canvas>
+                        <video class="video-tile" muted loop preload="metadata" playsinline>
+                            <source src="${getApiBase()}/files/preview/${file.id}" type="${file.mime_type}">
+                        </video>
+                        <div class="video-overlay">
+                            <i class="bi bi-play-circle-fill pulse"></i>
+                        </div>
+                    </div>
+                `;
+            } else if (isPdf) {
+                contentHtml = `<canvas id="pdfPreviewCanvas_${file.id}" width="140" height="100" style="border:1px solid #ddd; border-radius:4px;"></canvas>`;
+            } else {
+                contentHtml = getFileIconForTiles(file.mime_type, '48px');
             }
 
             card.innerHTML = `
                 ${sharedInfo}
-                <div class="img-container" style="height: 100px; display: flex; 
-                     align-items: center; justify-content: center;">
-                    ${isImage ?
-                    `<img src="/files/download/${file.id}?inline=1" 
-                              alt="${file.name}" 
-                              style="max-width: 100%; max-height: 100%; 
-                                     object-fit: contain; border-radius: 4px;">` :
-                    fileIcon}
+                <div class="grid-item-icon">
+                    ${contentHtml}
                 </div>
-                <div class="fw-bold text-truncate mt-2" title="${file.name}">${file.name}</div>
+                <div class="grid-item-name" title="${file.name}">${file.name}</div>
                 ${fileSize}
-                <div class="dropdown position-absolute top-0 end-0 m-1">
-                    <button class="btn btn-sm btn-link p-1" type="button" 
-                            data-bs-toggle="dropdown" aria-expanded="false" 
-                            style="border-radius: 50%; width: 28px; height: 28px;">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                            <circle cx="2" cy="8" r="2"/>
-                            <circle cx="8" cy="8" r="2"/>
-                            <circle cx="14" cy="8" r="2"/>
-                        </svg>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" 
-                               onclick="renameFile(${file.id}, '${file.name}')">Переименовать</a></li>
-                        <li><a class="dropdown-item" href="#" 
-                               onclick="shareFile(${file.id}, '${file.name}')">Поделиться</a></li>
-                        <li><a class="dropdown-item" 
-                               href="/files/download/${file.id}">Скачать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="showFileInfo(${file.id})"><i class="bi bi-eye me-2"></i>Просмотр</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="renameFile(${file.id}, '${file.name}')"><i class="bi bi-pencil-square me-2"></i>Переименовать</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="shareFile(${file.id}, '${file.name}')"><i class="bi bi-share me-2"></i>Поделиться</a></li>
+                        <li><a class="dropdown-item" href="${getApiBase()}/files/download/${file.id}"><i class="bi bi-download me-2"></i>Скачать</a></li>
                         ${deleteLinkHtml}
                     </ul>
                 </div>
             `;
 
-            if (file.mime_type === 'application/pdf') {
-                const imgContainer = card.querySelector('.img-container');
-                imgContainer.innerHTML = '<div class="text-muted">Загрузка превью...</div>';
-
-                if (typeof pdfjsLib !== 'undefined') {
-                    getPdfPreviewImageUrl(file.id)
-                        .then(imgUrl => {
-                            imgContainer.innerHTML = `<img src="${imgUrl}" alt="${file.name}" style="max-width: 100%; max-height: 100%; border-radius: 4px;">`;
-                        })
-                        .catch(() => {
-                            imgContainer.innerHTML = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
-                        });
-                } else {
-                    console.warn('pdfjsLib is not loaded');
-                    imgContainer.innerHTML = '<i class="bi bi-file-pdf text-danger" style="font-size: 48px;"></i>';
-                }
-            }
-
+            card.setAttribute('draggable', 'true');
             card.addEventListener('dragstart', handleDragStart);
             card.addEventListener('dragend', handleDragEnd);
-
-            card.onclick = (e) => {
+            card.addEventListener('click', (e) => {
                 if (!e.target.closest('.dropdown')) {
                     showFileInfo(file.id);
                 }
-            };
+            });
 
             filesList.appendChild(card);
+
         });
-    } else {
+
+        files.forEach(file => {
+            if (file.mime_type === 'application/pdf') {
+                const canvasId = `pdfPreviewCanvas_${file.id}`;
+                renderPdfPreview(file.id, canvasId).catch(err => {
+                    console.warn(`Ошибка при рендеринге превью PDF для файла ${file.id}:`, err);
+                });
+            }
+        });
+
         const noFiles = document.createElement('div');
+        noFiles.className = 'text-center text-muted p-4 w-100';
         noFiles.textContent = 'Нет файлов';
         filesList.appendChild(noFiles);
     }
+    initVideoTileHandlers();
 }
 
-async function getPdfPreviewImageUrl(fileId) {
-    const url = `/files/download/${fileId}?inline=1`;
-    try {
-        const loadingTask = pdfjsLib.getDocument(url);
-        const pdf = await loadingTask.promise;
-        const page = await pdf.getPage(1);
+function initVideoTileHandlers() {
+    document.querySelectorAll('.grid-item').forEach(card => {
+        const container = card.querySelector('.video-tile-container');
+        if (!container) return;
 
-        const viewport = page.getViewport({ scale: 1 });
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
+        const video = container.querySelector('video.video-tile');
+        const canvas = container.querySelector('canvas');
+        const overlay = container.querySelector('.video-overlay');
+        if (!video || !canvas) return;
 
-        const scale = 150 / viewport.width;
-        const scaledViewport = page.getViewport({ scale });
+        const ctx = canvas.getContext('2d');
+        let animationFrameId = null;
 
-        canvas.width = scaledViewport.width;
-        canvas.height = scaledViewport.height;
+        const drawCorrectedFrame = () => {
+            if (!video.videoWidth || !video.videoHeight) return;
 
-        await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
+            const videoAspect = video.videoWidth / video.videoHeight;
+            const canvasAspect = canvas.width / canvas.height;
+            let drawWidth, drawHeight, drawX, drawY;
 
-        const dataUrl = canvas.toDataURL();
-        return dataUrl;
-    } catch (error) {
-        console.error(`Error generating PDF preview for fileId ${fileId}:`, error);
-        throw error;
-    }
-}
-
-
-let sharedRootId = null;
-
-async function loadFolders() {
-    try {
-        let directoryIdToLoad = currentDirectoryId;
-
-        if (!directoryIdToLoad || directoryIdToLoad === 'root') {
-            directoryIdToLoad = 'root';
-        }
-
-        const timestamp = Date.now();
-
-        const res = await fetch(`/directories/get/${directoryIdToLoad}?_t=${timestamp}`, {
-            credentials: 'include',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
+            if (videoAspect > canvasAspect) {
+                drawWidth = canvas.width;
+                drawHeight = canvas.width / videoAspect;
+                drawX = 0;
+                drawY = (canvas.height - drawHeight) / 2;
+            } else {
+                drawHeight = canvas.height;
+                drawWidth = canvas.height * videoAspect;
+                drawY = 0;
+                drawX = (canvas.width - drawWidth) / 2;
             }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+        };
+
+        const drawLoop = () => {
+            if (video.paused || video.ended) {
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+                return;
+            }
+            drawCorrectedFrame();
+            animationFrameId = requestAnimationFrame(drawLoop);
+        };
+
+        video.addEventListener('loadeddata', () => video.currentTime = 0.1);
+        video.addEventListener('seeked', drawCorrectedFrame);
+        video.addEventListener('play', () => {
+            if (overlay) overlay.style.opacity = '0';
+            drawLoop();
+        });
+        video.addEventListener('pause', () => {
+            if (overlay) overlay.style.opacity = '1';
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        });
+
+        card.addEventListener('mouseenter', () => {
+            if (currentPreviewVideo && currentPreviewVideo !== video) {
+                currentPreviewVideo.pause();
+                currentPreviewVideo.currentTime = 0.1;
+            }
+            currentPreviewVideo = video;
+            video.muted = true;
+            video.play().catch(e => console.warn("Autoplay prevented:", e.name));
+        });
+
+        card.addEventListener('mouseleave', () => {
+            video.pause();
+            video.currentTime = 0.1; // Reset to first frame
+        });
+    });
+}
+
+async function showFileInfo(fileId) {
+    try {
+        const res = await fetch(`${getApiBase()}/files/info/${fileId}`, {
+            credentials: 'include'
         });
 
         if (!res.ok) {
-            directoryIdToLoad = 'root';
-            currentDirectoryId = 'root';
-            localStorage.setItem("currentDirectoryId", currentDirectoryId);
+            throw new Error(`Ошибка HTTP: ${res.status}`);
         }
 
         const data = await res.json();
 
-        if (data.directory && data.directory.is_shared && Number(data.directory.user_id) !== Number(currentUserId)) {
-
-            if (!sharedRootId || directoryIdToLoad === 'root') {
-                sharedRootId = data.directory.shared_root_id || data.directory.id;
-            }
-        }
-
-        if (!data.directory || directoryIdToLoad === 'root' || Number(data.directory.user_id) === Number(currentUserId)) {
-            sharedRootId = null;
-        }
-
-        const allDirectories = [];
-        if (Array.isArray(data.subdirectories)) allDirectories.push(...data.subdirectories);
-        if (Array.isArray(data.shared_directories)) allDirectories.push(...data.shared_directories);
-
-        if (currentView === 'list') {
-            renderFoldersList(allDirectories, data.directory);
-        } else {
-            renderFoldersGrid(allDirectories, data.directory);
-        }
-
-        addDragAndDropHandlersToFolders();
-
-        await loadFiles();
-
-    } catch (error) {
-        console.error('Ошибка при загрузке папок:', error);
-        showMessage('Ошибка при загрузке папок', 'danger');
-    }
-}
-
-async function createFolder() {
-    const folderNameInput = document.getElementById('newFolderName');
-    const folderName = folderNameInput.value.trim();
-
-    if (!folderName) {
-        showMessage('Имя папки не может быть пустым', 'warning');
-        return;
-    }
-
-    try {
-        const res = await fetch('/directories/add', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                name: folderName,
-                parent_id: currentDirectoryId === 'root' ? null : currentDirectoryId
-            })
-        });
-
-        if (!res.ok) {
-            const errorText = await res.text();
-            console.error('Ошибка HTTP при создании папки:', res.status, errorText);
-            showMessage('Ошибка при создании папки', 'danger');
+        if (!data.success || !data.file) {
+            alert(data.error || 'Не удалось получить информацию о файле');
             return;
         }
 
-        const data = await res.json();
+        const file = data.file.file || data.file;
 
-        if (data.success) {
-            showMessage('Папка успешно создана', 'success');
-            folderNameInput.value = '';
-            await loadFolders();
+        const modalEl = document.getElementById('filePreviewModal');
+        const modalTitle = modalEl.querySelector('.modal-title');
+        const fileInfoDiv = modalEl.querySelector('#fileInfo');
+        const filePreviewDiv = modalEl.querySelector('#filePreview');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const shareBtn = document.getElementById('shareInModalBtn');
+        const deleteBtn = document.getElementById('deleteInModalBtn');
+
+        modalTitle.textContent = file.name || file.filename || '';
+
+        fileInfoDiv.innerHTML = `
+            <p><strong>Имя файла:</strong> ${file.name || file.filename || 'неизвестно'}</p>
+            <p><strong>Тип файла:</strong> ${file.mime_type || 'неизвестно'}</p>
+            <p><strong>Размер:</strong> ${file.file_size_formatted || file.file_size || file.size || 'неизвестно'}</p>
+        `;
+
+        if (file.mime_type && file.mime_type.startsWith('image/')) {
+            filePreviewDiv.innerHTML = `<img src="${getApiBase()}/files/download/${file.id}?inline=1" alt="${file.name}" style="max-width: 100%;">`;
+        } else if (file.mime_type === 'application/pdf') {
+            filePreviewDiv.innerHTML = `<iframe src="${getApiBase()}/files/preview/${file.id}" width="100%" height="600px" style="border:none"></iframe>`;
+        } else if (file.mime_type && file.mime_type.startsWith('video/')) {
+            filePreviewDiv.innerHTML = `
+                <div class="video-preview-container" style="position: relative; max-width: 100%; max-height: 60vh; background: black; border-radius: var(--radius);">
+                    <canvas id="modalVideoCanvas" width="640" height="360" style="width: 100%; height: auto; display: block; border-radius: var(--radius);"></canvas>
+                    <video id="modalVideoElement" muted playsinline style="display: none;">
+                        <source src="${getApiBase()}/files/preview/${file.id}" type="${file.mime_type}">
+                    </video>
+                    <div class="video-controls d-flex align-items-center gap-2 p-2" style="position:absolute; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5);">
+                        <button id="modalPlayPauseBtn" class="btn btn-light btn-sm" type="button" title="Воспроизвести/Пауза">
+                            <i class="bi bi-play-fill"></i>
+                        </button>
+                        <input id="modalSeekBar" type="range" min="0" max="100" step="0.1" value="0" class="form-range flex-grow-1" style="accent-color:#0d6efd;">
+                        <span id="modalTimeLabel" class="text-white small" style="min-width: 90px; text-align:right;">0:00 / 0:00</span>
+                        <button id="modalMuteBtn" class="btn btn-light btn-sm" type="button" title="Звук вкл/выкл">
+                            <i class="bi bi-volume-mute"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            const video = document.getElementById('modalVideoElement');
+            const canvas = document.getElementById('modalVideoCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const playBtn = document.getElementById('modalPlayPauseBtn');
+            const seekBar = document.getElementById('modalSeekBar');
+            const timeLabel = document.getElementById('modalTimeLabel');
+            const muteBtn = document.getElementById('modalMuteBtn');
+
+            const formatTime = (seconds) => {
+                if (!isFinite(seconds)) return '0:00';
+                const m = Math.floor(seconds / 60);
+                const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            };
+
+            const updateTimeLabel = () => {
+                const cur = isFinite(video.currentTime) ? video.currentTime : 0;
+                const dur = isFinite(video.duration) ? video.duration : 0;
+                timeLabel.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+            };
+
+            const updatePlayIcon = () => {
+                const icon = playBtn.querySelector('i');
+                if (!icon) return;
+                icon.className = video.paused ? 'bi bi-play-fill' : 'bi bi-pause-fill';
+            };
+
+            const updateMuteIcon = () => {
+                const icon = muteBtn.querySelector('i');
+                if (!icon) return;
+                icon.className = (video.muted || video.volume === 0) ? 'bi bi-volume-mute' : 'bi bi-volume-up';
+            };
+
+            updatePlayIcon();
+            updateMuteIcon();
+
+            playBtn.addEventListener('click', () => {
+                if (video.paused) {
+                    video.play().catch(e => console.warn('Play error:', e.name));
+                } else {
+                    video.pause();
+                }
+            });
+
+            muteBtn.addEventListener('click', () => {
+                video.muted = !video.muted;
+                updateMuteIcon();
+            });
+
+            video.addEventListener('volumechange', () => {
+                updateMuteIcon();
+            });
+
+            seekBar.addEventListener('input', () => {
+                const t = parseFloat(seekBar.value) || 0;
+                if (isFinite(video.duration)) {
+                    video.currentTime = Math.min(Math.max(0, t), video.duration);
+                } else {
+                    video.currentTime = t;
+                }
+                if (video.paused) {
+
+                    drawFrame();
+                }
+                updateTimeLabel();
+            });
+
+            let animationFrameId = null;
+
+            const drawFrame = () => {
+                if (video.paused || video.ended) {
+                    if (animationFrameId) {
+                        cancelAnimationFrame(animationFrameId);
+                        animationFrameId = null;
+                    }
+                    return;
+                }
+
+                const videoAspect = video.videoWidth / video.videoHeight;
+                const canvasAspect = canvas.width / canvas.height;
+                let drawWidth, drawHeight, drawX, drawY;
+
+                if (videoAspect > canvasAspect) {
+                    drawWidth = canvas.width;
+                    drawHeight = canvas.width / videoAspect;
+                    drawX = 0;
+                    drawY = (canvas.height - drawHeight) / 2;
+                } else {
+                    drawHeight = canvas.height;
+                    drawWidth = canvas.height * videoAspect;
+                    drawY = 0;
+                    drawX = (canvas.width - drawWidth) / 2;
+                }
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+
+                animationFrameId = requestAnimationFrame(drawFrame);
+            };
+
+            video.addEventListener('loadedmetadata', () => {
+                if (isFinite(video.duration)) {
+                    seekBar.max = video.duration;
+                }
+                updateTimeLabel();
+            });
+
+            video.addEventListener('loadeddata', () => {
+                const maxWidth = canvas.parentElement.clientWidth;
+                const maxHeight = canvas.parentElement.clientHeight;
+                let scale = Math.min(maxWidth / video.videoWidth, maxHeight / video.videoHeight, 1);
+                canvas.width = video.videoWidth * scale;
+                canvas.height = video.videoHeight * scale;
+
+                if (isFinite(video.duration)) {
+                    seekBar.max = video.duration;
+                }
+                updateTimeLabel();
+
+                video.currentTime = 0.1;
+            });
+
+            video.addEventListener('timeupdate', () => {
+                if (isFinite(video.currentTime)) {
+                    seekBar.value = video.currentTime;
+                }
+                updateTimeLabel();
+            });
+
+            video.addEventListener('seeked', () => {
+                drawFrame();
+            });
+
+            video.addEventListener('play', () => {
+                updatePlayIcon();
+                drawFrame();
+            });
+
+            video.addEventListener('pause', () => {
+                updatePlayIcon();
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+            });
+
+            video.muted = true;
+            video.play().then(() => {
+                video.muted = false;
+            }).catch(e => {
+                console.warn("Modal video autoplay was prevented:", e.name);
+            });
+
+            window.currentPreviewVideo = video;
+            window.currentPreviewCanvasAnimationId = animationFrameId;
+
+        } else if (
+            file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+            file.mime_type === 'application/msword'
+        ) {
+            filePreviewDiv.innerHTML = `
+                <div class="alert alert-warning mb-2">
+                    Предпросмотр docx доступен только для публичных файлов.<br>
+                    <a href="${getApiBase()}/files/download/${file.id}" class="btn btn-primary mt-2" download>Скачать файл</a>
+                </div>
+            `;
         } else {
-            showMessage(data.error || 'Ошибка при создании папки', 'danger');
+            filePreviewDiv.innerHTML = '<div class="alert alert-light text-center">Нет предпросмотра для этого типа файла</div>';
         }
+
+        downloadBtn.href = `${getApiBase()}/files/download/${file.id}`;
+        downloadBtn.download = file.name || file.filename || '';
+
+        shareBtn.dataset.fileId = file.id;
+        shareBtn.dataset.fileName = file.name || file.filename || '';
+
+        if (deleteBtn) {
+            deleteBtn.dataset.fileId = file.id;
+        }
+
+        const isOwner = Number(file.user_id) === Number(currentUserId);
+
+        if (isOwner) {
+            shareBtn.style.display = 'inline-block';
+            deleteBtn.style.display = 'inline-block';
+        } else if (!isOwner && Number(file.is_shared) === 1) {
+            shareBtn.style.display = 'inline-block';
+            deleteBtn.style.display = 'none';
+        } else {
+            shareBtn.style.display = 'none';
+            deleteBtn.style.display = 'none';
+        }
+
+        const unshareContainer = document.getElementById('unshareBtnContainer');
+        if (unshareContainer) {
+            if (!isOwner && Number(file.is_shared) === 1) {
+                unshareContainer.innerHTML = `<button id="unshareInModalBtn" class="btn btn-outline-warning" type="button"><i class="bi bi-box-arrow-left me-1"></i>Отказаться от доступа</button>`;
+                document.getElementById('unshareInModalBtn').onclick = () => {
+                    window.filePreviewModalInstance.hide();
+                    unshareFile(file.id);
+                };
+                unshareContainer.style.display = 'inline-block';
+            } else {
+                unshareContainer.innerHTML = '';
+                unshareContainer.style.display = 'none';
+            }
+        }
+
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        window.filePreviewModalInstance.show();
+
     } catch (error) {
-        console.error('Ошибка при создании папки:', error);
-        showMessage('Произошла ошибка при создании папки', 'danger');
+        console.error('Ошибка при получении информации о файле:', error);
+        alert('Произошла ошибка при получении информации о файле');
     }
 }
+
+let sharedRootId = null;
 
 async function createSubfolderPrompt(parentFolderId) {
     const folderName = prompt('Введите имя новой папки:');
     if (!folderName) return;
 
     try {
-        const res = await fetch('/directories/add', {
+        const res = await fetch(`${getApiBase()}/directories/add`, {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -1033,80 +1801,26 @@ async function createSubfolderPrompt(parentFolderId) {
     }
 }
 
-async function goBack() {
-    try {
-        if (currentDirectoryId === 'root' || !currentDirectoryId) {
-            currentDirectoryId = 'root';
-            localStorage.setItem("currentDirectoryId", currentDirectoryId);
-            await loadFolders();
-            return;
-        }
-
-        const res = await fetch(`/directories/get/${currentDirectoryId}`, {
-            credentials: 'include',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-        });
-
-        if (!res.ok) {
-            currentDirectoryId = 'root';
-            localStorage.setItem("currentDirectoryId", currentDirectoryId);
-            await loadFolders();
-            return;
-        }
-
-        const data = await res.json();
-
-        if (!data.success || !data.directory) {
-            currentDirectoryId = 'root';
-            localStorage.setItem("currentDirectoryId", currentDirectoryId);
-            await loadFolders();
-            return;
-        }
-
-        const directory = data.directory;
-
-        if (directory.is_shared_root) {
-
-            currentDirectoryId = 'root';
-            localStorage.setItem("currentDirectoryId", currentDirectoryId);
-            await loadFolders();
-            return;
-        }
-
-        const parentId = directory.real_parent_id ?? directory.parent_id;
-
-        if (!parentId) {
-            currentDirectoryId = 'root';
-            localStorage.setItem("currentDirectoryId", currentDirectoryId);
-            await loadFolders();
-            return;
-        }
-
-        currentDirectoryId = parentId;
-        localStorage.setItem("currentDirectoryId", currentDirectoryId);
-        await loadFolders();
-
-    } catch (error) {
-        showMessage('Произошла ошибка при переходе назад', 'danger');
-    }
-}
-
 async function renameFile(fileId, currentName) {
-    const newName = prompt(`Введите новое имя для файла "${currentName}":`, currentName);
-    if (!newName || newName.trim() === '' || newName === currentName) {
+
+    const extMatch = currentName.match(/(\.[^\.]+)$/);
+    const extension = extMatch ? extMatch[1] : '';
+    const baseName = extMatch ? currentName.slice(0, -extension.length) : currentName;
+
+    const newBaseName = prompt(`Введите новое имя для файла "${baseName}":`, baseName);
+    if (!newBaseName || newBaseName.trim() === '' || newBaseName === baseName) {
         return;
     }
 
+    const newName = newBaseName.trim() + extension;
+
     try {
-        const res = await fetch('/files/rename', {
+        const res = await fetch(`${getApiBase()}/files/rename`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 file_id: Number(fileId),
-                new_name: newName.trim()
+                new_name: newName
             }),
             credentials: 'include'
         });
@@ -1123,6 +1837,14 @@ async function renameFile(fileId, currentName) {
         if (data.success) {
             showMessage('Файл успешно переименован', 'success');
             await loadFiles();
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            const modalEl = document.getElementById('filePreviewModal');
+            if (downloadBtn && modalEl && modalEl.classList.contains('show')) {
+                downloadBtn.download = newName;
+
+                await showFileInfo(fileId);
+            }
         } else {
             showMessage(data.error || 'Ошибка при переименовании файла', 'danger');
         }
@@ -1139,7 +1861,7 @@ async function renameFolder(folderId, currentName) {
     }
 
     try {
-        const res = await fetch('/directories/rename', {
+        const res = await fetch(`${getApiBase()}/directories/rename`, {
             method: 'PUT',
             credentials: 'include',
             headers: {
@@ -1170,7 +1892,7 @@ async function shareFile(fileId, fileName) {
     if (!email) return;
 
     try {
-        const response = await fetch('/files/share', {
+        const response = await fetch(`${getApiBase()}/files/share`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1206,7 +1928,7 @@ async function shareFolder(folderId, folderName) {
             return;
         }
 
-        const response = await fetch('/directories/share', {
+        const response = await fetch(`${getApiBase()}/directories/share`, {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -1216,8 +1938,7 @@ async function shareFolder(folderId, folderName) {
             body: JSON.stringify({
                 folder_id: folderId,
                 email: email.trim()
-            }),
-            credentials: 'include'
+            })
         });
 
         const data = await response.json();
@@ -1240,7 +1961,7 @@ async function unshareFolder(folderId) {
     }
 
     try {
-        const res = await fetch('/directories/unshare', {
+        const res = await fetch(`${getApiBase()}/directories/unshare`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ directory_id: folderId }),
@@ -1265,7 +1986,7 @@ async function deleteFolder(folderId) {
     if (!confirm('Вы уверены, что хотите удалить эту папку?')) return;
 
     try {
-        const res = await fetch(`/directories/delete/${folderId}`, {
+        const res = await fetch(`${getApiBase()}/directories/delete/${folderId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -1286,7 +2007,7 @@ async function deleteFile(fileId) {
     if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
 
     try {
-        const res = await fetch(`/files/remove/${fileId}`, {
+        const res = await fetch(`${getApiBase()}/files/remove/${fileId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -1294,6 +2015,9 @@ async function deleteFile(fileId) {
         if (data.success) {
             showMessage('Файл успешно удалён', 'success');
             await loadFiles();
+            if (window.filePreviewModalInstance) {
+                window.filePreviewModalInstance.hide();
+            }
         } else {
             showMessage(data.error || 'Ошибка при удалении файла', 'danger');
         }
@@ -1304,72 +2028,76 @@ async function deleteFile(fileId) {
 }
 
 
-document.getElementById('uploadFilesBtn').addEventListener('click', async (e) => {
-    e.preventDefault();
+document.addEventListener('DOMContentLoaded', () => {
+    const deleteBtn = document.getElementById('deleteInModalBtn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            const fileId = deleteBtn.dataset.fileId;
+            if (!fileId) {
+                console.error('fileId не найден у кнопки удаления в модальном окне');
+                return;
+            }
+            deleteFile(fileId);
+        });
+    }
+});
 
+async function uploadSelectedFiles() {
     const fileInput = document.getElementById('fileInput');
     const folderInput = document.getElementById('folderInput');
+    const uploadBtn = document.getElementById('uploadFilesBtn');
 
-    const files = fileInput.files.length > 0 ? fileInput.files : folderInput.files;
-
-    if (!files || files.length === 0) {
+    const allFiles = [...(fileInput.files || []), ...(folderInput.files || [])];
+    if (allFiles.length === 0) {
         showMessage('Выберите файлы или папки для загрузки', 'warning');
         return;
     }
 
-    const formData = new FormData();
-
-    for (let i = 0; i < files.length; i++) {
-        formData.append('files[]', files[i], files[i].webkitRelativePath || files[i].name);
+    const originalBtnHtml = uploadBtn ? uploadBtn.innerHTML : '';
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Загрузка...';
     }
-
-    const paths = [];
-    for (let i = 0; i < files.length; i++) {
-        paths.push(files[i].webkitRelativePath || files[i].name);
-    }
-    formData.append('paths', JSON.stringify(paths));
-
-    formData.append('directory_id', currentDirectoryId);
 
     try {
-        const res = await fetch('/files/upload', {
+        const formData = new FormData();
+        const paths = allFiles.map(f => f.webkitRelativePath || f.name);
+        allFiles.forEach(f => formData.append('files[]', f));
+        formData.append('paths', JSON.stringify(paths));
+        formData.append('directory_id', currentDirectoryId === 'root' ? 'root' : currentDirectoryId);
+
+        const res = await fetch(`${getApiBase()}/files/upload`, {
             method: 'POST',
-            credentials: 'include',
             body: formData,
+            credentials: 'include'
         });
 
         if (!res.ok) {
             const errorText = await res.text();
-            console.error('Ошибка HTTP при загрузке файлов:', res.status, errorText);
+            console.error('Ошибка HTTP при загрузке:', res.status, errorText);
             showMessage('Ошибка при загрузке файлов', 'danger');
             return;
         }
 
         const data = await res.json();
-
         if (data.success) {
-
-            const isFolderUpload = Array.from(files).some(file => file.webkitRelativePath && file.webkitRelativePath.includes('/'));
-
-            if (isFolderUpload) {
-                showMessage('Папка успешно загружена', 'success');
-            } else {
-                showMessage('Файлы успешно загружены', 'success');
-            }
-
-            fileInput.value = '';
-            folderInput.value = '';
-            document.getElementById('selectedFiles').textContent = 'Файлы/папки не выбраны';
-
+            showMessage(data.message || 'Загрузка завершена', 'success');
+            clearFileSelection();
+            await loadFiles();
             await loadFolders();
         } else {
             showMessage(data.error || 'Ошибка при загрузке файлов', 'danger');
         }
-    } catch (error) {
-        console.error('Ошибка при загрузке файлов:', error);
+    } catch (e) {
+        console.error('Ошибка при загрузке файлов:', e);
         showMessage('Произошла ошибка при загрузке файлов', 'danger');
+    } finally {
+        if (uploadBtn) {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = originalBtnHtml;
+        }
     }
-});
+}
 
 async function unshareFile(fileId) {
     if (!confirm("Вы уверены, что хотите отказаться от доступа к этому файлу?")) {
@@ -1377,7 +2105,7 @@ async function unshareFile(fileId) {
     }
 
     try {
-        const res = await fetch('/files/unshare', {
+        const res = await fetch(`${getApiBase()}/files/unshare`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ file_id: fileId }),
@@ -1399,151 +2127,22 @@ async function unshareFile(fileId) {
 }
 
 
-let currentUserId = null;
-
-async function showFileInfo(fileId) {
-    try {
-        const res = await fetch(`/files/info/${fileId}`, {
-            credentials: 'include'
-        });
-
-        if (!res.ok) {
-            throw new Error(`Ошибка HTTP: ${res.status}`);
-        }
-
-        const data = await res.json();
-
-        if (!data.success || !data.file) {
-            alert(data.error || 'Не удалось получить информацию о файле');
-            return;
-        }
-
-        const file = data.file;
-        const modalEl = document.getElementById('filePreviewModal');
-        const modalTitle = modalEl.querySelector('.modal-title');
-        const fileInfoDiv = modalEl.querySelector('#fileInfo');
-        const filePreviewDiv = modalEl.querySelector('#filePreview');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const shareBtn = document.getElementById('shareInModalBtn');
-        const deleteBtn = document.getElementById('deleteInModalBtn');
-
-        modalTitle.textContent = file.filename || file.name || '';
-
-        fileInfoDiv.innerHTML = `
-            <p><strong>Имя файла:</strong> ${file.filename || file.name || ''}</p>
-            <p><strong>Тип файла:</strong> ${file.mime_type || 'неизвестно'}</p>
-            <p><strong>Размер:</strong> ${file.file_size_formatted || 'неизвестно'}</p>
-        `;
-
-        if (file.mime_type && file.mime_type.startsWith('image/')) {
-            filePreviewDiv.innerHTML = `<img src="/files/download/${file.id}?inline=1" alt="${file.name}" style="max-width: 100%;">`;
-        } else if (file.mime_type === 'application/pdf') {
-
-            filePreviewDiv.innerHTML = `<iframe src="/files/preview/${file.id}" width="100%" height="600px" style="border:none"></iframe>`;
-        } else if (
-            file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-            file.mime_type === 'application/msword'
-        ) {
-            filePreviewDiv.innerHTML = `
-                <div class="alert alert-warning mb-2">
-                    Предпросмотр docx доступен только для публичных файлов.<br>
-                    <a href="/files/download/${file.id}" class="btn btn-primary mt-2" download>Скачать файл</a>
-                </div>
-            `;
-        } else {
-            filePreviewDiv.innerHTML = '<div class="text-center text-muted">Нет предпросмотра для этого типа файла</div>';
-        }
-
-        downloadBtn.href = `/files/download/${file.id}`;
-        downloadBtn.download = file.name;
-
-        shareBtn.dataset.fileId = file.id;
-        shareBtn.dataset.fileName = file.name || file.filename || '';
-
-        const isOwner = file.user_id === currentUserId;
-
-        if (isOwner) {
-            deleteBtn.textContent = 'Удалить';
-            deleteBtn.onclick = async () => {
-                if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
-                try {
-                    const res = await fetch(`/files/remove/${file.id}`, {
-                        method: 'DELETE',
-                        credentials: 'include'
-                    });
-                    const result = await res.json();
-                    if (result.success) {
-                        window.filePreviewModalInstance.hide();
-                        showMessage('Файл успешно удалён', 'success');
-                        await loadFiles();
-                    } else {
-                        alert(result.error || 'Ошибка при удалении файла');
-                    }
-                } catch (e) {
-                    alert('Произошла ошибка при удалении файла');
-                }
-            };
-        } else {
-            deleteBtn.textContent = 'Отказаться от доступа';
-            deleteBtn.onclick = async () => {
-                if (!confirm('Вы уверены, что хотите отказаться от доступа к этому файлу?')) return;
-                try {
-                    const res = await fetch('/files/unshare', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ file_id: file.id }),
-                        credentials: 'include'
-                    });
-                    const result = await res.json();
-                    if (result.success) {
-                        window.filePreviewModalInstance.hide();
-                        showMessage('Доступ к файлу успешно отозван', 'success');
-                        await loadFiles();
-                    } else {
-                        alert(result.error || 'Ошибка при отзыве доступа');
-                    }
-                } catch (e) {
-                    alert('Произошла ошибка при отзыве доступа');
-                }
-            };
-        }
-
-        window.filePreviewModalInstance.show();
-
-    } catch (error) {
-        console.error('Ошибка при получении информации о файле:', error);
-        alert('Произошла ошибка при получении информации о файле');
-    }
-}
-
-
 document.getElementById('filePreviewModal').addEventListener('hidden.bs.modal', () => {
+    const modalEl = document.getElementById('filePreviewModal');
+    const video = modalEl.querySelector('video');
+    if (video) {
+        video.pause();
+        video.currentTime = 0;
+        video.removeAttribute('src');
+    }
+
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+
     const safeElement = document.getElementById('userGreeting') || document.body;
     if (safeElement) {
         safeElement.setAttribute('tabindex', '-1');
         safeElement.focus();
         safeElement.removeAttribute('tabindex');
     }
-
 });
-
-function getTileIconHtml(file) {
-    if (file.mime_type === 'application/pdf') {
-        return '<i class="fa fa-file-pdf-o fa-3x text-danger"></i>';
-    }
-    if (file.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-        file.mime_type === 'application/msword') {
-        return '<i class="fa fa-file-word-o fa-3x text-primary"></i>';
-    }
-    if (file.mime_type && file.mime_type.startsWith('image/')) {
-        return `<img src="/download/${file.id}?inline=1" style="max-width:48px;max-height:48px;" alt="preview">`;
-    }
-    return '<i class="fa fa-file-o fa-3x text-secondary"></i>';
-}
-
-function formatFileSize(bytes) {
-    if (!bytes || isNaN(bytes)) return 'неизвестно';
-    if (bytes < 1024) return bytes + ' Б';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' МБ';
-}

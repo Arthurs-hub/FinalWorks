@@ -10,7 +10,7 @@ use App\Core\Logger;
 use Exception;
 
 try {
-    $repository = new PasswordResetRepository();
+    $repository = new PasswordResetRepository($db);
     $deletedCount = $repository->cleanupExpiredTokens();
 
     Logger::info("Cleanup expired tokens", [

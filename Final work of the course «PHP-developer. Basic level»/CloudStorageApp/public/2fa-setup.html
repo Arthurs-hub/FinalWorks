@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройка двухфакторной аутентификации - Cloud Storage</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="css/login.css">
+    <style>
+        .setup-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .setup-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .setup-body {
+            padding: 2rem;
+        }
+
+        .method-card {
+            border: 2px solid #e9ecef;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .method-card:hover {
+            border-color: #4f46e5;
+            background: #f8f9ff;
+        }
+
+        .method-card.selected {
+            border-color: #4f46e5;
+            background: #f0f0ff;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+        }
+
+        .method-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #4f46e5;
+        }
+
+        .qr-code-container {
+            text-align: center;
+            padding: 2rem;
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .secret-key {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            word-break: break-all;
+            margin: 1rem 0;
+        }
+
+        .backup-codes {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .backup-codes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .backup-code {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            padding: 0.5rem;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin: 0 0.5rem;
+            position: relative;
+        }
+
+        .step.active {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .step.completed {
+            background: #198754;
+            color: white;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            width: 1rem;
+            height: 2px;
+            background: #e9ecef;
+            transform: translateY(-50%);
+        }
+
+        .step.completed:not(:last-child)::after {
+            background: #198754;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="setup-container">
+        <div class="setup-header">
+            <i class="bi bi-shield-check" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+            <h2>Настройка двухфакторной аутентификации</h2>
+            <p class="mb-0">Защитите свой аккаунт дополнительным уровнем безопасности</p>
+        </div>
+
+        <div class="setup-body">
+            <div class="step-indicator">
+                <div class="step active" id="step1">1</div>
+                <div class="step" id="step2">2</div>
+                <div class="step" id="step3">3</div>
+            </div>
+
+            <div id="methodSelection" class="setup-step">
+                <h4 class="text-center mb-4">Выберите метод аутентификации</h4>
+
+                <div class="method-card" data-method="email">
+                    <div class="text-center">
+                        <i class="bi bi-envelope-check method-icon"></i>
+                        <h5>Email код</h5>
+                        <p class="text-muted mb-0">Получайте коды подтверждения на ваш email</p>
+                    </div>
+                </div>
+
+                <div class="method-card" data-method="totp">
+                    <div class="text-center">
+                        <i class="bi bi-phone method-icon"></i>
+                        <h5>Приложение Authenticator</h5>
+                        <p class="text-muted mb-0">Используйте Google Authenticator или аналогичное приложение</p>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary w-100 mt-3" id="selectMethodBtn" disabled>
+                    Продолжить
+                </button>
+            </div>
+
+            <div id="totpSetup" class="setup-step d-none">
+                <h4 class="text-center mb-4">Настройка приложения Authenticator</h4>
+
+                <div class="alert alert-info">
+                    <strong>Инструкция:</strong>
+                    <ol class="mb-0 mt-2">
+                        <li>Установите Google Authenticator или аналогичное приложение</li>
+                        <li>Отсканируйте QR-код или введите ключ вручную</li>
+                        <li>Введите код из приложения для подтверждения</li>
+                    </ol>
+                </div>
+
+                <div class="qr-code-container">
+                    <div id="qrCodeImage">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка QR-кода...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mb-3">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#manualKey">
+                        <i class="bi bi-keyboard me-1"></i>Ввести ключ вручную
+                    </button>
+                </div>
+
+                <div class="collapse" id="manualKey">
+                    <div class="alert alert-secondary">
+                        <strong>Данные для ручного ввода:</strong>
+                        <div class="mt-2">
+                            <strong>Имя аккаунта:</strong> <span id="accountName"></span><br>
+                            <strong>Ключ:</strong>
+                            <div class="secret-key" id="secretKey"></div>
+                            <strong>Эмитент:</strong> Cloud Storage
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="totpCode">Введите код из приложения:</label>
+                    <input type="text" class="form-control text-center" id="totpCode" placeholder="000000" maxlength="6"
+                        pattern="[0-9]{6}">
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" id="backToMethodBtn">Назад</button>
+                    <button class="btn btn-primary flex-fill" id="verifyTotpBtn">Проверить код</button>
+                </div>
+            </div>
+
+            <div id="emailSetup" class="setup-step d-none">
+                <h4 class="text-center mb-4">Настройка Email аутентификации</h4>
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Коды будут отправляться на ваш email:</strong>
+                    <div class="mt-2">
+                        <strong id="userEmail"></strong>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <i class="bi bi-envelope-check" style="font-size: 4rem; color: #198754; margin: 2rem 0;"></i>
+                    <p>Мы отправили тестовый код на ваш email для проверки.</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="emailCode">Введите код из email:</label>
+                    <input type="text" class="form-control text-center" id="emailCode" placeholder="000000"
+                        maxlength="6" pattern="[0-9]{6}">
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" id="backToMethodBtn2">Назад</button>
+                    <button class="btn btn-primary flex-fill" id="verifyEmailBtn">Проверить код</button>
+                </div>
+
+                <div class="text-center mt-3">
+                    <button class="btn btn-link btn-sm" id="resendEmailBtn">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Отправить код повторно
+                    </button>
+                </div>
+            </div>
+
+            <div id="backupCodes" class="setup-step d-none">
+                <h4 class="text-center mb-4">Сохраните резервные коды</h4>
+
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Важно!</strong> Сохраните эти коды в безопасном месте.
+                    Они помогут восстановить доступ, если вы потеряете устройство.
+                </div>
+
+                <div class="backup-codes">
+                    <div class="text-center mb-3">
+                        <strong>Ваши резервные коды:</strong>
+                    </div>
+                    <div class="backup-codes-grid" id="backupCodesGrid">
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" id="downloadCodesBtn">
+                        <i class="bi bi-download me-1"></i>Скачать
+                    </button>
+                    <button class="btn btn-outline-secondary" id="printCodesBtn">
+                        <i class="bi bi-printer me-1"></i>Печать
+                    </button>
+                    <button class="btn btn-success flex-fill" id="finishSetupBtn">
+                        <i class="bi bi-check-circle me-1"></i>Завершить настройку
+                    </button>
+                </div>
+            </div>
+
+            <div id="setupMessages" class="mt-3"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedMethod = null;
+
+        function getApiBase() {
+            return "";
+        }
+        let currentStep = 1;
+        let userEmail = '';
+        let secretKey = '';
+        let generatedBackupCodes = [];
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            userEmail = urlParams.get('email') || 'user@example.com';
+
+            initMethodSelection();
+            initTotpSetup();
+            initEmailSetup();
+            initBackupCodes();
+        });
+
+        function initMethodSelection() {
+            const methodCards = document.querySelectorAll('.method-card');
+            const selectBtn = document.getElementById('selectMethodBtn');
+
+            methodCards.forEach(card => {
+                card.addEventListener('click', function () {
+                    methodCards.forEach(c => c.classList.remove('selected'));
+
+                    this.classList.add('selected');
+                    selectedMethod = this.dataset.method;
+
+                    selectBtn.disabled = false;
+                });
+            });
+
+            selectBtn.addEventListener('click', function () {
+                if (selectedMethod === 'email') {
+                    showEmailSetup();
+                } else if (selectedMethod === 'totp') {
+                    showTotpSetup();
+                }
+            });
+        }
+
+        function initTotpSetup() {
+            const backBtn = document.getElementById('backToMethodBtn');
+            const verifyBtn = document.getElementById('verifyTotpBtn');
+            const codeInput = document.getElementById('totpCode');
+
+            backBtn.addEventListener('click', () => showMethodSelection());
+
+            verifyBtn.addEventListener('click', async function () {
+                const code = codeInput.value.trim();
+                if (code.length !== 6) {
+                    showMessage('Введите 6-значный код', 'danger');
+                    return;
+                }
+
+                await verifyTotpCode(code);
+            });
+
+            codeInput.addEventListener('input', function () {
+                this.value = this.value.replace(/[^0-9]/g, '');
+                if (this.value.length === 6) {
+                    verifyBtn.click();
+                }
+            });
+        }
+
+        function initEmailSetup() {
+            const backBtn = document.getElementById('backToMethodBtn2');
+            const verifyBtn = document.getElementById('verifyEmailBtn');
+            const resendBtn = document.getElementById('resendEmailBtn');
+            const codeInput = document.getElementById('emailCode');
+
+            backBtn.addEventListener('click', () => showMethodSelection());
+            resendBtn.addEventListener('click', () => sendEmailCode());
+
+            verifyBtn.addEventListener('click', async function () {
+                const code = codeInput.value.trim();
+                if (code.length !== 6) {
+                    showMessage('Введите 6-значный код', 'danger');
+                    return;
+                }
+
+                await verifyEmailCode(code);
+            });
+
+            codeInput.addEventListener('input', function () {
+                this.value = this.value.replace(/[^0-9]/g, '');
+                if (this.value.length === 6) {
+                    verifyBtn.click();
+                }
+            });
+        }
+
+        function initBackupCodes() {
+            const downloadBtn = document.getElementById('downloadCodesBtn');
+            const printBtn = document.getElementById('printCodesBtn');
+            const finishBtn = document.getElementById('finishSetupBtn');
+
+            downloadBtn.addEventListener('click', downloadBackupCodes);
+            printBtn.addEventListener('click', printBackupCodes);
+            finishBtn.addEventListener('click', finishSetup);
+        }
+
+        function showMethodSelection() {
+            hideAllSteps();
+            document.getElementById('methodSelection').classList.remove('d-none');
+            updateStepIndicator(1);
+        }
+
+        function showTotpSetup() {
+            hideAllSteps();
+            document.getElementById('totpSetup').classList.remove('d-none');
+            updateStepIndicator(2);
+            generateTotpSecret();
+        }
+
+        function showEmailSetup() {
+            hideAllSteps();
+            document.getElementById('emailSetup').classList.remove('d-none');
+            document.getElementById('userEmail').textContent = userEmail;
+            updateStepIndicator(2);
+            sendEmailCode();
+        }
+
+        function showBackupCodes() {
+            hideAllSteps();
+            document.getElementById('backupCodes').classList.remove('d-none');
+            updateStepIndicator(3);
+            generateBackupCodes();
+        }
+
+        function hideAllSteps() {
+            document.querySelectorAll('.setup-step').forEach(step => {
+                step.classList.add('d-none');
+            });
+        }
+
+        function updateStepIndicator(step) {
+            document.querySelectorAll('.step').forEach((stepEl, index) => {
+                stepEl.classList.remove('active', 'completed');
+                if (index + 1 < step) {
+                    stepEl.classList.add('completed');
+                } else if (index + 1 === step) {
+                    stepEl.classList.add('active');
+                }
+            });
+        }
+
+        async function generateTotpSecret() {
+            try {
+                const response = await fetch(`${getApiBase()}/api/2fa/generate-secret`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    secretKey = data.secret;
+                    document.getElementById('secretKey').textContent = secretKey;
+                    document.getElementById('accountName').textContent = userEmail;
+
+                    const qrUrl = data.qr_url;
+                    const qrImage = `<img src="${data.qr_image}" alt="QR Code" style="max-width: 200px;">`;
+                    document.getElementById('qrCodeImage').innerHTML = qrImage;
+                } else {
+                    showMessage('Ошибка генерации секретного ключа', 'danger');
+                }
+            } catch (error) {
+                showMessage('Ошибка соединения с сервером', 'danger');
+            }
+        }
+
+        async function sendEmailCode() {
+            try {
+                const response = await fetch(`${getApiBase()}/api/2fa/send-email-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    showMessage('Ошибка отправки кода на email', 'danger');
+                }
+            } catch (error) {
+                showMessage('Ошибка соединения с сервером', 'danger');
+            }
+        }
+
+        async function verifyTotpCode(code) {
+            try {
+                const response = await fetch(`${getApiBase()}/api/2fa/verify-totp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, secret: secretKey })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('Код подтвержден!', 'success');
+                    setTimeout(() => showBackupCodes(), 1000);
+                } else {
+                    showMessage('Неверный код. Попробуйте еще раз.', 'danger');
+                }
+            } catch (error) {
+                showMessage('Ошибка проверки кода', 'danger');
+            }
+        }
+
+        async function verifyEmailCode(code) {
+            try {
+                const response = await fetch(`${getApiBase()}/api/2fa/verify-email-setup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('Код подтвержден!', 'success');
+                    setTimeout(() => showBackupCodes(), 1000);
+                } else {
+                    showMessage('Неверный код. Попробуйте еще раз.', 'danger');
+                }
+            } catch (error) {
+                showMessage('Ошибка проверки кода', 'danger');
+            }
+        }
+
+        async function generateBackupCodes() {
+            try {
+                const response = await fetch(`${getApiBase()}/api/2fa/generate-backup-codes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const codes = data.codes || data.backup_codes || [];
+                    generatedBackupCodes = codes;
+                    const grid = document.getElementById('backupCodesGrid');
+                    grid.innerHTML = '';
+
+                    codes.forEach(code => {
+                        const codeDiv = document.createElement('div');
+                        codeDiv.className = 'backup-code';
+                        codeDiv.textContent = code;
+                        grid.appendChild(codeDiv);
+                    });
+                } else {
+                    showMessage('Ошибка генерации резервных кодов', 'danger');
+                }
+            } catch (error) {
+                showMessage('Ошибка соединения с сервером', 'danger');
+            }
+        }
+
+        function downloadBackupCodes() {
+            const codes = Array.from(document.querySelectorAll('.backup-code')).map(el => el.textContent);
+            const content = `Резервные коды для двухфакторной аутентификации\nCloud Storage\n\n${codes.join('\n')}\n\nСохраните эти коды в безопасном месте!`;
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'backup-codes.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function printBackupCodes() {
+            const codes = Array.from(document.querySelectorAll('.backup-code')).map(el => el.textContent);
+            const printContent = `
+                <h2>Резервные коды для двухфакторной аутентификации</h2>
+                <h3>Cloud Storage</h3>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0;">
+                    ${codes.map(code => `<div style="border: 1px solid #ccc; padding: 10px; text-align: center; font-family: monospace;">${code}</div>`).join('')}
+                </div>
+                <p><strong>Сохраните эти коды в безопасном месте!</strong></p>
+            `;
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                    <head><title>Резервные коды 2FA</title></head>
+                    <body>${printContent}</body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        async function finishSetup() {
+            try {
+                const response = await fetch(`${getApiBase()}/api/2fa/complete-setup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ method: selectedMethod, backup_codes: generatedBackupCodes })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('Двухфакторная аутентификация успешно настроена!', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'upload.html';
+                    }, 2000);
+                } else {
+                    showMessage('Ошибка завершения настройки', 'danger');
+                }
+            } catch (error) {
+                showMessage('Ошибка соединения с сервером', 'danger');
+            }
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('setupMessages');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+
+</html>

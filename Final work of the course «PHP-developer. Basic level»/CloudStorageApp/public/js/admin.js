@@ -62,6 +62,255 @@ function loadCurrentAdminName() {
     }
 }
 
+async function showVideoViewerAdmin(fileId) {
+    try {
+        let file = currentFiles.find(f => f.id == fileId);
+        if (!file) {
+            const res = await fetch(`/files/info/${fileId}`, { credentials: 'include' });
+            if (!res.ok) throw new Error('Не удалось получить информацию о файле');
+            const data = await res.json();
+            if (!data.success || !data.file) throw new Error('Файл не найден');
+            file = data.file.file || data.file;
+        }
+
+        const modalElement = document.getElementById('viewFileModal');
+        if (!modalElement) {
+            alert('Модальное окно предпросмотра не найдено');
+            return;
+        }
+
+        const fileDetailsContent = document.getElementById('fileDetailsContent');
+        if (!fileDetailsContent) return;
+
+        showVideoPreviewInModal(file);
+
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+
+    } catch (error) {
+        console.error('Ошибка при открытии видео предпросмотра:', error);
+        showMessage('danger', 'Не удалось открыть видео предпросмотр');
+    }
+}
+
+function showVideoPreviewInModal(file) {
+    const filePreviewDiv = document.getElementById('fileDetailsContent');
+    if (!filePreviewDiv) return;
+
+    filePreviewDiv.innerHTML = `
+        <div class="video-preview-container" style="position: relative; max-width: 100%; background: black; border-radius: 8px; overflow: hidden; display: flex; justify-content: center;">
+            <canvas id="modalVideoCanvas" width="640" height="360" style="border-radius: 8px;"></canvas>
+            <video id="modalVideoElement" muted playsinline style="display: none;">
+                <source src="/files/preview/${file.id}" type="${file.mime_type}">
+            </video>
+            <div class="video-controls d-flex align-items-center gap-2 p-2" style="position:absolute; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5);">
+                <button id="modalPlayPauseBtn" class="btn btn-light btn-sm" type="button" title="Воспроизвести/Пауза">
+                    <i class="bi bi-play-fill"></i>
+                </button>
+                <input id="modalSeekBar" type="range" min="0" max="100" step="0.1" value="0" class="form-range flex-grow-1" style="accent-color:#0d6efd;">
+                <span id="modalTimeLabel" class="text-white small" style="min-width: 90px; text-align:right;">0:00 / 0:00</span>
+                <button id="modalMuteBtn" class="btn btn-light btn-sm" type="button" title="Звук вкл/выкл">
+                    <i class="bi bi-volume-mute"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    const video = document.getElementById('modalVideoElement');
+    const canvas = document.getElementById('modalVideoCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const playBtn = document.getElementById('modalPlayPauseBtn');
+    const seekBar = document.getElementById('modalSeekBar');
+    const timeLabel = document.getElementById('modalTimeLabel');
+    const muteBtn = document.getElementById('modalMuteBtn');
+
+    const formatTime = (seconds) => {
+        if (!isFinite(seconds)) return '0:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    };
+
+    const updateTimeLabel = () => {
+        const cur = isFinite(video.currentTime) ? video.currentTime : 0;
+        const dur = isFinite(video.duration) ? video.duration : 0;
+        timeLabel.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+    };
+
+    const updatePlayIcon = () => {
+        const icon = playBtn.querySelector('i');
+        if (!icon) return;
+        icon.className = video.paused ? 'bi bi-play-fill' : 'bi bi-pause-fill';
+    };
+
+    const updateMuteIcon = () => {
+        const icon = muteBtn.querySelector('i');
+        if (!icon) return;
+        icon.className = (video.muted || video.volume === 0) ? 'bi bi-volume-mute' : 'bi bi-volume-up';
+    };
+
+    updatePlayIcon();
+    updateMuteIcon();
+
+    playBtn.addEventListener('click', () => {
+        if (video.paused) {
+            video.play().catch(e => console.warn('Play error:', e.name));
+        } else {
+            video.pause();
+        }
+    });
+
+    muteBtn.addEventListener('click', () => {
+        video.muted = !video.muted;
+        updateMuteIcon();
+    });
+
+    video.addEventListener('volumechange', () => {
+        updateMuteIcon();
+    });
+
+    seekBar.addEventListener('input', () => {
+        const t = parseFloat(seekBar.value) || 0;
+        if (isFinite(video.duration)) {
+            video.currentTime = Math.min(Math.max(0, t), video.duration);
+        } else {
+            video.currentTime = t;
+        }
+        if (video.paused) {
+            drawFrame();
+        }
+        updateTimeLabel();
+    });
+
+    let animationFrameId = null;
+
+    const drawFrame = () => {
+        if (video.paused || video.ended) {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            return;
+        }
+
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const canvasAspect = canvas.width / canvas.height;
+        let drawWidth, drawHeight, drawX, drawY;
+
+        if (videoAspect > canvasAspect) {
+            drawWidth = canvas.width;
+            drawHeight = canvas.width / videoAspect;
+            drawX = 0;
+            drawY = (canvas.height - drawHeight) / 2;
+        } else {
+            drawHeight = canvas.height;
+            drawWidth = canvas.height * videoAspect;
+            drawY = 0;
+            drawX = (canvas.width - drawWidth) / 2;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+
+        animationFrameId = requestAnimationFrame(drawFrame);
+    };
+
+    video.addEventListener('loadedmetadata', () => {
+        const maxWidth = filePreviewDiv.clientWidth;
+        const maxHeight = window.innerHeight * 0.6; // 60% высоты окна
+
+        let videoWidth = video.videoWidth;
+        let videoHeight = video.videoHeight;
+
+        let scale = Math.min(maxWidth / videoWidth, maxHeight / videoHeight, 1);
+
+        canvas.width = videoWidth * scale;
+        canvas.height = videoHeight * scale;
+
+        canvas.style.margin = '0 auto';
+
+        if (isFinite(video.duration)) {
+            seekBar.max = video.duration;
+        }
+        updateTimeLabel();
+    });
+
+    video.addEventListener('loadeddata', () => {
+        video.currentTime = 0.1;
+    });
+
+    video.addEventListener('timeupdate', () => {
+        if (isFinite(video.currentTime)) {
+            seekBar.value = video.currentTime;
+        }
+        updateTimeLabel();
+    });
+
+    video.addEventListener('seeked', () => {
+        drawFrame();
+    });
+
+    video.addEventListener('play', () => {
+        updatePlayIcon();
+        drawFrame();
+    });
+
+    video.addEventListener('pause', () => {
+        updatePlayIcon();
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+    });
+
+    video.muted = true;
+    video.play().then(() => {
+        video.muted = false;
+    }).catch(e => {
+        console.warn("Modal video autoplay was prevented:", e.name);
+    });
+
+    window.currentPreviewVideo = video;
+    window.currentPreviewCanvasAnimationId = animationFrameId;
+}
+
+
+const modalElement = document.getElementById('viewFileModal');
+if (modalElement) {
+    modalElement.addEventListener('hidden.bs.modal', () => {
+        const video = modalElement.querySelector('video');
+        if (video) {
+            video.pause();
+            video.currentTime = 0;
+            video.removeAttribute('src');
+            video.load();
+        }
+
+        if (window.currentPreviewVideo) {
+            try {
+                window.currentPreviewVideo.pause();
+                window.currentPreviewVideo.removeAttribute('src');
+                window.currentPreviewVideo.load();
+                if (window.currentPreviewVideo.parentNode) {
+                    window.currentPreviewVideo.parentNode.removeChild(window.currentPreviewVideo);
+                }
+            } catch (_) { }
+            window.currentPreviewVideo = null;
+        }
+
+        if (window.currentPreviewCanvasAnimationId) {
+            cancelAnimationFrame(window.currentPreviewCanvasAnimationId);
+            window.currentPreviewCanvasAnimationId = null;
+        }
+
+        const fileDetailsContent = document.getElementById('fileDetailsContent');
+        if (fileDetailsContent) {
+            fileDetailsContent.innerHTML = '';
+        }
+    });
+};
+
 
 let currentUser = null;
 
@@ -1236,6 +1485,7 @@ function renderFilesTable(files) {
     });
 }
 
+
 function viewFile(fileId) {
 
     const file = currentFiles.find(f => f.id == fileId);
@@ -1249,7 +1499,6 @@ function viewFile(fileId) {
 }
 
 function showFileModal(file) {
-
     const existingModals = document.querySelectorAll('.modal.show');
     existingModals.forEach(modal => {
         const modalInstance = bootstrap.Modal.getInstance(modal);
@@ -1258,15 +1507,29 @@ function showFileModal(file) {
         }
     });
 
-
     const isImage = file.mime_type && file.mime_type.startsWith('image/');
     const isPdf = file.mime_type && file.mime_type === 'application/pdf';
-    const isPreviewable = isImage || isPdf;
-
+    const isVideo = file.mime_type && file.mime_type.startsWith('video/');
+    const isPreviewable = isImage || isPdf || isVideo;
 
     const fileDetailsContent = document.getElementById('fileDetailsContent');
     if (!fileDetailsContent) {
         createFileModal(file);
+        return;
+    }
+
+    if (isVideo) {
+        showVideoPreviewInModal(file);
+
+        const modalElement = document.getElementById('viewFileModal');
+        if (modalElement) {
+            const modalDialog = modalElement.querySelector('.modal-dialog');
+            modalDialog.classList.remove('modal-xl');
+            modalDialog.classList.add('modal-lg');
+
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        }
         return;
     }
 
@@ -1299,7 +1562,7 @@ function showFileModal(file) {
                             </div>
                         </div>
                         <div class="mt-2 d-flex justify-content-center">
-                            <button class="btn btn-outline-primary btn-sm" onclick="openPdfInNewTab(${fileId})">
+                            <button class="btn btn-outline-primary btn-sm" onclick="openPdfInNewTab(${file.id})">
                                 <i class="bi bi-box-arrow-up-right"></i> Открыть в новой вкладке
                             </button>
                         </div>
@@ -1657,7 +1920,6 @@ async function refreshSystemHealth() {
         console.error('Ошибка загрузки состояния системы:', error);
     }
 }
-
 
 window.addEventListener('hashchange', () => {
     if (window.location.hash === '#dashboard' || window.location.hash === '#system') {

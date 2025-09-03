@@ -16,16 +16,15 @@ return [
         'allowed_extensions' => ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar'],
         'timezone' => 'Europe/Moscow'
     ],
-    'email' => [
-        'method' => 'smtp', 
-        'smtp_host' => 'smtp.gmail.com',
-        'smtp_port' => 587,
-        'smtp_secure' => 'tls',
-        'smtp_username' => 'arthurznc@gmail.com', 
-        'smtp_password' => 'wltm aqpm kbtn broa', 
+    'smtp' => [
+        'host' => 'smtp.gmail.com',
+        'port' => 587,
+        'encryption' => 'tls',
+        'username' => 'arthurznc@gmail.com',
+        'password' => 'wltm aqpm kbtn broa',
         'from_email' => 'arthurznc@gmail.com',
         'from_name' => 'CloudStorageApp Support',
-        'debug' => false 
+        'debug' => false
     ],
     'security' => [
         'session_lifetime' => 3600,
@@ -33,3 +32,4 @@ return [
         'max_login_attempts' => 5
     ]
 ];
+

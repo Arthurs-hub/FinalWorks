@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/Admin.css">
+    <link rel="stylesheet" href="css/video-tiles.css">
 </head>
 
 <body>
@@ -291,13 +292,49 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="stat-card">
-                                <h6 class="mb-3">Настройки безопасности</h6>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" id="enableTwoFactor">
-                                    <label class="form-check-label" for="enableTwoFactor">
-                                        Двухфакторная аутентификация
-                                    </label>
+                                <h6 class="mb-3">
+                                    <i class="bi bi-shield-check me-2"></i>
+                                    Настройки безопасности
+                                </h6>
+
+                                <div class="security-setting mb-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableTwoFactor">
+                                            <label class="form-check-label fw-semibold" for="enableTwoFactor">
+                                                Принудительная двухфакторная аутентификация
+                                            </label>
+                                        </div>
+                                        <span class="badge bg-secondary" id="twoFactorStatus">Загрузка...</span>
+                                    </div>
+                                    <div class="form-text mb-3">
+                                        Требовать 2FA для всех пользователей, которые не включили её самостоятельно
+                                    </div>
+
+                                    <div class="two-factor-stats d-none" id="twoFactorStats">
+                                        <div class="row g-2">
+                                            <div class="col-4">
+                                                <div class="stat-mini">
+                                                    <div class="stat-value" id="usersWithTwoFactor">0</div>
+                                                    <div class="stat-label">С 2FA</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-mini">
+                                                    <div class="stat-value" id="emailMethod">0</div>
+                                                    <div class="stat-label">Email</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="stat-mini">
+                                                    <div class="stat-value" id="totpMethod">0</div>
+                                                    <div class="stat-label">TOTP</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
+
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" id="enablePasswordPolicy">
                                     <label class="form-check-label" for="enablePasswordPolicy">
@@ -566,6 +603,89 @@
         </div>
     </div>
     <script src="js/admin.js"></script>
+    <script>
+        // ===== УПРАВЛЕНИЕ ДВУХФАКТОРНОЙ АУТЕНТИФИКАЦИЕЙ =====
+
+        document.addEventListener('DOMContentLoaded', function () {
+            init2FAManagement();
+        });
+
+        async function init2FAManagement() {
+            const twoFactorCheckbox = document.getElementById('enableTwoFactor');
+            if (!twoFactorCheckbox) return;
+
+            await load2FAStatus();
+
+            twoFactorCheckbox.addEventListener('change', async function () {
+                await toggle2FAForced(this.checked);
+            });
+        }
+
+        async function load2FAStatus() {
+            try {
+                const response = await fetch('/api/admin/2fa/status');
+                const data = await response.json();
+
+                if (data.success) {
+                    const checkbox = document.getElementById('enableTwoFactor');
+                    const statusBadge = document.getElementById('twoFactorStatus');
+                    const statsContainer = document.getElementById('twoFactorStats');
+
+                    checkbox.checked = data.forced_enabled;
+
+                    if (data.forced_enabled) {
+                        statusBadge.className = 'badge bg-success';
+                        statusBadge.textContent = 'Включено';
+                    } else {
+                        statusBadge.className = 'badge bg-secondary';
+                        statusBadge.textContent = 'Выключено';
+                    }
+
+                    if (data.stats) {
+                        document.getElementById('usersWithTwoFactor').textContent = data.stats.enabled_users || 0;
+                        document.getElementById('emailMethod').textContent = data.stats.methods?.email || 0;
+                        document.getElementById('totpMethod').textContent = data.stats.methods?.totp || 0;
+                        statsContainer.classList.remove('d-none');
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки статуса 2FA:', error);
+            }
+        }
+
+        async function toggle2FAForced(enabled) {
+            try {
+                const response = await fetch('/api/admin/2fa/toggle-forced', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const statusBadge = document.getElementById('twoFactorStatus');
+                    if (enabled) {
+                        statusBadge.className = 'badge bg-success';
+                        statusBadge.textContent = 'Включено';
+                        showMessage('Принудительная 2FA включена для всех пользователей', 'success');
+                    } else {
+                        statusBadge.className = 'badge bg-secondary';
+                        statusBadge.textContent = 'Выключено';
+                        showMessage('Принудительная 2FA отключена', 'info');
+                    }
+
+                    setTimeout(() => load2FAStatus(), 1000);
+                } else {
+                    document.getElementById('enableTwoFactor').checked = !enabled;
+                    showMessage(data.message || 'Ошибка изменения настройки', 'danger');
+                }
+            } catch (error) {
+                document.getElementById('enableTwoFactor').checked = !enabled;
+                showMessage('Ошибка соединения с сервером', 'danger');
+            }
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 

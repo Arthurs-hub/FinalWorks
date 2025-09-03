@@ -2,142 +2,158 @@
 <html lang="ru">
 
 <head>
-    <meta charset="UTF-8">
-    <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>Мои файлы</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="css/upload.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
-    </script>
-
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Cloud Storage - Мои файлы</title>
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="api-base" content="" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="css/upload.css" />
 </head>
 
-<body class="container-fluid px-5">
+<body>
+    <div id="messageContainer" class="message-container" aria-live="polite" aria-atomic="true"></div>
+    <main class="main-container container-fluid">
 
-    <div id="messageContainer"
-        style="position: fixed; top: 0; left: 0; width: 100%; pointer-events: none; z-index: 1100;"></div>
-
-
-    <div class="admin-only" style="display:none;">
-        <button class="btn btn-warning">Админская кнопка</button>
-    </div>
-
-    <div class="user-only" style="display:none;">
-        <p>Добро пожаловать, обычный пользователь!</p>
-    </div>
-
-    <div class="d-flex justify-content-between align-items-center mb-0">
-        <div class="d-flex align-items-center">
-            <img alt="icon" src="ElibraryIcon.png" style="height: 7rem; margin-right: 10px;">
-            <div>
-                <div class="text-muted mb-2" id="userGreeting" tabindex="-1">Загрузка...</div>
-                <h2 class="mb-0">Мои файлы</h2>
-            </div>
-        </div>
-        <button class="btn btn-danger btn-sm" id="logoutBtn">Выйти</button>
-    </div>
-    <div id="folderMessageContainer" class="mb-3"></div>
-
-    <form class="mb-3" id="uploadUniversalForm">
-        <div class="top-container">
-            <div class="row g-0">
-                <div class="col-md-12">
-                    <div class="d-flex align-items-center gap-2">
-
-                        <div class="d-flex flex-grow-1 align-items-center" style="width: 70%;">
-                            <div class="btn-group flex-shrink-0" role="group">
-                                <label class="btn btn-secondary" for="fileInput">
-                                    <i class="bi bi-file-earmark"></i> Выбрать файлы
-                                </label>
-                                <label class="btn btn-secondary" for="folderInput">
-                                    <i class="bi bi-folder"></i> Выбрать папку
-                                </label>
-                            </div>
-
-                            <span id="selectedFiles" class="text-muted text-truncate mx-2 flex-grow-1"
-                                style="max-width: 350px; overflow: hidden; text-overflow: ellipsis;">
-                                Файлы/папки не выбраны
-                            </span>
-                        </div>
-
-                        <input hidden id="fileInput" multiple type="file">
-                        <input hidden id="folderInput" multiple type="file" webkitdirectory>
-
-                        <button class="btn btn-success flex-shrink-0" id="uploadFilesBtn"
-                            style="width: 120px; height: 38px;">
-                            <i class="bi bi-upload"></i> Загрузить
-                        </button>
-
-                        <div class="input-group flex-shrink-0" style="width: 30%; min-width: 250px;">
-                            <input type="text" class="form-control" placeholder="Имя новой папки" id="newFolderName"
-                                style="width: 100px; height: 38px;">
-                            <button class="btn btn-primary flex-shrink-0" id="createFolderBtn"
-                                style="width: 150px; height: 38px; white-space: nowrap;">
-                                Добавить папку
-                            </button>
-                        </div>
-
+        <header class="app-header">
+            <div class="header-content">
+                <div class="app-logo">
+                    <img alt="Cloud Storage" src="ElibraryIcon.png" class="logo-icon" />
+                    <div class="logo-text">
+                        <h1 class="app-title">Мои файлы</h1>
+                        <p class="app-subtitle">Ваше персональное облачное хранилище</p>
                     </div>
-
-                    <div class="d-flex justify-content-between align-items-center mt-3" id="refreshAndViewRow">
-                        <div id="refreshBtnContainer"></div>
-                        <div class="btn-group">
-                            <button id="viewListBtn" class="btn btn-outline-primary active" type="button">
-                                <i class="bi bi-list"></i> Список
-                            </button>
-                            <button id="viewGridBtn" class="btn btn-outline-primary" type="button">
-                                <i class="bi bi-grid"></i> Плитки
-                            </button>
-                        </div>
-                    </div>
-
+                </div>
+                <div class="user-info">
+                    <div id="userGreeting" class="user-greeting">Загрузка...</div>
+                    <button class="btn btn-sm logout-btn" id="logoutBtn" type="button" title="Выйти из аккаунта">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-md-inline ms-1">Выйти</span>
+                    </button>
                 </div>
             </div>
-        </div>
-    </form>
+        </header>
 
-    <h5 class="mt-4">Список папок</h5>
-    <ul class="list-group mb-3" id="foldersList"></ul>
+        <section class="upload-panel card">
+            <div id="dropZone" class="dropzone" tabindex="0">
+                <div class="dropzone-content">
+                    <i class="bi bi-cloud-arrow-up dropzone-icon"></i>
+                    <p class="dropzone-text-main">Перетащите файлы сюда для загрузки</p>
+                    <p class="dropzone-text-sub">Папки можно загрузить только через кнопку</p>
+                </div>
+            </div>
+            <div class="upload-controls">
+                <div class="control-row">
+                    <div class="control-group">
+                        <label class="btn btn-primary" for="fileInput" title="Выбрать файлы">
+                            <i class="bi bi-file-earmark-plus"></i>
+                            <span class="d-none d-sm-inline ms-2">Выбрать Файлы</span>
+                        </label>
+                        <label class="btn btn-primary" for="folderInput" title="Выбрать папку">
+                            <i class="bi bi-folder-plus"></i>
+                            <span class="d-none d-sm-inline ms-2">Выбрать Папку</span>
+                        </label>
+                        <span id="selectedFiles" class="selected-files-text">Файлы не выбраны</span>
+                    </div>
+                    <div class="control-group">
+                        <button class="btn btn-secondary" id="clearSelectionBtn" type="button" disabled
+                            title="Очистить выбор">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                        <button class="btn btn-success upload-btn" id="uploadFilesBtn" type="button" title="Загрузить">
+                            <i class="bi bi-cloud-upload"></i>
+                            <span class="d-none d-sm-inline ms-2">Загрузить</span>
+                        </button>
+                    </div>
+                </div>
 
-    <h5 class="mt-4">Список файлов</h5>
-    <ul class="list-group mt-2" id="filesList"></ul>
+                <div class="control-row">
+                    <div class="control-group">
+                        <div id="refreshBtnContainer"></div>
+                    </div>
+                    <div class="control-group">
+                        <div class="btn-group view-toggle" role="group">
+                            <button id="viewListBtn" class="btn btn-secondary active" type="button" title="Вид: Список">
+                                <i class="bi bi-list-ul"></i>
+                            </button>
+                            <button id="viewGridBtn" class="btn btn-secondary" type="button" title="Вид: Плитка">
+                                <i class="bi bi-grid-3x3-gap-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <input hidden id="fileInput" name="files[]" multiple type="file" />
+            <input hidden id="folderInput" name="files[]" multiple type="file" webkitdirectory />
+        </section>
+
+        <section class="content-area row g-4">
+
+            <div class="col-12 col-lg-4">
+                <div class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-folder2-open"></i> Папки
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" placeholder="Имя новой папки..."
+                                id="newFolderName" />
+                            <button class="btn btn-primary" type="button" id="createFolderBtn" title="Создать папку">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
+                        <div id="folderMessageContainer"></div>
+                    </div>
+                    <ul class="list-group list-group-flush folders-list" id="foldersList" role="list"></ul>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-8">
+                <div class="content-card">
+                    <div class="card-header">
+                        <i class="bi bi-files"></i> Файлы
+                    </div>
+                    <div id="filesList" class="files-list p-2" role="list"></div>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <div class="modal fade" id="filePreviewModal" tabindex="-1" aria-labelledby="filePreviewModalLabel"
         aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="filePreviewModalLabel">Предпросмотр файла</h5>
+                    <h5 class="modal-title" id="filePreviewModalLabel">Предпросмотр</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <div class="modal-body" id="filePreviewModalBody">
-                    <div id="fileInfo"></div>
-                    <div id="filePreview" class="my-3"></div>
-                    <div class="preview-modal-actions d-flex gap-2">
-                        <a id="downloadBtn" class="btn btn-primary" href="#" target="_blank" download>
-                            <i class="bi bi-download"></i> Скачать
-                        </a>
-                        <button id="shareInModalBtn" class="btn btn-secondary" type="button">
-                            <i class="bi bi-share"></i> Поделиться
-                        </button>
-                        <button id="deleteInModalBtn" class="btn btn-danger" type="button">
-                            <i class="bi bi-trash"></i> Удалить
-                        </button>
-                    </div>
-                    <div id="filePreviewMessage" style="display:none"></div>
+                <div class="modal-body">
+                    <div id="filePreview" class="file-preview-section"></div>
+                    <div id="fileInfo" class="file-info-section"></div>
+                </div>
+                <div class="modal-footer">
+                    <span id="unshareBtnContainer" class="me-auto"></span>
+                    <button id="shareInModalBtn" class="btn btn-secondary" type="button">
+                        <i class="bi bi-share-fill"></i> Поделиться
+                    </button>
+                    <button id="deleteInModalBtn" class="btn btn-danger" type="button">
+                        <i class="bi bi-trash-fill"></i> Удалить
+                    </button>
+                    <a id="downloadBtn" class="btn btn-primary" href="#" download>
+                        <i class="bi bi-download"></i> Скачать
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js";
+    </script>
     <script src="js/app.js"></script>
-
 </body>
 
 </html>

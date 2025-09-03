@@ -1,11 +1,42 @@
 <?php
 
+declare(strict_types=1);
+
+
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
+} else {
+    header("Access-Control-Allow-Origin: *");
+}
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Cache-Control, Pragma, Expires");
+header("Access-Control-Allow-Credentials: true");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+// --- Конец блока CORS ---
+
+$config = require __DIR__ . '/../config/config.php';
+
+date_default_timezone_set($config['app']['timezone'] ?? 'UTC');
+
+use App\Core\AuthMiddleware;
+use App\Core\Container;
+use App\Core\Logger;
+use App\Core\Request;
+use App\Core\Response;
+use App\Core\Router;
+
 if (session_status() === PHP_SESSION_NONE) {
-    $config = require __DIR__ . '/../config/config.php';
 
     session_set_cookie_params([
         'lifetime' => $config['security']['session_lifetime'],
-        'path' => '/CloudStorageApp',
+        'path' => '/',
         'domain' => '',
         'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
         'httponly' => true,
@@ -17,40 +48,21 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $startTime = microtime(true);
 
-spl_autoload_register(function ($class) {
-    $base_dir = __DIR__ . '/../';
-    $file = $base_dir . preg_replace('#^App/#', '', str_replace('\\', '/', $class)) . '.php';
-    if (file_exists($file)) {
-        require $file;
-    }
-});
-
-use App\Core\AuthMiddleware;
-use App\Core\Logger;
-use App\Core\Request;
-use App\Core\Response;
-use App\Core\Router;
-
-Logger::info("Request started", [
-    'method' => $_SERVER['REQUEST_METHOD'],
-    'uri' => $_SERVER['REQUEST_URI'],
+Logger::info('Request started', [
+    'method' => $_SERVER['REQUEST_METHOD'] ?? null,
+    'uri' => $_SERVER['REQUEST_URI'] ?? null,
     'user_id' => $_SESSION['user_id'] ?? null,
 ]);
 
-error_log("Incoming request URI: " . $_SERVER['REQUEST_URI']);
-error_log("Session user_id: " . ($_SESSION['user_id'] ?? 'none'));
+$requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$method = $_SERVER['REQUEST_METHOD'];
-
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $route = rtrim($requestUri, '/');
-
-error_log("Request URI: " . $_SERVER['REQUEST_URI']);
-error_log("Parsed route: " . $route);
-error_log("Request method: " . $method);
+if (empty($route)) {
+    $route = '/';
+}
 
 $router = new Router();
-
 $params = [];
 $match = $router->matchRoute($route, $method, $params);
 
@@ -64,6 +76,75 @@ if ($match === null) {
 [$matchedPattern, $handler] = $match;
 [$controllerClass, $methodName] = $handler;
 
+$container = new Container();
+
+// Bind repositories
+$container->bind(App\Repositories\IUserRepository::class, function ($c) {
+    return new App\Repositories\UserRepository(
+        $c->make(App\Core\Db::class),
+        $c->make(App\Repositories\IDirectoryRepository::class)
+    );
+});
+$container->bind(App\Repositories\IPasswordResetRepository::class, function ($c) {
+    return new App\Repositories\PasswordResetRepository($c->make(App\Core\Db::class));
+});
+$container->bind(App\Repositories\IAdminRepository::class, function ($c) {
+    return new App\Repositories\AdminRepository(
+        $c->make(App\Core\Db::class),
+        $c->make(App\Repositories\IUserRepository::class) // or UserRepository::class if you bind concrete class
+    );
+});
+$container->bind(App\Repositories\IDirectoryRepository::class, function ($c) {
+    return new App\Repositories\DirectoryRepository($c->make(App\Core\Db::class));
+});
+$container->bind(App\Repositories\IFileRepository::class, function ($c) {
+    return new App\Repositories\FileRepository($c->make(App\Core\Db::class));
+});
+$container->bind(App\Repositories\ITwoFactorRepository::class, function ($c) {
+    return new App\Repositories\TwoFactorRepository($c->make(App\Core\Db::class));
+});
+
+// Bind services
+$container->bind(App\Services\IEmailService::class, App\Services\EmailService::class);
+$container->bind(App\Services\ITwoFactorService::class, App\Services\TwoFactorService::class);
+$container->bind(App\Services\IDirectoryService::class, App\Services\DirectoryService::class);
+$container->bind(App\Services\IFileService::class, App\Services\FileService::class);
+$container->bind(App\Services\FileResponseService::class);
+$container->bind(App\Services\FileTypeService::class);
+
+$container->singleton(App\Core\Db::class, function () use ($config) {
+    return new App\Core\Db($config['database']);
+});
+
+// Bind UserService with dependencies and config
+$container->bind(App\Services\IUserService::class, function ($c) use ($config) {
+    return new App\Services\UserService(
+        $c->make(App\Repositories\IUserRepository::class),
+        $c->make(App\Repositories\IPasswordResetRepository::class),
+        $c->make(App\Services\IEmailService::class),
+        $c->make(App\Repositories\ITwoFactorRepository::class),
+        $c->make(App\Services\ITwoFactorService::class),
+        $c->make(App\Repositories\IAdminRepository::class),
+        $c->make(App\Repositories\IDirectoryRepository::class),
+        $c->make(App\Core\Db::class),
+        $config
+    );
+});
+
+// Bind AdminService
+$container->bind(App\Services\AdminService::class, function ($c) use ($config) {
+    return new App\Services\AdminService(
+        $c->make(App\Repositories\IUserRepository::class),
+        $c->make(App\Repositories\IAdminRepository::class),
+        $c->make(App\Services\IUserService::class),
+        $c->make(App\Core\Db::class),
+        $config
+    );
+});
+
+
+AuthMiddleware::setUserService($container->make(App\Services\IUserService::class));
+
 $publicRoutes = [
     '/users/register',
     '/users/login',
@@ -71,13 +152,17 @@ $publicRoutes = [
     '/users/create-first-admin',
     '/users/password-reset-request',
     '/users/password-reset-confirm',
-    '/users/password-reset-validate'
+    '/users/password-reset-validate',
+    '/api/2fa/send-email-code',
+    '/api/2fa/verify-email-login',
+    '/api/2fa/verify-totp-login',
+    '/api/2fa/verify-backup-code',
 ];
 $adminRoutes = [
-    '/admin/'
+    '/admin/',
 ];
 
-$isPublicRoute = in_array($route, $publicRoutes);
+$isPublicRoute = in_array($route, $publicRoutes, true);
 $isAdminRoute = false;
 
 foreach ($adminRoutes as $adminPrefix) {
@@ -99,25 +184,7 @@ $request = new Request();
 $request->routeParams = $params;
 
 try {
-
-    if ($controllerClass === 'App\Controllers\FileController') {
-
-        $directoryService = new App\Services\DirectoryService(new App\Repositories\DirectoryRepository());
-        $fileService = new App\Services\FileService($directoryService);
-        $controller = new $controllerClass($fileService, $directoryService);
-    } elseif ($controllerClass === 'App\Controllers\DirectoryController') {
-        $directoryRepository = new App\Repositories\DirectoryRepository();
-        $directoryService = new App\Services\DirectoryService($directoryRepository);
-        $controller = new $controllerClass($directoryService);
-    } elseif ($controllerClass === 'App\Controllers\UserController') {
-
-        $userRepository = new App\Repositories\UserRepository();
-        $userService = new App\Services\UserService();
-        $controller = new $controllerClass($userService);
-    } else {
-
-        $controller = new $controllerClass();
-    }
+    $controller = $container->make($controllerClass);
 
     $response = $controller->$methodName($request);
 
@@ -129,21 +196,21 @@ try {
         echo json_encode($response);
     }
 } catch (Exception $e) {
-    error_log("Controller error: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
+    error_log('Controller error: ' . $e->getMessage());
+    error_log('Stack trace: ' . $e->getTraceAsString());
 
     http_response_code(500);
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'error' => 'Ошибка сервера: ' . $e->getMessage()
+        'error' => 'Ошибка сервера: ' . $e->getMessage(),
     ]);
 }
 
 $endTime = microtime(true);
 $executionTime = ($endTime - $startTime) * 1000; // в миллисекундах
 
-Logger::info("Request completed", [
+Logger::info('Request completed', [
     'method' => $method,
     'route' => $route,
     'execution_time_ms' => round($executionTime, 2),

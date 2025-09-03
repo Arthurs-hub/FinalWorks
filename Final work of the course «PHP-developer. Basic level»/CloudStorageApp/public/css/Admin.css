@@ -1259,3 +1259,94 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }
+
+/* ===== СТИЛИ ДЛЯ ДВУХФАКТОРНОЙ АУТЕНТИФИКАЦИИ ===== */
+
+.security-setting {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1rem;
+    background: rgba(99, 102, 241, 0.02);
+    transition: all 0.3s ease;
+}
+
+.security-setting:hover {
+    border-color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.two-factor-stats {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.stat-mini {
+    text-align: center;
+    padding: 0.75rem;
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.stat-mini:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.stat-mini .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+    line-height: 1;
+}
+
+.stat-mini .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge.bg-success {
+    background: linear-gradient(135deg, var(--accent-color), #059669) !important;
+}
+
+.badge.bg-secondary {
+    background: linear-gradient(135deg, var(--text-secondary), #4b5563) !important;
+}
+
+.badge.bg-warning {
+    background: linear-gradient(135deg, var(--warning-color), #d97706) !important;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.form-check-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+}
+
+@media (max-width: 768px) {
+    .two-factor-stats .row {
+        gap: 0.5rem;
+    }
+
+    .stat-mini {
+        padding: 0.5rem;
+    }
+
+    .stat-mini .stat-value {
+        font-size: 1.25rem;
+    }
+
+    .stat-mini .stat-label {
+        font-size: 0.7rem;
+    }
+}
