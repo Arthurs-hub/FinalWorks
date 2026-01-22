@@ -1,47 +1,47 @@
 # CloudStorageApp
 
-Полнофункциональное веб-приложение для облачного хранения файлов с возможностью создания папок, загрузки файлов, управления доступом, администрирования пользователей и системой сброса паролей.
+Full-featured web application for cloud file storage with the ability to create folders, upload files, manage access, administer users and password reset system.
 
-## Описание проекта
+## Project Description
 
-CloudStorageApp - это современное решение для хранения и управления файлами в облаке. Приложение предоставляет пользователям возможность:
+CloudStorageApp is a modern solution for storing and managing files in the cloud. The application provides users with the ability to:
 
-- Регистрации и авторизации в системе
-- **🔐 Двухфакторной аутентификации** (Email коды и Google Authenticator)
-- Создания иерархической структуры папок
-- Загрузки файлов различных форматов
-- Управления доступом к файлам (приватные/полученные от другого пользователя)
-- Предварительного просмотра файлов (изображения, PDF, **видео**)
-- **Просмотра видео любых форматов** в модальном окне
-- **Автовоспроизведения видео в режиме плиток** (как в Viber)
-- Скачивания и обмена файлами
-- Администрирования пользователей (для админов)
-- Ведения логов активности
-- Сброса паролей через email
+- Register and authenticate in the system
+- **🔐 Two-factor authentication** (Email codes and Google Authenticator)
+- Create hierarchical folder structure
+- Upload files of various formats
+- Manage file access (private/received from another user)
+- Preview files (images, PDF, **video**)
+- **View video of any format** in modal window
+- **Auto-play video in tile mode** (like in Viber)
+- Download and share files
+- User administration (for admins)
+- Activity logging
+- Password reset via email
 
-## Системные требования
+## System Requirements
 
-### Обязательные требования
+### Mandatory Requirements
 
-- **PHP**: версия 7.4 или выше
-- **MySQL**: версия 5.7 или выше / **MariaDB**: версия 10.3 или выше
-- **Веб-сервер**: Apache 2.4+ или Nginx 1.18+
-- **SMTP сервер**: для отправки email уведомлений (опционально)
+- **PHP**: version 7.4 or higher
+- **MySQL**: version 5.7 or higher / **MariaDB**: version 10.3 or higher
+- **Web server**: Apache 2.4+ or Nginx 1.18+
+- **SMTP server**: for sending email notifications (optional)
 
-### Необходимые расширения PHP
+### Required PHP Extensions
 
-- `pdo` - для работы с базой данных
-- `pdo_mysql` - драйвер MySQL для PDO
-- `mbstring` - для работы с многобайтовыми строками
-- `fileinfo` - для определения типов файлов
-- `gd` или `imagick` - для работы с изображениями (опционально)
-- `json` - для работы с JSON данными
-- `session` - для управления сессиями
-- `filter` - для валидации данных
-- `openssl` - для генерации токенов сброса паролей
-- `curl` - для отправки HTTP запросов (опционально)
+- `pdo` - for database work
+- `pdo_mysql` - MySQL driver for PDO
+- `mbstring` - for working with multibyte strings
+- `fileinfo` - for determining file types
+- `gd` or `imagick` - for working with images (optional)
+- `json` - for working with JSON data
+- `session` - for session management
+- `filter` - for data validation
+- `openssl` - for generating password reset tokens
+- `curl` - for sending HTTP requests (optional)
 
-### Рекомендуемые настройки PHP
+### Recommended PHP Settings
 
 ```ini
 upload_max_filesize = 100M
@@ -51,57 +51,57 @@ memory_limit = 256M
 max_input_vars = 3000
 ```
 
-## Установка и настройка
+## Installation and Configuration
 
-### 1. Загрузка проекта
+### 1. Project Download
 
 ```bash
-# Скачайте архив проекта или клонируйте репозиторий
+# Download project archive or clone repository
 git clone https://gitlab.skillbox.ru/artur_zelenco/php-developer-base/-/tree/dev13/Final%20work%20the%20course%20%C2%ABPHP-developer.%20Basic%20level%C2%BB
 cd CloudStorageApp
 ```
 
-### 2. Создание и настройка базы данных
+### 2. Database Creation and Configuration
 
-#### Автоматическое создание структуры БД
+#### Automatic DB Structure Creation
 
 ```bash
-# Выполните эту команду для создания базы данных и всех таблиц  (PowerShell или CMD). Например, если приложение у вас расположено по этому же адресу, то в CMD вместо YourUserName впишите Ваше имя пользователя и выполните эту команду:
+# Execute this command to create database and all tables (PowerShell or CMD). For example, if your application is located at this address, then in CMD instead of YourUserName enter your username and execute this command:
 mysql -u YourUserName -p <C:\xampp\htdocs\welcome\CloudStorageApp\database.sql
-# Далее введите свой пароль и нажмите Enter:
+# Then enter your password and press Enter:
 Enter password: ***********
-# Всё, Ваша база данных создана!
+# Done, your database is created!
 ```
 
-Эта команда автоматически:
+This command automatically:
 
-- Создаст базу данных `cloud_storage`
-- Создаст все необходимые таблицы (`directories`, `files`, `shared_items`, `users`, `password_reset_tokens`)
-- **Создаст таблицы для 2FA** (`two_factor_codes`, `system_settings`, `two_factor_logs`, `trusted_devices`)
-- **Добавит поля 2FA** в таблицу `users`
-- Настроит все связи и индексы
-- Установит правильную кодировку UTF-8
+- Creates `cloud_storage` database
+- Creates all necessary tables (`directories`, `files`, `shared_items`, `users`, `password_reset_tokens`)
+- **Creates 2FA tables** (`two_factor_codes`, `system_settings`, `two_factor_logs`, `trusted_devices`)
+- **Adds 2FA fields** to `users` table
+- Sets up all relationships and indexes
+- Sets correct UTF-8 encoding
 
-#### Проверка успешного создания
+#### Successful Creation Check
 
-**Из командной строки системы:**
+**From system command line:**
 
 ```bash
 mysql -u root -p -e "USE cloud_storage; SHOW TABLES;"
 ```
 
-**Или из командной строки MySQL:**
+**Or from MySQL command line:**
 
 ```bash
-# Войдите в MySQL
+# Enter MySQL
 mysql -u root -p
 
-# В консоли MySQL выполните:
+# In MySQL console execute:
 USE cloud_storage;
 SHOW TABLES;
 ```
 
-Должны отобразиться таблицы:
+Should display tables:
 
 ```bash
 +-------------------------+
@@ -115,29 +115,29 @@ SHOW TABLES;
 +-------------------------+
 ```
 
-#### Альтернативный способ - пошаговое создание
+#### Alternative Method - Step-by-step Creation
 
-## Войдите в MySQL
+## Enter MySQL
 
 ```bash
 mysql -u root -p
 ```
 
-## В консоли MySQL выполните
+## In MySQL console execute
 
 source /path/to/your/project/database.sql
 
-## Или скопируйте команды из database.sql
+## Or copy commands from database.sql
 
-### Проверьте, что база данных и таблицы созданы
+### Check that database and tables are created
 
 ```bash
 mysql -u root -p -e "USE cloud_storage; SHOW TABLES;"
 ```
 
-### 3. Настройка конфигурации
+### 3. Configuration Setup
 
-Отредактируйте файл `config/config.php`:
+Edit `config/config.php` file:
 
 ```php
 <?php
@@ -153,12 +153,12 @@ return [
         'name' => 'CloudStorageApp',
         'url' => 'http://localhost',
         'upload_path' => __DIR__ . '/../uploads/',
-        'max_file_size' => 104857600, // 100MB в байтах
+        'max_file_size' => 104857600, // 100MB in bytes
         'allowed_extensions' => ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar', 'mp4', 'avi', 'mkv', 'webm', 'mov', 'wmv', 'flv', '3gp', 'ts', 'asf', 'ogg'],
         'timezone' => 'Europe/Moscow'
     ],
     'security' => [
-        'session_lifetime' => 3600, // 1 час
+        'session_lifetime' => 3600, // 1 hour
         'password_min_length' => 6,
         'max_login_attempts' => 5
     ],
@@ -174,32 +174,32 @@ return [
 ];
 ```
 
-### 4. Настройка email (опционально)
+### 4. Email Setup (optional)
 
-Для работы функции сброса паролей настройте SMTP в `config/config.php`:
+For password reset functionality, configure SMTP in `config/config.php`:
 
-#### Для Gmail (рекомендуется работает со всеми почтовыми сервисами)
+#### For Gmail (recommended, works with all email services)
 
-1. Включите двухфакторную аутентификацию
-2. Создайте пароль приложения
-3. Используйте настройки выше
+1. Enable two-factor authentication
+2. Create app password
+3. Use settings above
 
-#### Для других провайдеров
+#### For Other Providers
 
-- **Yandex**: smtp.yandex.ru, порт 587
-- **Mail.ru**: smtp.mail.ru, порт 465
-- **Outlook**: smtp-mail.outlook.com, порт 587
+- **Yandex**: smtp.yandex.ru, port 587
+- **Mail.ru**: smtp.mail.ru, port 465
+- **Outlook**: smtp-mail.outlook.com, port 587
 
-### 5. Настройка веб-сервера
+### 5. Web Server Configuration
 
-#### XAMPP (рекомендуется)
+#### XAMPP (recommended)
 
-Файл `.htaccess` уже настроен в папке `public/`.
+`.htaccess` file is already configured in `public/` folder.
 
-**Установка и настройка:**
+**Installation and setup:**
 
-1. Поместите проект в папку `C:\xampp\htdocs\welcome\`
-2. Внесите или измените конфигурацию в файле httpd-vhosts.conf в папке `C:\xampp\apache\conf\extra\`и если нужно в файле httpd.conf в папке C:\xampp\apache\conf\ следующим содержимым:
+1. Place project in `C:\xampp\htdocs\welcome\` folder
+2. Add or modify configuration in httpd-vhosts.conf file in `C:\xampp\apache\conf\extra\` folder and if needed in httpd.conf file in C:\xampp\apache\conf\ with following content:
 
     ```apache
     <VirtualHost *:8080>
@@ -213,10 +213,10 @@ return [
 
    ```
 
-3. Запустите Apache и MySQL в панели управления XAMPP
-4. Откройте в браузере: `http://localhost:8080/login.html`
+3. Start Apache and MySQL in XAMPP control panel
+4. Open in browser: `http://localhost:8080/login.html`
 
-**Структура должна быть:**
+**Structure should be:**
 
 C:\xampp\htdocs\
 ├── phpmyadmin\
@@ -227,9 +227,9 @@ C:\xampp\htdocs\
         ├── database.sql
         └── README.md
 
-#### Альтернативные пути размещения
+#### Alternative Placement Paths
 
-Если хотите разместить проект в корне htdocs:
+If you want to place project in htdocs root:
 
 C:\xampp\htdocs\
 ├── phpmyadmin\
@@ -237,7 +237,7 @@ C:\xampp\htdocs\
     ├── public\
     └── ...
 
-Внесите или измените конфигурацию в файле httpd-vhosts.conf в папке `C:\xampp\apache\conf\extra\`и если нужно в файле httpd.conf в папке `C:\xampp\apache\conf\` следующим содержимым:
+Add or modify configuration in httpd-vhosts.conf file in `C:\xampp\apache\conf\extra\` folder and if needed in httpd.conf file in `C:\xampp\apache\conf\` with following content:
 
 ```apache
 
@@ -252,150 +252,150 @@ C:\xampp\htdocs\
 
 ```
 
-Тогда адрес тоже будет: `http://localhost:8080/login.html`
+Then address will also be: `http://localhost:8080/login.html`
 
-#### Требования к веб-серверу
+#### Web Server Requirements
 
-- PHP 7.4 или выше
-- Модуль `mod_rewrite` включен
-- Поддержка `.htaccess` файлов
-- MySQL/MariaDB через phpMyAdmin
+- PHP 7.4 or higher
+- `mod_rewrite` module enabled
+- `.htaccess` file support
+- MySQL/MariaDB via phpMyAdmin
 
-#### Альтернативные локальные серверы
+#### Alternative Local Servers
 
-Если используете другие локальные серверы (WAMP, MAMP, Laragon):
+If using other local servers (WAMP, MAMP, Laragon):
 
-- Поместите проект в соответствующую папку (`www`, `htdocs`)
-- Убедитесь, что Apache и MySQL запущены
-- Откройте `http://localhost/login.html`
+- Place project in corresponding folder (`www`, `htdocs`)
+- Ensure Apache and MySQL are running
+- Open `http://localhost/login.html`
 
-### Краткие требования к веб-серверу
+### Brief Web Server Requirements
 
-- PHP 7.4 или выше
-- Модуль `mod_rewrite` включен
-- Поддержка `.htaccess` файлов
+- PHP 7.4 or higher
+- `mod_rewrite` module enabled
+- `.htaccess` file support
 - MySQL/MariaDB
 
-### 6. Проверка установки
+### 6. Installation Check
 
-Откройте браузер и перейдите по адресу: `http://localhost:8080/login.html`
+Open browser and go to: `http://localhost:8080/login.html`
 
-## Структура проекта
+## Project Structure
 
 CloudStorageApp/
 ├── App/
 │   ├── Controllers/
-│   │   ├── AdminController.php     # Контроллер администрирования
-│   │   ├── AuthController.php      # Контроллер аутентификации
-│   │   ├── BaseController.php      # Базовый контроллер
-│   │   ├── DirectoryController.php # Контроллер управления папками
-│   │   ├── FileController.php      # Контроллер управления файлами
-│   │   └── UserController.php      # Контроллер пользователей
+│   │   ├── AdminController.php     # Administration controller
+│   │   ├── AuthController.php      # Authentication controller
+│   │   ├── BaseController.php      # Base controller
+│   │   ├── DirectoryController.php # Folder management controller
+│   │   ├── FileController.php      # File management controller
+│   │   └── UserController.php      # User controller
 │   ├── Core/
-│   │   ├── App.php                 # Основной класс приложения
-│   │   ├── AuthMiddleware.php      # Middleware аутентификации
-│   │   ├── BaseController.php      # Базовый контроллер
-│   │   ├── Container.php           # DI контейнер
-│   │   ├── Db.php                  # Класс для работы с БД
-│   │   ├── Logger.php              # Система логирования
-│   │   ├── Repository.php          # Базовый репозиторий
-│   │   ├── Request.php             # Класс HTTP запроса
-│   │   ├── Response.php            # Класс HTTP ответа
-│   │   ├── Router.php              # Маршрутизатор
-│   │   └── Validator.php           # Базовый валидатор
+│   │   ├── App.php                 # Main application class
+│   │   ├── AuthMiddleware.php      # Authentication middleware
+│   │   ├── BaseController.php      # Base controller
+│   │   ├── Container.php           # DI container
+│   │   ├── Db.php                  # Database class
+│   │   ├── Logger.php              # Logging system
+│   │   ├── Repository.php          # Base repository
+│   │   ├── Request.php             # HTTP request class
+│   │   ├── Response.php            # HTTP response class
+│   │   ├── Router.php              # Router
+│   │   └── Validator.php           # Base validator
 │   ├── Repositories/
-│   │   ├── AdminRepository.php     # Админский репозиторий
-│   │   ├── DirectoryRepository.php # Репозиторий папок
-│   │   ├── FileRepository.php      # Репозиторий файлов
-│   │   ├── IFileRepository.php     # Интерфейс репозитория файлов
-│   │   ├── IPasswordResetRepository.php # Интерфейс сброса паролей
-│   │   ├── IUserRepository.php     # Интерфейс репозитория пользователей
-│   │   ├── PasswordResetRepository.php # Репозиторий сброса паролей
-│   │   └── UserRepository.php      # Репозиторий пользователей
+│   │   ├── AdminRepository.php     # Admin repository
+│   │   ├── DirectoryRepository.php # Folder repository
+│   │   ├── FileRepository.php      # File repository
+│   │   ├── IFileRepository.php     # File repository interface
+│   │   ├── IPasswordResetRepository.php # Password reset interface
+│   │   ├── IUserRepository.php     # User repository interface
+│   │   ├── PasswordResetRepository.php # Password reset repository
+│   │   └── UserRepository.php      # User repository
 │   ├── Services/
-│   │   ├── AdminService.php        # Сервис администрирования
-│   │   ├── AuthService.php         # Сервис аутентификации
-│   │   ├── DirectoryService.php    # Сервис управления папками
-│   │   ├── EmailService.php        # Сервис отправки email
-│   │   ├── FileResponseService.php # Сервис отправки файлов
-│   │   ├── FileService.php         # Сервис управления файлами
-│   │   ├── FileTypeService.php     # Сервис определения типов файлов
-│   │   ├── IDirectoryService.php   # Интерфейс сервиса папок
-│   │   ├── IEmailService.php       # Интерфейс email сервиса
-│   │   ├── IFileService.php        # Интерфейс сервиса файлов
-│   │   ├── IUserService.php        # Интерфейс сервиса пользователей
-│   │   └── UserService.php         # Сервис пользователей
+│   │   ├── AdminService.php        # Administration service
+│   │   ├── AuthService.php         # Authentication service
+│   │   ├── DirectoryService.php    # Folder management service
+│   │   ├── EmailService.php        # Email sending service
+│   │   ├── FileResponseService.php # File sending service
+│   │   ├── FileService.php         # File management service
+│   │   ├── FileTypeService.php     # File type detection service
+│   │   ├── IDirectoryService.php   # Folder service interface
+│   │   ├── IEmailService.php       # Email service interface
+│   │   ├── IFileService.php        # File service interface
+│   │   ├── IUserService.php        # User service interface
+│   │   └── UserService.php         # User service
 │   ├── Utils/
-│   │   └── FileUtils.php           # Утилиты для работы с файлами
+│   │   └── FileUtils.php           # File utilities
 │   ├── Validators/
-│   │   ├── AuthValidator.php       # Валидатор аутентификации
-│   │   └── DirectoryValidator.php  # Валидатор папок
-│   ├── logs/                       # Папка для логов
-│   └── uploads/                    # Папка для загруженных файлов
-│       ├── files/                  # Подпапка для файлов
-│       └── folders/                # Подпапка для папок
+│   │   ├── AuthValidator.php       # Authentication validator
+│   │   └── DirectoryValidator.php  # Folder validator
+│   ├── logs/                       # Logs folder
+│   └── uploads/                    # Uploaded files folder
+│       ├── files/                  # Files subfolder
+│       └── folders/                # Folders subfolder
 ├── config/
-│   └── config.php              # Конфигурация приложения
+│   └── config.php              # Application configuration
 ├── public/
-│   ├── css/                    # CSS стили
-│   │   ├── Admin.css           # Стили админ панели
-│   │   ├── login.css           # Стили страницы входа
-│   │   ├── reset-password.css  # Стили сброса пароля
-│   │   ├── upload.css          # Стили главной страницы
-│   │   └── video-tiles.css     # Стили видео плиток
-│   ├── js/                     # JavaScript файлы
-│   │   ├── admin.js            # JavaScript админ панели
-│   │   └── app.js              # Основной JavaScript
-│   ├── .htaccess               # Конфигурация Apache
-│   ├── Admins.html             # Шаблон администратора
-│   ├── CloudIcon.png           # Иконка входа в CloudStorageApp
-│   ├── CoveringCloudIcon.png   # Анимация
-│   ├── ElibraryIcon.png        # Иконка страницы Мои файлы
-│   ├── index.php               # Точка входа
-│   ├── login.html              # Шаблон входа
-│   ├── reset-password.html     # Страница сброса пароля
-│   └── upload.html             # Страница пользователей
-├── database.sql                # SQL скрипты для создания БД
-└── README.md                   # Документация проекта
+│   ├── css/                    # CSS styles
+│   │   ├── Admin.css           # Admin panel styles
+│   │   ├── login.css           # Login page styles
+│   │   ├── reset-password.css  # Password reset styles
+│   │   ├── upload.css          # Main page styles
+│   │   └── video-tiles.css     # Video tiles styles
+│   ├── js/                     # JavaScript files
+│   │   ├── admin.js            # Admin panel JavaScript
+│   │   └── app.js              # Main JavaScript
+│   ├── .htaccess               # Apache configuration
+│   ├── Admins.html             # Administrator template
+│   ├── CloudIcon.png           # CloudStorageApp login icon
+│   ├── CoveringCloudIcon.png   # Animation
+│   ├── ElibraryIcon.png        # My Files page icon
+│   ├── index.php               # Entry point
+│   ├── login.html              # Login template
+│   ├── reset-password.html     # Password reset page
+│   └── upload.html             # User page
+├── database.sql                # SQL scripts for DB creation
+└── README.md                   # Project documentation
 
-## Использование системы
+## System Usage
 
-### Регистрация нового пользователя
+### New User Registration
 
-Для регистрации необходимо заполнить следующие обязательные поля (отмечены красной звездочкой в пользовательском интерфейсе):
+For registration, you need to fill in the following mandatory fields (marked with red asterisk in user interface):
 
-- **Имя** - имя пользователя
-- **Фамилия** - фамилия пользователя  
-- **Email** - адрес электронной почты
-- **Пароль** - пароль для входа в систему
-- **Повторите пароль** - подтверждение пароля
+- **First Name** - user's first name
+- **Last Name** - user's last name  
+- **Email** - email address
+- **Password** - system login password
+- **Repeat Password** - password confirmation
 
-### Авторизация
+### Authorization
 
-Для входа в систему используйте:
+To log into the system use:
 
-- **Email** - адрес электронной почты, указанный при регистрации
-- **Пароль** - пароль, установленный при регистрации
+- **Email** - email address specified during registration
+- **Password** - password set during registration
 
-### Сброс пароля (НОВАЯ ФУНКЦИЯ)
+### Password Reset (NEW FEATURE)
 
-Если вы забыли пароль:
+If you forgot your password:
 
-1. На странице входа нажмите "Забыли пароль?"
-2. Введите ваш email адрес
-3. Проверьте почту - вам придет письмо со ссылкой для сброса
-4. Перейдите по ссылке и установите новый пароль
-5. Войдите в систему с новым паролем
+1. On login page click "Forgot password?"
+2. Enter your email address
+3. Check your email - you will receive a letter with reset link
+4. Follow the link and set new password
+5. Log into system with new password
 
-**Важно:** Ссылка действительна в течение 1 часа.
+**Important:** Link is valid for 1 hour.
 
-### Просмотр видеофайлов (НОВАЯ ФУНКЦИЯ)
+### Video File Viewing (NEW FEATURE)
 
-Система поддерживает просмотр видео любых форматов:
+System supports viewing video of any format:
 
-#### Поддерживаемые форматы видео
+#### Supported Video Formats
 
-- **MP4** (video/mp4) - рекомендуется
+- **MP4** (video/mp4) - recommended
 - **AVI** (video/x-msvideo)
 - **MKV** (video/x-matroska)
 - **WebM** (video/webm)
@@ -408,138 +408,138 @@ CloudStorageApp/
 - **OGG** (video/ogg)
 - **MPEG** (video/mpeg)
 
-#### Способы просмотра видео
+#### Video Viewing Methods
 
-1. **В режиме плиток** (автовоспроизведение):
-   - Переключитесь на режим просмотра "Плитки"
-   - Видео автоматически воспроизводятся при наведении
-   - Как в ленте Viber - без звука, с зацикливанием
+1. **In tile mode** (auto-play):
+   - Switch to "Tiles" view mode
+   - Videos automatically play on hover
+   - Like in Viber feed - without sound, with looping
 
-2. **В модальном окне**:
-   - Нажмите на видео плитку или выберите "Просмотр" в меню
-   - Видео откроется в модальном окне с элементами управления
-   - Встроенный видеоплеер браузера с полным функционалом
+2. **In modal window**:
+   - Click on video tile or select "Preview" in menu
+   - Video opens in modal window with controls
+   - Built-in browser video player with full functionality
 
-#### Возможности видеоплеера
+#### Video Player Features
 
-- **Встроенный в модальное окно** - как предпросмотр изображений
-- **Стандартные контролы браузера** - привычный интерфейс
-- **Автозагрузка с приглушенным звуком** - без неожиданных звуков
-- **Адаптивный размер** - подстраивается под размер окна
-- **Обработка ошибок воспроизведения** - graceful degradation
-- **Информация о файле** в заголовке модального окна
+- **Built into modal window** - like image preview
+- **Standard browser controls** - familiar interface
+- **Auto-load with muted sound** - no unexpected sounds
+- **Adaptive size** - adjusts to window size
+- **Playback error handling** - graceful degradation
+- **File information** in modal window header
 
-#### Технические особенности реализации видео
+#### Technical Video Implementation Features
 
-**Backend изменения:**
+**Backend changes:**
 
-- **Функция isVideoFile()** - определение видеофайлов по MIME-типу
-- **Видео предпросмотр** - встроенный в модальное окно как у изображений
+- **isVideoFile() function** - video file detection by MIME type
+- **Video preview** - built into modal window like images
 
-**Frontend улучшения:**
+**Frontend improvements:**
 
-- **public/css/video-tiles.css** - стили для видео в режиме плиток
-- **Обновлен public/js/app.js** с функциями автовоспроизведения
-- **Обновлен public/js/admin.js** для поддержки видео в админ панели
-- **Подключение стилей** в upload.html и Admins.html
+- **public/css/video-tiles.css** - styles for video in tile mode
+- **Updated public/js/app.js** with auto-play functions
+- **Updated public/js/admin.js** for video support in admin panel
+- **Style connection** in upload.html and Admins.html
 
-**JavaScript функции:**
+**JavaScript functions:**
 
-- **isVideoFile(mimeType)** - определение видеофайлов
-- **Canvas анимация** - отрисовка кадров видео в плитках
-- **Ленивая загрузка видео** для оптимизации производительности
-- **Автовоспроизведение с задержкой 300мс** (как в Viber)
-- **Обработка hover событий** с таймаутами
+- **isVideoFile(mimeType)** - video file detection
+- **Canvas animation** - video frame rendering in tiles
+- **Lazy video loading** for performance optimization
+- **Auto-play with 300ms delay** (like in Viber)
+- **Hover event handling** with timeouts
 
-**Визуальные элементы:**
+**Visual elements:**
 
-- **Индикатор "VIDEO"** в правом нижнем углу карточки
-- **Анимированная кнопка play** с эффектом пульсации
-- **Canvas предпросмотр** - отображение кадров видео в плитках
-- **Плавные переходы** и hover эффекты
-- **Обработка состояний** загрузки и ошибок
-- **Модальное окно** для просмотра видео
+- **"VIDEO" indicator** in bottom right corner of card
+- **Animated play button** with pulsing effect
+- **Canvas preview** - video frame display in tiles
+- **Smooth transitions** and hover effects
+- **Loading and error state handling**
+- **Modal window** for video viewing
 
-**Оптимизация производительности:**
+**Performance optimization:**
 
-- **preload="metadata"** - загружаются только метаданные для Canvas
-- **Canvas отрисовка** - показ кадров без полной загрузки видео
-- **Остановка воспроизведения** при уходе курсора
-- **Возврат к началу** видео при остановке
-- **Задержка инициализации DOM** (100мс) для стабильности
-- **Обработка ошибок** с fallback на статичные иконки
+- **preload="metadata"** - only metadata loaded for Canvas
+- **Canvas rendering** - frame display without full video loading
+- **Playback stop** when cursor leaves
+- **Return to beginning** of video when stopped
+- **DOM initialization delay** (100ms) for stability
+- **Error handling** with fallback to static icons
 
-#### Инструкция по использованию видео
+#### Video Usage Instructions
 
-**Для пользователей:**
+**For users:**
 
-1. Загрузите видеофайл через кнопку "Выбрать файлы"
-2. Переключитесь в режим "Плитки" (кнопка с иконкой сетки)
-3. Наведите курсор на видео - оно автоматически начнет воспроизводиться
-4. Кликните на видео для открытия в модальном окне
-5. Используйте меню (три точки) → "Просмотр" для быстрого доступа
+1. Upload video file via "Choose files" button
+2. Switch to "Tiles" mode (grid icon button)
+3. Hover cursor over video - it will automatically start playing
+4. Click on video to open in modal window
+5. Use menu (three dots) → "Preview" for quick access
 
-**Для администраторов:**
+**For administrators:**
 
-1. Перейдите в "Файлы" в боковом меню админ панели
-2. Найдите видеофайл в таблице
-3. Нажмите кнопку "глаз" (Просмотреть файл)
-4. Видео откроется в модальном окне с контролами
+1. Go to "Files" in admin panel side menu
+2. Find video file in table
+3. Click "eye" button (View file)
+4. Video opens in modal window with controls
 
-**Управление видео:**
+**Video controls:**
 
-- Используйте **стандартные контролы браузера**
-- **Пауза/воспроизведение** - кнопка play/pause
-- **Громкость** - регулятор звука
-- **Полноэкранный режим** - кнопка в контролах браузера
+- Use **standard browser controls**
+- **Pause/play** - play/pause button
+- **Volume** - sound control
+- **Fullscreen mode** - button in browser controls
 
-**Особенности автовоспроизведения:**
+**Auto-play features:**
 
-- Задержка 300мс перед началом (как в Viber)
-- Воспроизведение без звука с зацикливанием
-- Автоматическая остановка при уходе курсора
-- Ленивая загрузка для экономии трафика
+- 300ms delay before start (like in Viber)
+- Playback without sound with looping
+- Automatic stop when cursor leaves
+- Lazy loading for traffic saving
 
-## 🔐 Двухфакторная аутентификация (2FA)
+## 🔐 Two-Factor Authentication (2FA)
 
-### Обзор системы 2FA
+### 2FA System Overview
 
-CloudStorageApp включает полную систему двухфакторной аутентификации для повышения безопасности пользователей. Система поддерживает два метода аутентификации и предоставляет гибкие настройки как для пользователей, так и для администраторов.
+CloudStorageApp includes a complete two-factor authentication system to enhance user security. The system supports two authentication methods and provides flexible settings for both users and administrators.
 
-### Возможности 2FA
+### 2FA Features
 
-#### **🎯 Для пользователей:**
+#### **🎯 For users:**
 
-- **Переключатель при регистрации** - возможность включить 2FA сразу при создании аккаунта
-- **Два метода аутентификации**:
-  - **Email коды** - 6-значные коды, отправляемые на email (действуют 10 минут)
-  - **TOTP коды** - коды из приложений Google Authenticator, Authy и других
-- **QR-коды** - для быстрой настройки мобильных приложений
-- **Резервные коды** - 10 одноразовых кодов для восстановления доступа
-- **Гибкая настройка** - можно включить/выключить в любое время
+- **Registration toggle** - ability to enable 2FA immediately when creating account
+- **Two authentication methods**:
+  - **Email codes** - 6-digit codes sent to email (valid for 10 minutes)
+  - **TOTP codes** - codes from Google Authenticator, Authy and other apps
+- **QR codes** - for quick mobile app setup
+- **Backup codes** - 10 one-time codes for access recovery
+- **Flexible setup** - can be enabled/disabled at any time
 
-#### **🛡️ Для администраторов:**
+#### **🛡️ For administrators:**
 
-- **Принудительная 2FA** - требование 2FA для всех пользователей
-- **Статистика использования** - количество пользователей с 2FA по методам
-- **Логирование действий** - полный аудит всех операций 2FA
-- **Гибкая логика** - пользователи с собственной 2FA не затрагиваются админскими настройками
+- **Forced 2FA** - 2FA requirement for all users
+- **Usage statistics** - number of users with 2FA by methods
+- **Action logging** - complete audit of all 2FA operations
+- **Flexible logic** - users with their own 2FA are not affected by admin settings
 
-### Установка и настройка 2FA
+### 2FA Installation and Setup
 
-#### **1. База данных уже настроена**
+#### **1. Database already configured**
 
-При выполнении `database.sql` автоматически создаются:
+When executing `database.sql` automatically creates:
 
-- Поля 2FA в таблице `users`
-- Таблица `two_factor_codes` для временных кодов
-- Таблица `system_settings` для глобальных настроек
-- Таблица `two_factor_logs` для аудита
-- Таблица `trusted_devices` для будущих функций
+- 2FA fields in `users` table
+- `two_factor_codes` table for temporary codes
+- `system_settings` table for global settings
+- `two_factor_logs` table for audit
+- `trusted_devices` table for future features
 
-#### **2. Настройка email (обязательно)**
+#### **2. Email setup (required)**
 
-Убедитесь, что в `config/config.php` правильно настроены параметры SMTP:
+Ensure SMTP parameters are correctly configured in `config/config.php`:
 
 ```php
 'email' => [
@@ -554,76 +554,76 @@ CloudStorageApp включает полную систему двухфакто�
 ]
 ```
 
-### Использование 2FA
+### Using 2FA
 
-#### **Регистрация с 2FA:**
+#### **Registration with 2FA:**
 
-1. **Откройте** <http://localhost:8080/login.html>
-2. **Перейдите** на вкладку "Регистрация"
-3. **Заполните** все обязательные поля
-4. **Включите** переключатель "Двухфакторная аутентификация"
-5. **Прочитайте** информационный блок о 2FA
-6. **Нажмите** "Зарегистрироваться"
-7. **Войдите** с новыми данными
-8. **Автоматически** перенаправитесь на настройку 2FA
+1. **Open** <http://localhost:8080/login.html>
+2. **Go** to "Registration" tab
+3. **Fill** all required fields
+4. **Enable** "Two-factor authentication" toggle
+5. **Read** 2FA information block
+6. **Click** "Register"
+7. **Log in** with new credentials
+8. **Automatically** redirected to 2FA setup
 
-#### **Настройка Email 2FA:**
+#### **Email 2FA Setup:**
 
-1. **Выберите** "Email код" на странице настройки
-2. **Нажмите** "Продолжить"
-3. **Проверьте email** - придет тестовый код
-4. **Введите код** из письма
-5. **Сохраните** резервные коды (скачайте или распечатайте)
-6. **Завершите** настройку
+1. **Select** "Email code" on setup page
+2. **Click** "Continue"
+3. **Check email** - test code will arrive
+4. **Enter code** from email
+5. **Save** backup codes (download or print)
+6. **Complete** setup
 
-#### **Настройка TOTP 2FA:**
+#### **TOTP 2FA Setup:**
 
-1. **Установите** Google Authenticator на телефон
-2. **Выберите** "Приложение Authenticator" на странице настройки
-3. **Отсканируйте** QR-код или введите ключ вручную:
-   - **Имя аккаунта**: ваш email
-   - **Эмитент**: Cloud Storage
-4. **Введите** 6-значный код из приложения
-5. **Сохраните** резервные коды
-6. **Завершите** настройку
+1. **Install** Google Authenticator on phone
+2. **Select** "Authenticator App" on setup page
+3. **Scan** QR code or enter key manually:
+   - **Account name**: your email
+   - **Issuer**: Cloud Storage
+4. **Enter** 6-digit code from app
+5. **Save** backup codes
+6. **Complete** setup
 
-#### **Вход с 2FA:**
+#### **Login with 2FA:**
 
-1. **Введите** email и пароль как обычно
-2. **Появится** форма ввода кода 2FA
-3. **Введите код**:
-   - Из email (если выбран Email метод)
-   - Из Authenticator приложения (если выбран TOTP)
-   - Или используйте резервный код
-4. **Автоматическая проверка** при вводе 6 цифр
-5. **Успешный вход** в систему
+1. **Enter** email and password as usual
+2. **2FA code form** appears
+3. **Enter code**:
+   - From email (if Email method selected)
+   - From Authenticator app (if TOTP selected)
+   - Or use backup code
+4. **Automatic verification** when entering 6 digits
+5. **Successful login** to system
 
-### Административное управление 2FA
+### Administrative 2FA Management
 
-#### **Включение принудительной 2FA:**
+#### **Enabling forced 2FA:**
 
-1. **Войдите** как администратор
-2. **Перейдите** в "Система" в боковом меню
-3. **Найдите** секцию "Настройки безопасности"
-4. **Включите** "Принудительная двухфакторная аутентификация"
-5. **Просмотрите** статистику использования 2FA
+1. **Log in** as administrator
+2. **Go** to "System" in side menu
+3. **Find** "Security Settings" section
+4. **Enable** "Forced two-factor authentication"
+5. **View** 2FA usage statistics
 
-#### **Логика принудительной 2FA:**
+#### **Forced 2FA logic:**
 
-- **Пользователи с собственной 2FA** - не затрагиваются (продолжают использовать свои настройки)
-- **Пользователи без 2FA** - при входе перенаправляются на настройку 2FA
-- **Новые пользователи** - должны настроить 2FA после первого входа
-- **Отключение принудительной 2FA** - не влияет на пользователей, которые включили 2FA самостоятельно
+- **Users with own 2FA** - not affected (continue using their settings)
+- **Users without 2FA** - redirected to 2FA setup on login
+- **New users** - must set up 2FA after first login
+- **Disabling forced 2FA** - doesn't affect users who enabled 2FA themselves
 
-### API Endpoints для 2FA
+### 2FA API Endpoints
 
-Для тестирования двухфакторной аутентификации (2FA) через Postman, следуйте последовательности запросов. После успешного логина, если требуется 2FA, вы получите ответ с указанием метода 2FA (`two_factor_method: "email"` или `"totp"`). **Важно: не очищайте сессию/куки между запросом логина и запросом подтверждения 2FA.**
+For testing two-factor authentication (2FA) via Postman, follow the request sequence. After successful login, if 2FA is required, you will receive a response indicating the 2FA method (`two_factor_method: "email"` or `"totp"`). **Important: do not clear session/cookies between login request and 2FA confirmation request.**
 
-#### **1. Логин (получение информации о необходимости 2FA)**
+#### **1. Login (getting 2FA requirement information)**
 
-- **Метод:** `POST`
+- **Method:** `POST`
 - **URL:** `/users/login`
-- **Тело запроса (JSON):**
+- **Request body (JSON):**
 
   ```json
   {
@@ -632,25 +632,25 @@ CloudStorageApp включает полную систему двухфакто�
   }
   ```
 
-- **Ожидаемый ответ (если 2FA включена для пользователя):**
+- **Expected response (if 2FA enabled for user):**
 
   ```json
   {
     "success": true,
     "requires_2fa_verification": true,
-    "two_factor_method": "totp", // или "email"
+    "two_factor_method": "totp", // or "email"
     "user_email": "your_email@example.com"
   }
   ```
 
-  После этого ответа, сессия пользователя будет содержать временные данные, необходимые для следующего шага подтверждения 2FA.
+  After this response, user session will contain temporary data needed for next 2FA confirmation step.
 
-#### **2. Настройка 2FA (выполняется один раз для включения 2FA)**
+#### **2. 2FA Setup (performed once to enable 2FA)**
 
-- `POST /api/2fa/generate-secret` - генерация TOTP секрета и QR-кода
-  - **Описание:** Используется для настройки TOTP (приложение Authenticator). Генерирует уникальный секретный ключ и URL для QR-кода.
-  - **Тело запроса:** (пустое)
-  - **Пример ответа:**
+- `POST /api/2fa/generate-secret` - generate TOTP secret and QR code
+  - **Description:** Used for TOTP setup (Authenticator app). Generates unique secret key and QR code URL.
+  - **Request body:** (empty)
+  - **Example response:**
 
     ```json
     {
@@ -663,43 +663,43 @@ CloudStorageApp включает полную систему двухфакто�
     }
     ```
 
-- `POST /api/2fa/send-email-code` - отправка кода на email
-  - **Описание:** Отправляет 6-значный код подтверждения на зарегистрированный email пользователя. Используется для настройки 2FA по email или для повторной отправки кода при входе.
-  - **Тело запроса:** (пустое)
-  - **Пример ответа:**
+- `POST /api/2fa/send-email-code` - send code to email
+  - **Description:** Sends 6-digit confirmation code to user's registered email. Used for email 2FA setup or code resend during login.
+  - **Request body:** (empty)
+  - **Example response:**
 
     ```json
     {
         "success": true,
-        "message": "Код отправлен на email"
+        "message": "Code sent to email"
     }
     ```
 
-- `POST /api/2fa/verify-totp` - проверка TOTP кода при настройке
-  - **Описание:** Проверяет 6-значный код, полученный из приложения Authenticator, с сгенерированным секретом.
-  - **Тело запроса (JSON):**
+- `POST /api/2fa/verify-totp` - verify TOTP code during setup
+  - **Description:** Verifies 6-digit code from Authenticator app with generated secret.
+  - **Request body (JSON):**
 
     ```json
     {
-        "code": "123456", // Код из приложения Authenticator
-        "secret": "JBSWY3DPEHPK3PXP..." // Секрет, полученный от /api/2fa/generate-secret
+        "code": "123456", // Code from Authenticator app
+        "secret": "JBSWY3DPEHPK3PXP..." // Secret from /api/2fa/generate-secret
     }
     ```
 
-- `POST /api/2fa/verify-email` - проверка email кода при настройке
-  - **Описание:** Проверяет 6-значный код, отправленный на email, для завершения настройки 2FA по email.
-  - **Тело запроса (JSON):**
+- `POST /api/2fa/verify-email` - verify email code during setup
+  - **Description:** Verifies 6-digit code sent to email to complete email 2FA setup.
+  - **Request body (JSON):**
 
     ```json
     {
-        "code": "654321" // Код, полученный по email
+        "code": "654321" // Code received by email
     }
     ```
 
-- `POST /api/2fa/generate-backup-codes` - генерация резервных кодов
-  - **Описание:** Генерирует список одноразовых резервных кодов для восстановления доступа.
-  - **Тело запроса:** (пустое)
-  - **Пример ответа:**
+- `POST /api/2fa/generate-backup-codes` - generate backup codes
+  - **Description:** Generates list of one-time backup codes for access recovery.
+  - **Request body:** (empty)
+  - **Example response:**
 
     ```json
     {
@@ -708,267 +708,266 @@ CloudStorageApp включает полную систему двухфакто�
     }
     ```
 
-- `POST /api/2fa/complete-setup` - завершение настройки 2FA
-  - **Описание:** Финализирует процесс настройки 2FA, сохраняя выбранный метод и резервные коды.
-  - **Тело запроса (JSON):**
+- `POST /api/2fa/complete-setup` - complete 2FA setup
+  - **Description:** Finalizes 2FA setup process, saving selected method and backup codes.
+  - **Request body (JSON):**
 
     ```json
     {
-        "method": "email", // или "totp"
-        "backup_codes": ["CODE1", "CODE2", ...] // Список сгенерированных резервных кодов
+        "method": "email", // or "totp"
+        "backup_codes": ["CODE1", "CODE2", ...] // List of generated backup codes
     }
     ```
 
-#### **3. Вход с 2FA (выполняется после шага 1, если 2FA требуется)**
+#### **3. Login with 2FA (performed after step 1 if 2FA required)**
 
-- `POST /api/2fa/verify-email-login` - проверка email кода при входе
-  - **Описание:** Используется для подтверждения входа, если метод 2FA пользователя - email. Код отправляется автоматически после `/users/login`, если 2FA включена.
-  - **Тело запроса (JSON):**
+- `POST /api/2fa/verify-email-login` - verify email code during login
+  - **Description:** Used to confirm login if user's 2FA method is email. Code is sent automatically after `/users/login` if 2FA is enabled.
+  - **Request body (JSON):**
 
     ```json
     {
-        "code": "123456" // Код, полученный по email
+        "code": "123456" // Code received by email
     }
     ```
 
-  - **Пример успешного ответа:**
-
-    ```json
-    {
-        "success": true,
-        "message": "Вход выполнен",
-        "user": { /* данные пользователя */ }
-    }
-    ```
-
-- `POST /api/2fa/verify-totp-login` - проверка TOTP кода при входе
-  - **Описание:** Используется для подтверждения входа, если метод 2FA пользователя - приложение Authenticator.
-  - **Тело запроса (JSON):**
-
-    ```json
-    {
-        "code": "654321" // Код из приложения Authenticator
-    }
-    ```
-
-  - **Пример успешного ответа:**
+  - **Example successful response:**
 
     ```json
     {
         "success": true,
-        "message": "Вход выполнен",
-        "user": { /* данные пользователя */ }
+        "message": "Login successful",
+        "user": { /* user data */ }
     }
     ```
 
-- `POST /api/2fa/verify-backup-code` - проверка резервного кода при входе
-  - **Описание:** Используется как альтернативный способ входа, если основной метод 2FA недоступен. Резервный код одноразовый.
-  - **Тело запроса (JSON):**
+- `POST /api/2fa/verify-totp-login` - verify TOTP code during login
+  - **Description:** Used to confirm login if user's 2FA method is Authenticator app.
+  - **Request body (JSON):**
 
     ```json
     {
-        "code": "YOUR_BACKUP_CODE" // Один из сгенерированных резервных кодов
+        "code": "654321" // Code from Authenticator app
     }
     ```
 
-  - **Пример успешного ответа:**
+  - **Example successful response:**
 
     ```json
     {
         "success": true,
-        "message": "Вход выполнен с резервным кодом",
-        "user": { /* данные пользователя */ },
-        "remaining_backup_codes": 9 // Количество оставшихся резервных кодов
+        "message": "Login successful",
+        "user": { /* user data */ }
     }
     ```
 
-#### **4. Управление (проверка статуса 2FA)**
+- `POST /api/2fa/verify-backup-code` - verify backup code during login
+  - **Description:** Used as alternative login method if main 2FA method is unavailable. Backup code is one-time use.
+  - **Request body (JSON):**
 
-- `GET /api/2fa/status` - получение статуса 2FA пользователя
-  - **Описание:** Возвращает текущий статус 2FA для авторизованного пользователя.
-  - **Тело запроса:** (пустое)
-  - **Пример ответа:**
+    ```json
+    {
+        "code": "YOUR_BACKUP_CODE" // One of generated backup codes
+    }
+    ```
+
+  - **Example successful response:**
+
+    ```json
+    {
+        "success": true,
+        "message": "Login successful with backup code",
+        "user": { /* user data */ },
+        "remaining_backup_codes": 9 // Number of remaining backup codes
+    }
+    ```
+
+#### **4. Management (check 2FA status)**
+
+- `GET /api/2fa/status` - get user's 2FA status
+  - **Description:** Returns current 2FA status for authorized user.
+  - **Request body:** (empty)
+  - **Example response:**
 
     ```json
     {
         "success": true,
         "enabled": true,
-        "method": "totp", // или "email"
+        "method": "totp", // or "email"
         "setup_completed": true
     }
     ```
 
-- `GET /api/admin/2fa/status` - получение статистики 2FA (админ)
-  - **Описание:** (Требует прав администратора) Возвращает общую статистику использования 2FA в системе.
-  - **Тело запроса:** (пустое)
+- `GET /api/admin/2fa/status` - get 2FA statistics (admin)
+  - **Description:** (Requires admin rights) Returns overall 2FA usage statistics in system.
+  - **Request body:** (empty)
 
-- `POST /api/admin/2fa/toggle-forced` - переключение принудительной 2FA (админ)
-  - **Описание:** (Требует прав администратора) Включает или отключает принудительную 2FA для всех пользователей.
-  - **Тело запроса (JSON):**
+- `POST /api/admin/2fa/toggle-forced` - toggle forced 2FA (admin)
+  - **Description:** (Requires admin rights) Enables or disables forced 2FA for all users.
+  - **Request body (JSON):**
 
     ```json
     {
-        "enable": true // или false
+        "enable": true // or false
     }
     ```
 
-### Безопасность 2FA
+### 2FA Security
 
-#### **Временные коды:**
+#### **Temporary codes:**
 
-- **Email коды** действуют 10 минут
-- **TOTP коды** действуют 30 секунд (стандарт)
-- **Резервные коды** одноразовые (удаляются после использования)
+- **Email codes** valid for 10 minutes
+- **TOTP codes** valid for 30 seconds (standard)
+- **Backup codes** one-time use (deleted after use)
 
-#### **Логирование:**
+#### **Logging:**
 
-Все действия 2FA записываются в таблицу `two_factor_logs`:
+All 2FA actions are recorded in `two_factor_logs` table:
 
-- Настройка 2FA
-- Попытки входа (успешные и неудачные)
-- Генерация и использование кодов
-- Административные изменения
+- 2FA setup
+- Login attempts (successful and failed)
+- Code generation and usage
+- Administrative changes
 
-#### **Хранение данных:**
+#### **Data storage:**
 
-- **TOTP секреты** хранятся в зашифрованном виде
-- **Резервные коды** хешируются перед сохранением
-- **Временные коды** автоматически удаляются после истечения
+- **TOTP secrets** stored encrypted
+- **Backup codes** hashed before saving
+- **Temporary codes** automatically deleted after expiration
 
-### Совместимые приложения
+### Compatible Applications
 
-#### **TOTP приложения:**
+#### **TOTP applications:**
 
 - **Google Authenticator** (iOS/Android)
 - **Microsoft Authenticator** (iOS/Android)
 - **Authy** (iOS/Android/Desktop)
-- **1Password** (с поддержкой TOTP)
-- **Bitwarden** (с поддержкой TOTP)
+- **1Password** (with TOTP support)
+- **Bitwarden** (with TOTP support)
 - **LastPass Authenticator**
 
-### Устранение проблем
+### Troubleshooting
 
-#### **Email не приходит:**
+#### **Email not arriving:**
 
-- Проверьте настройки SMTP в `config.php`
-- Проверьте папку "Спам"
-- Убедитесь в правильности email адреса
+- Check SMTP settings in `config.php`
+- Check "Spam" folder
+- Ensure email address is correct
 
-#### **QR-код не отображается:**
+#### **QR code not displaying:**
 
-- Проверьте интернет-соединение
-- Попробуйте ввести ключ вручную
-- Обновите страницу
+- Check internet connection
+- Try entering key manually
+- Refresh page
 
-#### **Коды не работают:**
+#### **Codes not working:**
 
-- Проверьте время на сервере и устройстве
-- Убедитесь, что код не истек
-- Проверьте правильность ввода (6 цифр)
-- Используйте резервный код при необходимости
+- Check server and device time
+- Ensure code hasn't expired
+- Check correct input (6 digits)
+- Use backup code if necessary
 
-#### **Ошибки базы данных:**
+#### **Database errors:**
 
-- Убедитесь, что выполнен полный `database.sql`
-- Проверьте права доступа к базе данных
-- Проверьте логи PHP на наличие ошибок
+- Ensure complete `database.sql` executed
+- Check database access rights
+- Check PHP logs for errors
 
-**Проблемы с расшариванием файлов:**
+**File sharing issues:**
 
-- ✅ **Исправлено**: Ошибка 500 при загрузке файлов - восстановлен правильный вызов `getFilesInRootDirectory()`
-- ✅ **Исправлено**: Расшаренные файлы из любых папок теперь отображаются у получателя
-- ✅ **Улучшено**: Убраны ограничения `d.parent_id IS NULL` в SQL запросах
-- ✅ **Добавлено**: Получение `sharedRootIds` для корректной работы метода
+- ✅ **Fixed**: Error 500 when uploading files - restored correct `getFilesInRootDirectory()` call
+- ✅ **Fixed**: Shared files from any folders now display for recipient
+- ✅ **Improved**: Removed `d.parent_id IS NULL` restrictions in SQL queries
+- ✅ **Added**: Getting `sharedRootIds` for correct method operation
 
-### Получение прав администратора
+### Getting Administrator Rights
 
-Для получения доступа к административной панели:
+To access administrative panel:
 
-### 1. Назначьте пользователю роль администратора в базе данных или командной строке SQL
+### 1. Assign user administrator role in database or SQL command line
 
 ```sql
 UPDATE users SET role = 'admin', is_admin = 1 WHERE email = your@email.com;
 UPDATE users SET role = 'admin', is_admin = 1 WHERE id = userID;
 ```
 
-### 2. На странице входа login.html очистите кеш и куки браузера (CTRL+SHIFT+R)
+### 2. On login page login.html clear browser cache and cookies (CTRL+SHIFT+R)
 
-### 3. Войдите в систему с теми же логином и паролем с которыми вы зарегистрировались в качестве пользователя
+### 3. Log into system with same login and password you registered as user
 
-### 4. Теперь у вас будет доступ к панели администратора
+### 4. Now you will have access to administrator panel
+## API Routes and Functionality
 
-## API Роуты и функциональность
-
-**⚠️ Важно:** Большинство роутов требуют авторизации. Сначала выполните POST /users/login для получения сессии.
+**⚠️ Important:** Most routes require authorization. First execute POST /users/login to get session.
 
 ---
 
-## Роуты для пользователей (роль: user)
+## Routes for Users (role: user)
 
-## Регистрация и авторизация
+## Registration and Authorization
 
 `base_url`: `http://localhost:8080/login.html`
 
 **POST /register**  
-Регистрация нового пользователя
+Register new user
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
 
 ```json
 {
-    "first_name": "Иван",
-    "middle_name": "Иванович",
-    "last_name": "Иванов", 
+    "first_name": "John",
+    "middle_name": "John",
+    "last_name": "Johnson", 
     "gender": "male",
     "age": 25,
-    "email": "ivan@example.com",
+    "email": "john@example.com",
     "password": "secure_password"
 }
 
 {
-    "first_name": "Артем",
-    "middle_name": "Артемович",
-    "last_name": "Артемов", 
+    "first_name": "Arthur",
+    "middle_name": "Arthur",
+    "last_name": "Arthurs", 
     "gender": "male",
     "age": 27,
-    "email": "artiom@example.com",
+    "email": "arthur@example.com",
     "password": "secure_password1"
 }
 
 {
-    "first_name": "Алексей",
-    "middle_name": "Алексеевич",
-    "last_name": "Алексеев", 
+    "first_name": "Alex",
+    "middle_name": "Alex",
+    "last_name": "Alexson", 
     "gender": "male",
     "age": 29,
-    "email": "alexey@example.com",
+    "email": "alex@example.com",
     "password": "secure_password2"
 }
 ```
 
 **POST /users/login**  
-Авторизация пользователя
+User authorization
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
 
 ```json
 {
-    "email": "ivan@example.com",
+    "email": "john@example.com",
     "password": "secure_password"
 }
 ```
 
 **GET /users/logout**  
-Выход из системы (требует авторизации)
+System logout (requires authorization)
 
 ---
 
-## Новые роуты для сброса пароля
+## New Password Reset Routes
 
 **POST /users/reset_password**  
-Запрос на сброс пароля через email
+Request password reset via email
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -980,7 +979,7 @@ Body → raw → JSON:
 ```
 
 **POST /users/password-reset-validate**  
-Проверка валидности токена сброса
+Check reset token validity
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -992,7 +991,7 @@ Body → raw → JSON:
 ```
 
 **POST /users/password-reset-confirm**  
-Подтверждение сброса пароля с новым паролем
+Confirm password reset with new password
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -1007,66 +1006,66 @@ Body → raw → JSON:
 
 ---
 
-## Управление пользователями (для пользователей)
+## User Management (for users)
 
 **GET /users/list**  
-Получить список пользователей
+Get user list
 
 **GET /users/get/{id}**  
-Получить информацию о пользователе по ID
+Get user information by ID
 
 **PUT /users/update**  
-Обновить данные текущего пользователя
+Update current user data
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
 
 ```json
 { 
-    "first_name": "Новое имя", 
-    "last_name": "Новая фамилия", 
+    "first_name": "New name", 
+    "last_name": "New surname", 
     "email": "new@example.com", 
     "old_password": "", 
     "new_password": "", 
     "confirm_new_password": "" 
 }
 
-Описание полей:
-- `first_name` — новое имя пользователя.
-- `last_name` — новая фамилия пользователя.
-- `email` — новый email пользователя.
-- `old_password` — текущий пароль (необязательное поле, требуется только при смене пароля).
-- `new_password` — новый пароль (необязательное поле).
-- `confirm_new_password` — подтверждение нового пароля (необязательное поле).
+Field descriptions:
+- `first_name` — new user first name.
+- `last_name` — new user last name.
+- `email` — new user email.
+- `old_password` — current password (optional field, required only when changing password).
+- `new_password` — new password (optional field).
+- `confirm_new_password` — new password confirmation (optional field).
 
-Если поля для смены пароля (`old_password`, `new_password`, `confirm_new_password`) не переданы, пароль останется без изменений.  
-Для успешного изменения пароля необходимо указать все три поля, при этом `new_password` и `confirm_new_password` должны совпадать, а `old_password` должен быть корректным текущим паролем пользователя.
+If password change fields (`old_password`, `new_password`, `confirm_new_password`) are not provided, password remains unchanged.  
+For successful password change, all three fields must be specified, with `new_password` and `confirm_new_password` matching, and `old_password` being correct current user password.
 
 ```
 
 ---
 
-## Управление файлами
+## File Management
 
 **POST /files/add**  
-Добавить файл (алиас для upload)
+Add file (alias for upload)
 
 **Content-Type:** `multipart/form-data`
 
-**Параметры формы:**
+**Form parameters:**
 
-- `files[]` - массив файлов для загрузки (обязательный)
-- `directory_id` - ID папки назначения (по умолчанию "root")
-- `paths` - JSON строка с относительными путями для создания структуры папок (необязательный)
+- `files[]` - array of files to upload (required)
+- `directory_id` - destination folder ID (default "root")
+- `paths` - JSON string with relative paths for folder structure creation (optional)
 
 **GET /files/list**  
-Получить список файлов и папок
+Get list of files and folders
 
 **GET /files/get/{id}**
-Получить информацию о файле по ID
+Get file information by ID
 
 **PUT /files/rename**
-Переименовать файл
+Rename file
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -1074,32 +1073,32 @@ Body → raw → JSON:
 ```json
 {
     "file_id": 123,
-    "new_name": "Новое имя файла"
+    "new_name": "New file name"
 }
 ```
 
 **DELETE /files/remove/{id}**  
-Удалить файл по ID
+Delete file by ID
 
 ---
 
-## Управление папками
+## Folder Management
 
 **POST /directories/add**  
-Создать папку
+Create folder
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
 
 ```json
 {
-    "name": "Новая папка",
+    "name": "New folder",
     "parent_id": "root"
 }
 ```
 
 **PUT /directories/rename**  
-Переименовать папку
+Rename folder
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -1107,45 +1106,45 @@ Body → raw → JSON:
 ```json
 {
     "id": 123,    
-    "new_name": "Новое имя папки"  
+    "new_name": "New folder name"  
 }
 ```
 
 **GET /directories/get/{id}**  
-Получить информацию о папке и её содержимом
+Get folder information and its contents
 
 **DELETE /directories/delete/{id}**  
-Удалить папку по ID
+Delete folder by ID
 
 ---
 
-## Расшаривание файлов
+## File Sharing
 
 **PUT /files/share/{id}/{user_id}**  
-Расшарить файл конкретному пользователю
+Share file with specific user
 
 **GET /files/share/{id}**  
-Получить информацию о расшаривании файла
+Get file sharing information
 
 **DELETE /files/share/{id}/{user_id}**  
-Убрать расшаривание файла с конкретного пользователя
+Remove file sharing from specific user
 
 ---
 
-## Дополнительные файловые роуты (расширенная функциональность)
+## Additional File Routes (extended functionality)
 
 **POST /files/upload**  
-Загрузить файл или несколько файлов
+Upload file or multiple files
 
 **Content-Type:** `multipart/form-data`
 
-**Параметры формы:**
+**Form parameters:**
 
-- `files[]` - массив файлов для загрузки (обязательный)
-- `directory_id` - ID папки назначения (по умолчанию "root")
-- `paths` - JSON строка с относительными путями для создания структуры папок (необязательный)
+- `files[]` - array of files to upload (required)
+- `directory_id` - destination folder ID (default "root")
+- `paths` - JSON string with relative paths for folder structure creation (optional)
 
-### Пример 1: Загрузка одного или нескольких файлов в корневую папку
+### Example 1: Upload one or multiple files to root folder
 
 ## POST /files/upload
 
@@ -1156,9 +1155,9 @@ Form data:
 files[]: document.pdf
 directory_id: root
 
-### Пример 2: Загрузка файлов с созданием структуры папок
+### Example 2: Upload files with folder structure creation
 
-## POST /files/upload (структурированная загрузка)
+## POST /files/upload (structured upload)
 
 Content-Type: multipart/form-data
 
@@ -1170,7 +1169,7 @@ files[]: project/src/main.js
 directory_id: root
 paths: ["project/docs/readme.txt", "project/images/logo.png", "project/src/main.js"]
 
-**Пример настройки form-data в Postman:**
+**Example form-data setup in Postman:**
 
 ```text
 Key: files[]        Type: File      Value: [Select Files]
@@ -1178,7 +1177,7 @@ Key: directory_id   Type: Text      Value: root
 Key: paths          Type: Text      Value: ["docs/readme.txt", "images/logo.png"]
 ```
 
-**Структура JSON для параметра `paths`:**
+**JSON structure for `paths` parameter:**
 
 ```json
 [
@@ -1188,18 +1187,18 @@ Key: paths          Type: Text      Value: ["docs/readme.txt", "images/logo.png"
 ]
 ```
 
-**Ограничения:**
+**Limitations:**
 
-- Максимальный размер файла: 50MB
-- Поддерживаемые форматы: jpg, jpeg, png, gif, pdf, doc, docx, txt, zip, rar
-- Максимальное количество файлов за один запрос: 20
+- Maximum file size: 50MB
+- Supported formats: jpg, jpeg, png, gif, pdf, doc, docx, txt, zip, rar
+- Maximum files per request: 20
 
-**Ответ при успехе (200 OK):**
+**Success response (200 OK):**
 
 ```json
 {
     "success": true,
-    "message": "Загружено 3 из 3 файлов",
+    "message": "Uploaded 3 of 3 files",
     "results": [
         {
             "file": "document.pdf",
@@ -1214,7 +1213,7 @@ Key: paths          Type: Text      Value: ["docs/readme.txt", "images/logo.png"
         {
             "file": "large_file.zip",
             "success": false,
-            "error": "Файл слишком большой (максимум 50MB)"
+            "error": "File too large (maximum 50MB)"
         }
     ],
     "total": 3,
@@ -1224,10 +1223,10 @@ Key: paths          Type: Text      Value: ["docs/readme.txt", "images/logo.png"
 
 ---
 
-## Дополнительные роуты папок (расширенная функциональность)
+## Additional Folder Routes (extended functionality)
 
 **POST /directories/share**  
-Расшарить папку пользователю
+Share folder with user
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -1235,17 +1234,17 @@ Body → raw → JSON:
 ```json
 {
     "directory_id": 123,
-    "email": "artiom@example.com"
+    "email": "arthur@example.com"
 }
 ```
 
 ### POST /directories/unshare
 
-1) Отменить расшаривание папки владельцем
+1) Cancel folder sharing by owner
 
-2) Отказаться от доступа к папке полученной от другого пользователя
+2) Decline access to folder received from another user
 
-**⚠️ Важно: нужно авторизоваться в аккаунте пользователя получившего папку от другого пользователя
+**⚠️ Important: need to authorize in account of user who received folder from another user
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -1257,7 +1256,7 @@ Body → raw → JSON:
 ```
 
 **PUT /directories/move**  
-Переместить папку
+Move folder
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -1270,86 +1269,86 @@ Body → raw → JSON:
 ```
 
 **GET /directories/download/{id}**  
-Скачать папку как архив
+Download folder as archive
 
 **GET /directories/list**  
-Получить список всех папок пользователя
+Get list of all user folders
 
 ---
 
-## Роуты для администраторов (роль: admin)
+## Routes for Administrators (role: admin)
 
-## Авторизация и назначение администратора
+## Authorization and Administrator Assignment
 
 **POST /users/create-first-admin**  
-Назначение первого администратора (публичный эндпоинт для тестирования)
+Assign first administrator (public endpoint for testing)
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
 
 ```json
 {
-    "email": "ivan@example.com"
+    "email": "john@example.com"
 }
 ```
 
 **POST /users/login**  
-Авторизация администратора (тот же эндпоинт, что и для пользователей)
+Administrator authorization (same endpoint as for users)
 
 ```json
 {
-    "email": "ivan@example.com",
+    "email": "john@example.com",
     "password": "secure_password"
 }
 ```
 
 ---
 
-## Управление пользователями
+## User Management
 
-**⚠️ Обязательно: нужно заново авторизоваться в аккаунте администратора
+**⚠️ Required: need to re-authorize in administrator account
 
 **GET /admin/users/list**  
-Получить список всех пользователей
+Get list of all users
 
 **GET /admin/users/get/{id}**  
-Получить подробную информацию о пользователе по ID
+Get detailed user information by ID
 
 **PUT /admin/users/update/{id}**  
-Обновить данные пользователя
+Update user data
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
 
 ```json
 {
-    "first_name": "Новое имя",
-    "last_name": "Новая фамилия",
+    "first_name": "New name",
+    "last_name": "New surname",
     "email": "new@example.com",
     "role": "user"
 }
 ```
 
 **DELETE /admin/users/delete/{id}**  
-Удалить пользователя по ID
+Delete user by ID
 
 ---
 
-## Дополнительные админские роуты (расширенная функциональность)
+## Additional Admin Routes (extended functionality)
 
 **GET /admin/stats**  
-Получить статистику системы
+Get system statistics
 
 **POST /admin/users/{id}/make-admin**  
-Администратор назначает другого пользователя тоже администратором
+Administrator assigns another user as administrator
 
 **PATCH /admin/users/{id}/remove-admin**  
-Отозвать права с другого администратора
+Revoke rights from another administrator
 
-**⚠️ ВАЖНО:** Чтобы снять права с первого администратора, сначала назначьте другого пользователя администратором, авторизуйтесь под его аккаунтом, и потом отзовите права первого администратора.
+**⚠️ IMPORTANT:** To remove rights from first administrator, first assign another user as administrator, authorize under their account, then revoke first administrator's rights.
 
 **DELETE /admin/users/bulk-delete**  
-Массовое удаление пользователей
+Bulk user deletion
 
 Headers: Content-Type: application/json
 Body → raw → JSON:
@@ -1360,122 +1359,122 @@ Body → raw → JSON:
 }
 ```
 
-## Управление файлами и папками
+## File and Folder Management
 
 **GET /admin/files/list**  
-Получить список всех файлов в системе
+Get list of all files in system
 
 **DELETE /admin/files/{id}**  
-Удалить любой файл по ID (админский доступ)
+Delete any file by ID (admin access)
 
 **DELETE /admin/directories/delete/{id}**  
-Удалить любую папку по ID (админский доступ)
+Delete any folder by ID (admin access)
 
 **DELETE /admin/files/cleanup**  
-Очистка неиспользуемых файлов
+Cleanup unused files
 
 **DELETE /admin/files/clear**  
-Удалить все файлы в системе
+Delete all files in system
 
-## Системные функции
+## System Functions
 
 **GET /admin/logs**  
-Получить системные логи
+Get system logs
 
 ```text
-Query параметры:
-- level: all|info|warning|error (по умолчанию: all)
-- limit: количество записей (по умолчанию: 100)
+Query parameters:
+- level: all|info|warning|error (default: all)
+- limit: number of records (default: 100)
 ```
 
 **DELETE /admin/logs/clear**  
-Очистить все логи за предыдущие дни
+Clear all logs from previous days
 
 **GET /admin/system/health**  
-Получить информацию о состоянии системы
+Get system health information
 
 **GET /admin/security/report**  
-Получить отчет по безопасности
+Get security report
 
 ---
 
-### Типичные ошибки и их решения
+### Common Errors and Solutions
 
-#### 1. Ошибка 401 "Пользователь не авторизован"
+#### 1. Error 401 "User not authorized"
 
-**Причина:** Отсутствуют cookies авторизации  
-**Решение:** Выполните POST /users/login и убедитесь, что cookies сохранились
+**Cause:** Missing authorization cookies  
+**Solution:** Execute POST /users/login and ensure cookies are saved
 
-#### 2. Ошибка 403 "Недостаточно прав"
+#### 2. Error 403 "Insufficient rights"
 
-**Причина:** Пытаетесь получить доступ к админскому эндпоинту без прав администратора  
-**Решение:** Используйте `/users/create-first-admin` для назначения прав
+**Cause:** Trying to access admin endpoint without administrator rights  
+**Solution:** Use `/users/create-first-admin` to assign rights
 
-#### 3. Ошибка 404 "Пользователь не найден"
+#### 3. Error 404 "User not found"
 
-**Причина:** Пытаетесь назначить администратором несуществующего пользователя  
-**Решение:** Сначала зарегистрируйте пользователя через `/users/register`
+**Cause:** Trying to assign administrator to non-existent user  
+**Solution:** First register user via `/users/register`
 
-#### 4. Получение HTML вместо JSON
+#### 4. Getting HTML instead of JSON
 
-**Причина:** Неправильный URL или метод запроса  
-**Решение:** Проверьте правильность URL и HTTP метода
+**Cause:** Incorrect URL or request method  
+**Solution:** Check URL and HTTP method correctness
 
-#### 5. Ошибка "Администратор уже существует"
+#### 5. Error "Administrator already exists"
 
-**Причина:** В системе уже есть администратор  
-**Решение:** Используйте `/remove-admin` для сброса или авторизуйтесь существующим админом
+**Cause:** Administrator already exists in system  
+**Solution:** Use `/remove-admin` to reset or authorize with existing admin
 
-#### 6. Ошибки сброса пароля
+#### 6. Password reset errors
 
-**"Недействительный или просроченный токен"**  
-**Причина:** Токен истек (срок действия 1 час) или уже использован  
-**Решение:** Запросите новый токен через `/users/password-reset-request`
+**"Invalid or expired token"**  
+**Cause:** Token expired (valid for 1 hour) or already used  
+**Solution:** Request new token via `/users/password-reset-request`
 
-**"Email не отправляется"**  
-**Причина:** Неправильные настройки SMTP  
-**Решение:** Проверьте настройки email в `config/config.php`
+**"Email not sending"**  
+**Cause:** Incorrect SMTP settings  
+**Solution:** Check email settings in `config/config.php`
 
-**"Токен не найден в базе данных"**  
-**Причина:** Проблемы с сохранением токена  
-**Решение:** Проверьте таблицу `password_reset_tokens` в базе данных
+**"Token not found in database"**  
+**Cause:** Issues with token saving  
+**Solution:** Check `password_reset_tokens` table in database
 
 ---
 
-### Контакты для поддержки
+### Support Contacts
 
-При возникновении проблем с тестированием:
+When testing issues occur:
 
-1. Проверьте логи в папке `/logs/`
-2. Убедитесь, что база данных настроена корректно
-3. Проверьте права доступа к папкам `/uploads/` и `/logs/`
-4. Для проблем с email проверьте настройки SMTP
+1. Check logs in `/logs/` folder
+2. Ensure database is configured correctly
+3. Check access rights to `/uploads/` and `/logs/` folders
+4. For email issues check SMTP settings
 
-## Безопасность
+## Security
 
-### Реализованные меры безопасности
+### Implemented Security Measures
 
-- **Хеширование паролей**: Использование password_hash() для хранения паролей
-- **Валидация файлов**: Проверка типов и размеров загружаемых файлов
-- **SQL Injection защита**: Использование подготовленных запросов
-- **XSS защита**: Экранирование пользовательского ввода
-- **Ограничение доступа**: Middleware для проверки авторизации
-- **Логирование**: Ведение журнала всех действий пользователей
-- **Токены сброса паролей**: Безопасные одноразовые токены с ограниченным сроком действия
+- **Password hashing**: Using password_hash() for password storage
+- **File validation**: Checking types and sizes of uploaded files
+- **SQL Injection protection**: Using prepared statements
+- **XSS protection**: Escaping user input
+- **Access restriction**: Middleware for authorization checking
+- **Logging**: Maintaining log of all user actions
+- **Password reset tokens**: Secure one-time tokens with limited validity
 
-### Новые меры безопасности
+### New Security Measures
 
-- **Временные токены**: Токены сброса паролей действуют только 1 час
-- **Одноразовые токены**: Каждый токен можно использовать только один раз
-- **Очистка токенов**: Автоматическое удаление просроченных токенов
-- **Валидация email**: Проверка существования пользователя перед отправкой
-- **Безопасная генерация**: Использование криптографически стойких генераторов
+- **Temporary tokens**: Password reset tokens valid for only 1 hour
+- **One-time tokens**: Each token can only be used once
+- **Token cleanup**: Automatic deletion of expired tokens
+- **Email validation**: Checking user existence before sending
+- **Secure generation**: Using cryptographically strong generators
 
-## Устранение неполадок
+## Troubleshooting
 
-### Проблемы с загрузкой файлов
+### File Upload Issues
 
-I. **Проверьте права доступа к папкам:**
+I. **Check folder access rights:**
 
 ```bash
 chmod 755 uploads/
@@ -1483,7 +1482,7 @@ chmod 755 uploads/files/
 chmod 755 uploads/folders/
 ```
 
-II. **Увеличьте лимиты PHP в `php.ini`:**
+II. **Increase PHP limits in `php.ini`:**
 
 ```ini
 upload_max_filesize = 100M
@@ -1492,7 +1491,7 @@ max_execution_time = 300
 memory_limit = 256M
 ```
 
-III. **Проверьте, что папки существуют:**
+III. **Check that folders exist:**
 
 ```bash
 mkdir -p uploads/files
@@ -1500,45 +1499,45 @@ mkdir -p uploads/folders
 mkdir -p logs
 ```
 
-IV. **Проверьте настройки веб-сервера:**
+IV. **Check web server settings:**
 
-- Убедитесь, что Apache/Nginx имеет доступ к папке uploads
-- Проверьте, что .htaccess файл не блокирует загрузку
+- Ensure Apache/Nginx has access to uploads folder
+- Check that .htaccess file doesn't block uploads
 
-### Проблемы с видео
+### Video Issues
 
-I. **Видео не отображается в плитках:**
+I. **Video not displaying in tiles:**
 
-1. Проверьте консоль браузера (F12) на наличие ошибок
-2. Убедитесь, что файлы имеют правильный MIME-тип
-3. Проверьте, что видеофайлы не повреждены
+1. Check browser console (F12) for errors
+2. Ensure files have correct MIME type
+3. Check that video files are not corrupted
 
-II. **Проблемы с кэшем JavaScript (Chrome):**
+II. **JavaScript cache issues (Chrome):**
 
-1. Используйте Ctrl+F5 для принудительного обновления
-2. Очистите кэш браузера через настройки
-3. Попробуйте открыть в режиме инкогнито
+1. Use Ctrl+F5 for forced refresh
+2. Clear browser cache via settings
+3. Try opening in incognito mode
 
-III. **Видео не воспроизводится:**
+III. **Video not playing:**
 
-- Убедитесь, что файл действительно является видео
-- Проверьте поддержку формата браузером
-- Попробуйте другой браузер (Edge, Firefox)
-- Проверьте размер файла (лимит 50MB)
+- Ensure file is actually video
+- Check format support by browser
+- Try different browser (Edge, Firefox)
+- Check file size (50MB limit)
 
-### Проблемы с базой данных
+### Database Issues
 
-**Сбой подключения к базе данных** → Проверьте подключение:
+**Database connection failure** → Check connection:
 
 ```bash
 mysql -u username -p -h localhost database_name
 ```
 
-**Нет таблиц в базе данных** → Убедитесь, что все таблицы созданы:
+**No tables in database** → Ensure all tables are created:
 
 ```sql
 SHOW TABLES;
--- Должны быть: 
+-- Should be: 
 +-------------------------+
 | Tables_in_cloud_storage |
 +-------------------------+
@@ -1555,12 +1554,12 @@ SHOW TABLES;
 9 rows in set
 ```
 
-### Проблемы с email
+### Email Issues
 
-**Email не отправляется** → Проверьте настройки SMTP:
+**Email not sending** → Check SMTP settings:
 
 ```php
-// В config/config.php
+// In config/config.php
 'email' => [
     'smtp_host' => 'smtp.gmail.com',
     'smtp_port' => 587,
@@ -1572,57 +1571,57 @@ SHOW TABLES;
 ]
 ```
 
-**Для Gmail:**
+**For Gmail:**
 
-1. Включите двухфакторную аутентификацию
-2. Создайте пароль приложения в настройках Google
-3. Используйте пароль приложения, а не обычный пароль
+1. Enable two-factor authentication
+2. Create app password in Google settings
+3. Use app password, not regular password
 
-**Ошибки SMTP** → Проверьте логи:
+**SMTP errors** → Check logs:
 
 ```bash
-# Посмотрите PHP логи
+# View PHP logs
 tail -f /var/log/php_errors.log
 
-# Или логи приложения
+# Or application logs
 tail -f logs/app_YYYY-MM-DD.log
 ```
 
-V. **Проверьте логи ошибок:**
+V. **Check error logs:**
 
 ```bash
-# Посмотрите логи PHP (заранее перейдя по адресу папки логов вебсервера или окружения PHP)
+# View PHP logs (first navigate to web server or PHP environment logs folder)
 #Unix/Linux: 
 tail -f /var/log/php_errors.log
 #Windows PowerShell or Command Prompt:
 Get-Content -Path .\logs\php_errors.log 
 
-# Или логи приложения (заранее перейдя по адресу приложения)
+# Or application logs (first navigate to application address)
 #Unix/Linux:
 tail -f logs/app_YYYY-MM-DD.log
 #Windows PowerShell or Command Prompt:
-Get-Content -Path .\logs\app_YYYY-MM-DD.log (например: app_2025-07-10.log)
+Get-Content -Path .\logs\app_YYYY-MM-DD.log (example: app_2025-07-10.log)
 ```
 
-VI. **Типичные ошибки и решения:**
+VI. **Common errors and solutions:**
 
 ```text
-**"Файл слишком большой"** → увеличьте `upload_max_filesize`
+**"File too large"** → increase `upload_max_filesize`
 
-**"Превышено время выполнения"** → увеличьте `max_execution_time`
+**"Execution time exceeded"** → increase `max_execution_time`
 
-**"Недостаточно памяти"** → увеличьте `memory_limit`
+**"Insufficient memory"** → increase `memory_limit`
 
-**"Папка не найдена"** → проверьте права доступа и существование папок
+**"Folder not found"** → check access rights and folder existence
 
-**"SMTP Authentication failed"** → проверьте логин/пароль SMTP
+**"SMTP Authentication failed"** → check SMTP login/password
 
-**"Connection refused"** → проверьте хост и порт SMTP
+**"Connection refused"** → check SMTP host and port
 
-**"Токен не найден"** → проверьте таблицу password_reset_tokens
+**"Token not found"** → check password_reset_tokens table
 ```
 
-### Проблемы с правами доступа
+### Access Rights Issues
 
 ```bash
 chmod -R 755 CloudStorageApp/
@@ -1630,77 +1629,77 @@ chmod -R 777 uploads/
 chmod -R 777 logs/
 ```
 
-## FAQ (Часто задаваемые вопросы)
+## FAQ (Frequently Asked Questions)
 
-### Q: Как назначить пользователя администратором?
+### Q: How to assign user as administrator?
 
-A: Выполните SQL запрос:
+A: Execute SQL query:
 
 ```sql
 UPDATE users SET role = 'admin', is_admin = 1 WHERE email = your@email.com;
 UPDATE users SET role = 'admin', is_admin = 1 WHERE id = userID;
 ```
 
-Затем пользователь должен очистить кеш браузера и войти заново. (CTRL+SHIFT+R)
+Then user must clear browser cache and log in again. (CTRL+SHIFT+R)
 
-### Q: Какие поля обязательны при регистрации?
+### Q: Which fields are mandatory during registration?
 
-A: Имя, Фамилия, Email, Пароль и Повторите пароль (отмечены красной звездочкой в пользовательском интерфейсе).
+A: First Name, Last Name, Email, Password and Repeat Password (marked with red asterisk in user interface).
 
-### Q: Нужен ли Composer для работы приложения?
+### Q: Is Composer required for application to work?
 
-A: Да, для работы приложения необходим Composer, так как проект использует зависимости и автозагрузку по стандарту PSR-4. Для установки всех зависимостей выполните команду:
+A: Yes, Composer is required for application to work, as project uses dependencies and autoloading according to PSR-4 standard. To install all dependencies execute command:
 
 ```bash
 composer install
 ```
 
-Это установит PHPMailer и другие необходимые библиотеки.
+This will install PHPMailer and other necessary libraries.
 
-### Q: Какой максимальный размер файла?
+### Q: What is maximum file size?
 
-A: По умолчанию ограничен настройками PHP. Можно изменить в `php.ini`.
+A: By default limited by PHP settings. Can be changed in `php.ini`.
 
-### Q: Где хранятся загруженные файлы?
+### Q: Where are uploaded files stored?
 
-A: В папке `uploads/files/` в корне проекта.
+A: In `uploads/files/` folder in project root.
 
-### Q: Где хранятся загруженные папки?
+### Q: Where are uploaded folders stored?
 
-A: В папке `uploads/folders/` в корне проекта.
+A: In `uploads/folders/` folder in project root.
 
-### Q: Как работает сброс пароля?
+### Q: How does password reset work?
 
 A:
 
-1. Пользователь запрашивает сброс через email
-2. Система генерирует уникальный токен и сохраняет в БД
-3. Токен отправляется на email пользователя
-4. Пользователь переходит по ссылке и устанавливает новый пароль
-5. Токен помечается как использованный
+1. User requests reset via email
+2. System generates unique token and saves in DB
+3. Token is sent to user's email
+4. User follows link and sets new password
+5. Token is marked as used
 
-### Q: Сколько действует токен сброса пароля?
+### Q: How long is password reset token valid?
 
-A: Токен действует 1 час с момента создания. После использования токен становится недействительным.
+A: Token is valid for 1 hour from creation. After use token becomes invalid.
 
-### Q: Что делать, если email не приходит?
+### Q: What to do if email doesn't arrive?
 
-1. Проверьте папку "Спам"
-2. Убедитесь, что настройки SMTP корректны
-3. Проверьте логи приложения на наличие ошибок
-4. Для Gmail используйте пароль приложения, а не обычный пароль
+1. Check "Spam" folder
+2. Ensure SMTP settings are correct
+3. Check application logs for errors
+4. For Gmail use app password, not regular password
 
-### Q: Как использовать новые роуты расшаривания?
+### Q: How to use new sharing routes?
 
-Используйте:
+Use:
 
-- `PUT /files/share/{file_id}/{user_id}` - расшарить файл конкретному пользователю
-- `DELETE /files/share/{file_id}/{user_id}` - убрать расшаривание
-- `GET /files/share/{file_id}` - посмотреть, кому расшарен файл
+- `PUT /files/share/{file_id}/{user_id}` - share file with specific user
+- `DELETE /files/share/{file_id}/{user_id}` - remove sharing
+- `GET /files/share/{file_id}` - see who file is shared with
 
-### Q: Какие роуты требуют админских прав?
+### Q: Which routes require admin rights?
 
-Все роуты начинающиеся с `/admin/`:
+All routes starting with `/admin/`:
 
 - `/admin/users/list`
 - `/admin/users/get/{id}`
@@ -1710,51 +1709,50 @@ A: Токен действует 1 час с момента создания. П
 - `/admin/files`
 - `/admin/logs`
 
-### Q: Нужно ли устанавливать PHPMailer?
+### Q: Do I need to install PHPMailer?
 
-Для работы email функций рекомендуется установить PHPMailer:
+For email functions it's recommended to install PHPMailer:
 
 ```bash
 composer require phpmailer/phpmailer
 ```
 
-Или скачать вручную и поместить в папку `vendor/`.
+Or download manually and place in `vendor/` folder.
+## Examples of Using New Routes
 
-## Примеры использования новых роутов
-
-### Пример 1: Работа с пользователями
+### Example 1: Working with users
 
 ```bash
-# Получить список пользователей
+# Get user list
 GET /users/list
 
-# Получить конкретного пользователя
+# Get specific user
 GET /users/get/123
 
-# Обновить свои данные
+# Update your data
 PUT /users/update
 {
-    "first_name": "Новое имя",
+    "first_name": "New name",
     "email": "new@email.com"
 }
 ```
 
-### Пример 2: Сброс пароля (полный цикл)
+### Example 2: Password reset (full cycle)
 
 ```bash
-# 1. Запросить сброс пароля
+# 1. Request password reset
 POST /users/password-reset-request
 {
     "email": "user@example.com"
 }
 
-# 2. Проверить токен (получен из email)
+# 2. Validate token (received from email)
 POST /users/password-reset-validate
 {
     "token": "abc123def456"
 }
 
-# 3. Установить новый пароль
+# 3. Set new password
 POST /users/password-reset-confirm
 {
     "token": "abc123def456",
@@ -1763,116 +1761,116 @@ POST /users/password-reset-confirm
 }
 ```
 
-### Пример 3: Точное управление расшариванием
+### Example 3: Precise sharing management
 
 ```bash
-# Расшарить файл пользователю с ID 456
+# Share file with user ID 456
 PUT /files/share/123/456
 
-# Убрать расшаривание
+# Remove sharing
 DELETE /files/share/123/456
 
-# Посмотреть, кому расшарен файл
+# View who has access to the file
 GET /files/share/123
 ```
 
-### Пример 4: Админские функции (новые роуты)
+### Example 4: Admin functions (new routes)
 
 ```bash
-# Получить всех пользователей (админ)
+# Get all users (admin)
 GET /admin/users/list
 
-# Получить пользователя (админ)
+# Get user (admin)
 GET /admin/users/get/123
 
-# Обновить пользователя (админ)
+# Update user (admin)
 PUT /admin/users/update/123
 {
-    "first_name": "Новое имя",
+    "first_name": "New name",
     "role": "admin"
 }
 
-# Удалить пользователя (админ)
+# Delete user (admin)
 DELETE /admin/users/delete/123
 
-# Получить статистику системы
+# Get system statistics
 GET /admin/stats
 
-# Получить системные логи
+# Get system logs
 GET /admin/logs?level=error&limit=50
 ```
 
-### Пример 5: Работа с email уведомлениями
+### Example 5: Working with email notifications
 
 ```bash
-# Тестирование отправки email
+# Testing email sending
 POST /users/password-reset-request
 {
     "email": "test@example.com"
 }
 
-# Ответ при успехе:
+# Success response:
 {
     "success": true,
-    "message": "Ссылка для сброса пароля отправлена на ваш email"
+    "message": "Password reset link sent to your email"
 }
 
-# Ответ при ошибке SMTP:
+# SMTP error response:
 {
     "success": false,
-    "error": "Ошибка при отправке email"
+    "error": "Error sending email"
 }
 ```
 
-## Новые возможности системы
+## New System Features
 
-### 1. Просмотр видео (НОВАЯ ФУНКЦИЯ)
+### 1. Video Viewing (NEW FEATURE)
 
-- **Поддержка 12+ видеоформатов**: MP4, AVI, MKV, WebM, MOV, WMV, FLV, 3GP, TS, ASF, OGG, MPEG
-- **Автовоспроизведение в плитках**: Видео воспроизводятся при наведении (как в Viber)
-- **Canvas анимация**: Отрисовка кадров видео в плитках для предпросмотра
-- **Модальный просмотр**: Встроенный видеоплеер в модальном окне
-- **Стандартные контролы**: Использование нативных контролов браузера
-- **Обработка ошибок**: Graceful degradation для неподдерживаемых форматов
+- **Support for 12+ video formats**: MP4, AVI, MKV, WebM, MOV, WMV, FLV, 3GP, TS, ASF, OGG, MPEG
+- **Auto-play in tiles**: Videos play on hover (like in Viber)
+- **Canvas animation**: Video frame rendering in tiles for preview
+- **Modal viewing**: Built-in video player in modal window
+- **Standard controls**: Using native browser controls
+- **Error handling**: Graceful degradation for unsupported formats
 
-### 3. Система сброса паролей
+### 2. Password Reset System
 
-- **Безопасные токены**: Криптографически стойкие токены
-- **Ограниченное время**: Токены действуют 1 час
-- **Одноразовое использование**: Каждый токен можно использовать только один раз
-- **Email уведомления**: Красивые HTML письма с инструкциями
-- **Автоочистка**: Просроченные токены автоматически удаляются
+- **Secure tokens**: Cryptographically strong tokens
+- **Limited time**: Tokens valid for 1 hour
+- **Single use**: Each token can only be used once
+- **Email notifications**: Beautiful HTML emails with instructions
+- **Auto-cleanup**: Expired tokens automatically deleted
 
-### 2. Email сервис
+### 3. Email Service
 
-- **SMTP поддержка**: Отправка через внешние SMTP серверы
-- **HTML шаблоны**: Красивые email с брендингом
-- **Безопасность**: Защищенные соединения TLS/SSL
-- **Логирование**: Все email операции записываются в логи
-- **Fallback**: Резервные методы отправки
+- **SMTP support**: Sending through external SMTP servers
+- **HTML templates**: Beautiful branded emails
+- **Security**: Protected TLS/SSL connections
+- **Logging**: All email operations logged
+- **Fallback**: Backup sending methods
 
-### 3. Улучшенная безопасность
+### 4. Enhanced Security
 
-- **Валидация токенов**: Многоуровневая проверка токенов
-- **Защита от спама**: Ограничения на частоту запросов
-- **Аудит безопасности**: Детальное логирование всех операций
-- **Очистка данных**: Автоматическое удаление устаревших данных
+- **Token validation**: Multi-level token verification
+- **Spam protection**: Request frequency limits
+- **Security audit**: Detailed logging of all operations
+- **Data cleanup**: Automatic removal of outdated data
 
-## Установка PHPMailer (рекомендуется)
+## PHPMailer Installation (recommended)
 
-### Через Composer (рекомендуется)
+### Via Composer (recommended)
 
 ```bash
-# В корне проекта выполните:
+# In project root execute:
 composer require phpmailer/phpmailer
 ```
 
-### Ручная установка
+### Manual installation
 
-1. Скачайте PHPMailer с GitHub: [https://github.com/PHPMailer/PHPMailer]
+1. Download PHPMailer from GitHub: [https://github.com/PHPMailer/PHPMailer]
 
-2. Распакуйте в папку `vendor/phpmailer/phpmailer/`
-3. Структура должна быть:
+2. Extract to folder `vendor/phpmailer/phpmailer/`
+3. Structure should be:
 
 ```text
 CloudStorageApp/
@@ -1883,19 +1881,19 @@ CloudStorageApp/
 │           └── ...
 ```
 
-### Проверка установки
+### Installation check
 
 ```php
-// Создайте файл test_email.php в корне проекта:
+// Create test_email.php file in project root:
 <?php
 require_once 'vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 
 $mail = new PHPMailer(true);
-echo "PHPMailer установлен корректно!";
+echo "PHPMailer installed correctly!";
 ```
 
-## Настройка email провайдеров
+## Email Provider Configuration
 
 ### Gmail
 
@@ -1904,7 +1902,7 @@ echo "PHPMailer установлен корректно!";
     'smtp_host' => 'smtp.gmail.com',
     'smtp_port' => 587,
     'smtp_username' => 'your_email@gmail.com',
-    'smtp_password' => 'your_app_password', // Пароль приложения!
+    'smtp_password' => 'your_app_password', // App password!
     'smtp_secure' => 'tls',
     'from_email' => 'your_email@gmail.com',
     'from_name' => 'CloudStorageApp'
@@ -1953,13 +1951,13 @@ echo "PHPMailer установлен корректно!";
 ]
 ```
 
-## Тестирование новых функций
+## Testing New Features
 
-### Тестирование сброса пароля
+### Password Reset Testing
 
-1. **Зарегистрируйте тестового пользователя**
-2. **Настройте SMTP в config.php**
-3. **Запросите сброс пароля:**
+1. **Register test user**
+2. **Configure SMTP in config.php**
+3. **Request password reset:**
 
 ```bash
 POST /users/password-reset-request
@@ -1968,11 +1966,11 @@ POST /users/password-reset-request
 }
 ```
 
-### 4. **Проверьте email (и папку спам)**
+4. **Check email (and spam folder)**
 
-### 5. **Скопируйте токен из письма**
+5. **Copy token from email**
 
-### 6. **Проверьте токен:**
+6. **Validate token:**
 
 ```bash
 POST /users/password-reset-validate
@@ -1981,7 +1979,7 @@ POST /users/password-reset-validate
 }
 ```
 
-### 7. **Установите новый пароль:**
+7. **Set new password:**
 
 ```bash
 POST /users/password-reset-confirm
@@ -1992,106 +1990,106 @@ POST /users/password-reset-confirm
 }
 ```
 
-### Проверка базы данных
+### Database Check
 
 ```sql
--- Проверьте таблицу токенов
+-- Check tokens table
 SELECT * FROM password_reset_tokens;
 
--- Проверьте, что токены очищаются
+-- Check that tokens are cleaned up
 SELECT COUNT(*) FROM password_reset_tokens WHERE expires_at < UNIX_TIMESTAMP();
 ```
 
-## Мониторинг и обслуживание
+## Monitoring and Maintenance
 
-### Регулярные задачи
+### Regular Tasks
 
-1. **Очистка просроченных токенов** (можно настроить cron):
+1. **Cleanup expired tokens** (can set up cron):
 
 ```bash
-# Добавьте в crontab для ежедневной очистки:
+# Add to crontab for daily cleanup:
 0 2 * * * php /path/to/your/project/cleanup_tokens.php
 ```
 
-### 2. **Мониторинг логов**
+2. **Log monitoring**
 
 ```bash
-# Проверяйте логи на ошибки email:
+# Check logs for email errors:
 grep -i "email\|smtp\|mail" logs/app_*.log
 ```
 
-### 3. **Проверка дискового пространства**
+3. **Disk space check**
 
 ```bash
-# Следите за размером папки uploads:
+# Monitor uploads folder size:
 du -sh uploads/
 ```
 
-## Лицензия
+## License
 
-Данный проект создан в учебных целях и предназначен для демонстрации навыков разработки.
+This project is created for educational purposes and is intended to demonstrate development skills.
 
-## О проекте
+## About the Project
 
-Этот проект разработан как демонстрация навыков создания веб-приложений на PHP с использованием:
+This project is developed as a demonstration of web application development skills using PHP with:
 
-- **Чистой архитектуры** - контроллеры (2-3 строки), сервисы (бизнес-логика), репозитории (работа с данными)
-- **Паттернов Repository и Service** с интерфейсами
-- **Dependency Injection** через контейнер
-- **Специализированных сервисов**:
-  - `FileResponseService` - отправка файлов с поддержкой Range запросов
-  - `FileTypeService` - определение типов файлов и возможности предпросмотра
-  - `FileUtils` - утилиты для работы с файлами
-- **Работы с базами данных MySQL**
-- **Создания REST API**
-- **Обеспечения безопасности веб-приложений**
-- **Современных подходов к маршрутизации**
-- **Безопасного сброса паролей**
-- **SMTP интеграции для email уведомлений**
+- **Clean Architecture** - controllers (2-3 lines), services (business logic), repositories (data access)
+- **Repository and Service patterns** with interfaces
+- **Dependency Injection** through container
+- **Specialized services**:
+  - `FileResponseService` - file delivery with Range request support
+  - `FileTypeService` - file type detection and preview capabilities
+  - `FileUtils` - file handling utilities
+- **MySQL database work**
+- **REST API creation**
+- **Web application security**
+- **Modern routing approaches**
+- **Secure password reset**
+- **SMTP integration for email notifications**
 
-## Тестирование системы
+## System Testing
 
-### Быстрая диагностика
+### Quick Diagnostics
 
-Для проверки работоспособности системы:
+To check system functionality:
 
-1. **Проверка консоли браузера** (F12):
-   - Откройте инструменты разработчика
-   - Проверьте вкладку Console на наличие ошибок
-   - Проверьте вкладку Network для HTTP запросов
+1. **Browser console check** (F12):
+   - Open developer tools
+   - Check Console tab for errors
+   - Check Network tab for HTTP requests
 
-2. **Проверка авторизации**:
-   - Убедитесь, что вы авторизованы в системе
-   - Проверьте права доступа к файлам
-   - При необходимости перелогиньтесь
+2. **Authorization check**:
+   - Ensure you are logged into the system
+   - Check file access permissions
+   - Re-login if necessary
 
-3. **Очистка кэша браузера**:
-   - Используйте Ctrl+F5 для принудительного обновления
-   - Очистите кэш через настройки браузера
-   - Попробуйте режим инкогнито
+3. **Browser cache clearing**:
+   - Use Ctrl+F5 for forced refresh
+   - Clear cache through browser settings
+   - Try incognito mode
 
-### Тестирование функций файлов
+### File Function Testing
 
-#### **Иконки файлов в режиме списка**
+#### **File icons in list mode**
 
-- 🎬 **Видеофайлы**: синяя иконка play (воспроизведения)
-- 🖼️ **Изображения**: синяя иконка изображения
-- 📄 **PDF**: красная иконка PDF
-- 🎵 **Аудио**: желтая иконка музыки
-- 📝 **Word**: синяя иконка Word
-- 📊 **Excel**: зеленая иконка Excel
-- 📋 **PowerPoint**: желтая иконка презентации
-- 📄 **Текстовые**: голубая иконка текста
-- 🗜️ **Архивы**: серая иконка архива
-- 📄 **Прочие**: серая иконка файла
+- 🎬 **Video files**: blue play icon
+- 🖼️ **Images**: blue image icon
+- 📄 **PDF**: red PDF icon
+- 🎵 **Audio**: yellow music icon
+- 📝 **Word**: blue Word icon
+- 📊 **Excel**: green Excel icon
+- 📋 **PowerPoint**: yellow presentation icon
+- 📄 **Text files**: light blue text icon
+- 🗜️ **Archives**: gray archive icon
+- 📄 **Other**: gray file icon
 
-#### **Тестирование видео функций**
+#### **Video function testing**
 
-1. **Загрузите видеофайлы** (MP4, AVI, MOV)
-2. **Переключитесь в режим плиток**
-3. **Проверьте Canvas анимацию** при наведении
-4. **Откройте предпросмотр** нажатием на плитку
-5. **Убедитесь в корректной работе** видеоплеера
-6. **Проверьте иконки** в режиме списка
+1. **Upload video files** (MP4, AVI, MOV)
+2. **Switch to tile mode**
+3. **Check Canvas animation** on hover
+4. **Open preview** by clicking tile
+5. **Ensure video player works correctly**
+6. **Check icons** in list mode
 
-*Проект создан для образовательных целей и демонстрации технических навыков.*
+*Project created for educational purposes and technical skills demonstration.*
